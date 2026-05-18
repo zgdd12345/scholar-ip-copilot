@@ -83,7 +83,7 @@ Rationale: Claude Code, Codex CLI, and OpenCode all do general-purpose code unde
 - [ ] Versioned plugin manifest with migration tool
 - [ ] Adapter conformance test suite (Claude Code, Codex, OpenCode)
 - [~] End-to-end fixtures: **partial — `examples/deepresearch-small-obj-detection/` shipped (May 2026)** covering `/scholar:brainstorming` + `/scholar:deepresearch` Stages 1–6 via real WebSearch / WebFetch including an OAN-hallucination audit trail. Outstanding: synthetic-repo → manuscript-pdf and synthetic-repo → disclosure-md end-to-end fixtures.
-- [ ] Web UI (read-only) for inspecting `.evidraft/`
+- ~~Web UI (read-only) for inspecting `.evidraft/`~~ **DROPPED.** `.evidraft/` is already renderable: GitHub renders the markdown + JSON natively; Obsidian / VSCode / any markdown previewer covers local inspection; PDF handoff to advisors / attorneys is one `pandoc` invocation. Building a Web UI introduces a frontend stack (framework / build pipeline / JS deps / hosting / cross-browser testing) with a cost-to-value ratio that does not pay off for a research-workflow plugin. The plugin's job is to *generate* evidence-grounded artefacts; *consuming* them is the host's job (Claude Code) or the user's IDE / GitHub / email-friendly PDF export.
 
 ---
 
