@@ -166,19 +166,34 @@ Never run two providers' calls in parallel within a single `/scholar:deepresearc
 
 ## Procedure
 
-### 1. Build the URL
+### Two retrieval paths
 
-Pick the provider per the routing rules above. URL-encode the query (`%20` for spaces, `%22` for quotes, etc.). For OpenAlex, append `&mailto=` if the project supplies one.
+The host offers two complementary tools and the skill picks one per call:
+
+| Path | Tool | When |
+|---|---|---|
+| **A. Direct API fetch** | `WebFetch` against the verbatim URL templates above | Default for known `arxiv_id` / `doi` lookups, OpenAlex queries, and any case where structured JSON / XML is preferred. Returns LLM-summarised content from the host (not raw bytes), which is acceptable for fields we extract (title / authors / abstract / venue / year). |
+| **B. Domain-filtered web search** | `WebSearch` with `allowed_domains: ["arxiv.org", "openaccess.thecvf.com", ...]` | Default for free-text discovery (sub-queries like "training-time auxiliary branch dropped at inference"). Returns Google-indexed result lists with arXiv-style URLs that path A then resolves for metadata. Better recall than direct API queries that need exact keywords. |
+
+Most real retrieve passes interleave both: B for discovery → A for metadata resolution.
+
+### 1. Build the URL (path A) or query (path B)
+
+Path A: pick the provider per the routing rules above. URL-encode the query (`%20` for spaces, `%22` for quotes, etc.). For OpenAlex, append `&mailto=` if the project supplies one.
+
+Path B: form a natural-language query that includes domain-specific terminology; restrict via `allowed_domains` to keep the result list focused (arxiv.org + openaccess.thecvf.com cover most CS venues; add openreview.net for ICLR/NeurIPS workshops; add aclanthology.org for NLP).
 
 ### 2. Check the cache
 
-Compute `sha1` of the canonical URL. If `.evidraft/literature/.cache/<provider>/<sha1>.json` exists **and** is < 14 days old (compare `_fetched_at` to now), load it instead of fetching. If stale, **delete** the file and fall through to the fetch.
+Compute `sha1` of the canonical URL (path A) or the `(query, allowed_domains)` tuple (path B). If `.evidraft/literature/.cache/<provider>/<sha1>.json` exists **and** is < 14 days old (compare `_fetched_at` to now), load it instead of fetching. If stale, **delete** the file and fall through to the fetch.
 
 ### 3. Fetch
 
-Call `WebFetch` with the URL. For arXiv (XML), pass a prompt like "extract entries". For S2 / OpenAlex (JSON), pass a prompt asking the host to return the body verbatim, then parse.
+Path A: call `WebFetch` with the URL. For arXiv (XML), pass a prompt like "extract entries". For S2 / OpenAlex (JSON), pass a prompt asking the host to return the body verbatim, then parse.
 
-Respect the per-provider sleep budget. Treat HTTP 5xx the same as 429 (exponential backoff, max 3 retries).
+Path B: call `WebSearch` with the query and `allowed_domains`. Iterate the result list; for each promising entry, queue a path-A `WebFetch` against its arxiv abs / cvf paper URL to extract metadata.
+
+Respect the per-provider sleep budget. Treat HTTP 5xx the same as 429 (exponential backoff, max 3 retries). Path B is rate-limited by the host's WebSearch quota, not by arXiv / S2 — be conservative.
 
 ### 4. Parse the response shape
 

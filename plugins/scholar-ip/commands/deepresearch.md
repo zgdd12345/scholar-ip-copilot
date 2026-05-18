@@ -132,11 +132,18 @@ mode: fast | full
 
 ```json
 {"id":"cand_NNNN","title":"...","abstract":"...","venue":"...","year":2023,
- "authors":["..."],"doi":"...","source":"arxiv|semantic-scholar|openalex",
+ "authors":["..."],"doi":"...",
+ "arxiv_id":"2308.09534",                     // optional convenience field; null when not arXiv
+ "source":"arxiv|semantic-scholar|openalex|local-bib|local-pdf|llm-seed-unverified|superseded",
  "provider_id":"arxiv:2401.01234","sub_query_ids":["q1","q3"],
  "depth":0,"aliases":[{"source":"openalex","provider_id":"W..."}],
- "run_id":"..."}
+ "run_id":"...","verified":true,"confidence":"high|medium|low",
+ "verify_note":"how the row's metadata was verified"}
 ```
+
+**Cross-sub-query dedup** is mandatory: a candidate retrieved by both `q1` and `q3` collapses to ONE row whose `sub_query_ids` is the union `["q1", "q3"]`. The dedup key is DOI first, then (normalised title, first-author surname, year). Never emit two rows that would both `cite` the same paper.
+
+The `source` enum carries provenance, not config: in addition to the web-retrieval providers, it accepts `local-bib` / `local-pdf` (when MCP/network unavailable; see Failure mode), `llm-seed-unverified` (initial LLM seed before WebSearch verification — every such row MUST have `verified: false`), and `superseded` (audit trail for rows replaced by a later, verified row).
 
 **Failure mode.** If `WebFetch` is unavailable, every provider returns a hard rate-limit after retries, or the host has no network, fall back to: (a) BibTeX entries already in `.evidraft/literature/references.bib`, (b) PDFs under `references/` or `papers/`. Each fallback row uses `source: "local-bib"` or `source: "local-pdf"` and `provider_id: null`. Log the fallback in `plan.yaml.notes`. **Note:** `local-bib` / `local-pdf` only ever appear as `source:` on `candidates.jsonl` rows; they are **not** legal values for `project.yaml.lit_deep.providers` (the config enum is web-retrieval providers only).
 
@@ -148,18 +155,22 @@ mode: fast | full
 
 **Procedure.** Dispatch `screener` (one pass per candidate).
 
-1. Score each candidate against the inclusion / exclusion rubric derived from `plan.yaml`. Use a 0–5 integer score; `decision in {include, exclude, maybe}`.
+1. Score each candidate against the inclusion / exclusion rubric derived from `plan.yaml`. Use a 0–5 integer score; `decision in {include, include_with_caveat, exclude, maybe}`.
 2. Every drop carries a single-sentence `reason`. No silent rejects.
-3. When the abstract is missing and the candidate's score is borderline (`maybe`), invoke `skills/scholar-search/SKILL.md` with the candidate's `provider_id` to fetch the per-paper detail (S2 `/paper/<id>?fields=abstract` is the cheapest retry); if that still fails, set `decision=exclude` with `reason="abstract unavailable"`.
-4. Emit PRISMA counts: `retrieved`, `after_dedup`, `screened_in`, `screened_out`, plus `excluded_by_reason` histogram.
+3. `include_with_caveat` is for rows that are mechanistically relevant but match an exclusion keyword (e.g. a video-detection paper whose aux-branch trick is the relevant pattern but the modality is excluded). When used, `decision=include_with_caveat` AND the `caveat` column carries a one-sentence "cite as inspiration in Method, not as direct baseline" guidance. These rows still reach Stage 4 clustering but are tagged for non-baseline use only.
+4. When the abstract is missing and the candidate's score is borderline (`maybe`), invoke `skills/scholar-search/SKILL.md` with the candidate's `provider_id` to fetch the per-paper detail (S2 `/paper/<id>?fields=abstract` is the cheapest retry); if that still fails, set `decision=exclude` with `reason="abstract unavailable"`.
+5. Emit PRISMA counts: `retrieved`, `after_dedup`, `screened_in`, `screened_in_with_caveat`, `screened_out`, plus `excluded_by_reason` histogram.
 
 **Artefact schema — `screening_log.csv`.**
 
 ```
-id,score,decision,reason,run_id
-cand_0001,5,include,"matches q1 method perspective, dataset overlap","..."
-cand_0002,1,exclude,"out of year range (1998 < 2018)","..."
+id,score,decision,reason,caveat,run_id
+cand_0001,5,include,"matches q1 method perspective, dataset overlap",,dr-...
+cand_0002,1,exclude,"out of year range (1998 < 2018)",,dr-...
+cand_0003,3,include_with_caveat,"mechanism matches q1 but modality is video","cite as inspiration in Method, not as direct baseline",dr-...
 ```
+
+`caveat` is empty for `include` / `exclude` / `maybe`; non-empty only for `include_with_caveat`.
 
 PRISMA counts append to `plan.yaml.prisma:`.
 
