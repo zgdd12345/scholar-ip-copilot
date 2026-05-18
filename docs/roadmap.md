@@ -30,19 +30,27 @@
 - [x] `retention:` adapter enforcement wired
 - [x] schema fixture pytest gate + minimal CI
 
-## v0.3 — Patent retrieval depth + optional MCP backends
+## v0.3 — Patent depth (skill-only)
 
-`later`
+`done`
 
-- [ ] Claim parser (independent / dependent, element extraction)
-- [ ] Automated claim-chart construction
-- [ ] Novelty heuristics against prior art (must remain advisory, no legal conclusion)
-- [ ] (optional) MCP backends for offline / deterministic use — concrete candidates:
-  - `scholar-search` → MCP for air-gapped CI runs, deterministic snapshots, or rate-limit-isolated arXiv / Semantic Scholar / OpenAlex querying
-  - `patent-search` → MCP for jurisdiction-pinned USPTO / EPO / Google Patents fetch with reproducible result sets
-  - `latex-build` → MCP that wraps `latexmk` with a structured error parser so hooks can react on typed failures rather than shell exit codes
-  - `code-intel` → MCP fronted by tree-sitter / language servers / semantic index for repos too large to scan with `Glob` / `Grep`
-  - Rationale: a user might want MCP backends when they need offline operation, deterministic CI fixtures, or a process boundary around heavy parsers — the skill contract is unchanged
+- [x] `claim-parser` skill — parses `claims.md` into `claims_parsed.json` (preamble + transition + bracketed elements + antecedent chain + dependency graph); 9 structural warnings (4 `fail`, 4 `warn`, 1 `info`)
+- [x] `claim-chart-builder` skill — emits `claim_chart.md` + `claim_chart-<ts>.json` with `overlap_score ∈ {none, low, medium, high, identical}` (`identical` requires verbatim quote), risk roll-up rule, suggested-revision recipe (never widens scope)
+- [x] `novelty-heuristics` skill — per-element overlap analysis + `verdict_hint ∈ {novel, narrow, redraft, withdraw}` **advisory only**; 7 rule_ids; ethics framing shipped verbatim in description AND body
+- [x] `/scholar:patent-claims` upgraded to drive parser + chart-builder after writing `claims.md` (structured form is canonical, prose is for humans)
+- [x] `/scholar:patent-review` upgraded with structured-audit pre-pass (parser + chart + heuristics); panel roles now consume structured findings instead of working from prose; novelty-critic must explicitly override heuristic verdicts when they disagree
+
+**No MCP shipped.** All three skills use host-native `Read` / `Glob` / `Grep` / `Write` / `Bash:grep*` only. Optional MCP backends remain a future possibility (see v0.3 → v0.x deferred list) but are not on the v1.0 critical path.
+
+## v0.3.deferred — optional MCP backends
+
+`later (optional)`
+
+- [ ] `scholar-search` → MCP for air-gapped CI runs, deterministic snapshots, or rate-limit-isolated arXiv / Semantic Scholar / OpenAlex querying
+- [ ] `patent-search` → MCP for jurisdiction-pinned USPTO / EPO / Google Patents fetch with reproducible result sets
+- [ ] `latex-build` → MCP that wraps `latexmk` with a structured error parser so hooks can react on typed failures rather than shell exit codes
+- [ ] `code-intel` → MCP fronted by tree-sitter / language servers / semantic index for repos too large to scan with `Glob` / `Grep`
+- Rationale: users may want MCP backends for offline operation, deterministic CI fixtures, or a process boundary around heavy parsers — the skill contract is unchanged; MCP is one possible backend.
 
 ## v0.4 — Authoring quality
 

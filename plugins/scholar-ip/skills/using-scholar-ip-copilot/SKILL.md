@@ -110,8 +110,8 @@ The plugin **refuses** to make strong claims without citable evidence, and refus
 | `/scholar:patent-scout` | Discover candidate inventions from code/docs | `.evidraft/patent/invention_candidates.md` |
 | `/scholar:patent-prior-art` | Prior-art map + claim-chart skeleton | `.evidraft/patent/prior_art_map.md`, `claim_chart.md` |
 | `/scholar:patent-disclosure` | **Primary deliverable**: 技术交底书 (TID), 13 bilingual sections | `.evidraft/patent/invention_disclosure.md` |
-| `/scholar:patent-claims` | Advisory: draft independent + dependent claims | `.evidraft/patent/claims.md` |
-| `/scholar:patent-review` | 5-role review (engineer / drafter / novelty critic / technical / examiner) | `.evidraft/patent/patent_review_report.md` |
+| `/scholar:patent-claims` | Advisory: draft independent + dependent claims; parses to `claims_parsed.json` (canonical); builds structured `claim_chart-<ts>.json` with overlap_score + risk roll-up | `.evidraft/patent/claims.md` + `claims_parsed.json` + `claim_chart.md` + `claim_chart-<ts>.json` |
+| `/scholar:patent-review` | 5-role panel (engineer / drafter / novelty critic / technical / examiner) + consistency-checker, **backed by 3 structured audits** (claim-parser, claim-chart-builder, novelty-heuristics with advisory `verdict_hint ∈ {novel, narrow, redraft, withdraw}`) | `.evidraft/patent/patent_review_report.md` + `novelty_audit-<ts>.findings.json` |
 
 ### Shared / Phase 2 (4 modules)
 
