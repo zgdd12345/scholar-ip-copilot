@@ -1,0 +1,37 @@
+{
+  "run_id": "dr-2026-05-18-002",
+  "stage": "cluster",
+  "candidate_to_evidence": {
+    "cand_0011": ["ev_0001", "ev_0002"],
+    "cand_0012": ["ev_0007"],
+    "cand_0013": ["ev_0003"],
+    "cand_0014": ["ev_0004"],
+    "cand_0015": ["ev_0008"],
+    "cand_0016": ["ev_0009"],
+    "cand_0017": ["ev_0005"],
+    "cand_0018": ["ev_0006"],
+    "cand_0019": [],
+    "cand_0020": [],
+    "cand_0001": ["ev_0010"]
+  },
+  "candidate_to_cluster": {
+    "cand_0011": "cl_01",
+    "cand_0012": "cl_01",
+    "cand_0013": "cl_02",
+    "cand_0014": "cl_03",
+    "cand_0015": "cl_01",
+    "cand_0016": "cl_01",
+    "cand_0017": "cl_04",
+    "cand_0018": "cl_04",
+    "cand_0019": "cl_05",
+    "cand_0020": "cl_04",
+    "cand_0001": "superseded"
+  },
+  "cluster_to_evidence": {
+    "cl_01": ["ev_0001", "ev_0002", "ev_0007", "ev_0008", "ev_0009"],
+    "cl_02": ["ev_0003"],
+    "cl_03": ["ev_0004"],
+    "cl_04": ["ev_0005", "ev_0006"],
+    "cl_05": []
+  }
+}

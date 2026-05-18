@@ -82,7 +82,7 @@ Rationale: Claude Code, Codex CLI, and OpenCode all do general-purpose code unde
 
 - [ ] Versioned plugin manifest with migration tool
 - [ ] Adapter conformance test suite (Claude Code, Codex, OpenCode)
-- [ ] End-to-end fixtures: synthetic repo → manuscript pdf → disclosure md
+- [~] End-to-end fixtures: **partial — `examples/deepresearch-small-obj-detection/` shipped (May 2026)** covering `/scholar:brainstorming` + `/scholar:deepresearch` Stages 1–6 via real WebSearch / WebFetch including an OAN-hallucination audit trail. Outstanding: synthetic-repo → manuscript-pdf and synthetic-repo → disclosure-md end-to-end fixtures.
 - [ ] Web UI (read-only) for inspecting `.evidraft/`
 
 ---

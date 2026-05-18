@@ -1,0 +1,80 @@
+run_id: dr-2026-05-18-002
+stage: cluster
+
+# 5 clusters; bound by min(6, breadth=6). Each cluster names a method family,
+# not an application area, per skill.
+
+clusters:
+
+  - id: cl_01
+    name: "Train-time auxiliary branch, dropped at inference"
+    description: >
+      The exact pattern of our novelty hypothesis: a separate supervisory
+      branch active only during training; the deployed model carries no extra
+      cost. Members differ in supervision signal (contrastive / one-to-many /
+      hierarchical positive / feature imitation), in detector head family
+      (Faster R-CNN / DETR / VOD backbone), and in target object scale.
+    members: [cand_0011, cand_0012, cand_0015, cand_0016]
+    members_with_caveat: [cand_0012]              # VOD; mechanism-cite only
+    primary_contrast: cand_0011                    # CFINet — closest to us
+    why_canonical: "CFINet has Feature Imitation BRANCH + auxiliary imitation loss + small-object focus + Faster R-CNN baseline. This is the row our novelty must distinguish itself from."
+
+  - id: cl_02
+    name: "Coarse-to-fine / cascaded refinement for small objects"
+    description: >
+      Two-stage refinement focused on small-object regions: predict coarse
+      locations on low-resolution features, then refine with high-resolution
+      computation only on candidate regions. Differs from cl_01 in that the
+      cascade is alive at inference; the cost is reduced via sparsity rather
+      than removed via training-time-only branches.
+    members: [cand_0013]
+    primary_contrast: cand_0013                    # QueryDet
+    why_canonical: "QueryDet defines the family; CFINet also has a coarse-to-fine RPN but its aux branch dominates the comparison so it stays in cl_01."
+
+  - id: cl_03
+    name: "Inference-time scale handling (geometric slicing)"
+    description: >
+      No training-time change at all; manipulate inference by slicing the
+      input into overlapping tiles, running the detector per tile, and
+      merging. Mechanism is orthogonal to both cl_01 (no aux training) and
+      cl_02 (no per-region cascade) — but solves the same small-object scale
+      problem.
+    members: [cand_0014]
+    primary_contrast: cand_0014                    # SAHI
+    why_canonical: "SAHI is canonical and widely adopted. Listed because every small-obj paper contrasts against it."
+
+  - id: cl_04
+    name: "Small-object-specific feature integration & sampling"
+    description: >
+      Architectural changes inside the detector — multi-scale feature fusion,
+      receptive-field weighting, sampling rebalancing — without an explicit
+      aux training branch. Family members are commonly used as Faster R-CNN
+      baselines on VisDrone.
+    members: [cand_0017, cand_0018, cand_0020]
+    primary_contrast: cand_0017                    # MGDFIS
+    why_canonical: "MGDFIS is the current VisDrone-on-Faster-R-CNN best (33.4 mAP, +2 over baseline). Primary numerical baseline."
+
+  - id: cl_05
+    name: "Survey / taxonomy"
+    description: >
+      Scoping references. Not used for novelty comparison; cited to bound the
+      related-work section and to position our work in the existing taxonomy.
+    members: [cand_0019]
+    primary_contrast: null
+
+# Cross-cluster anchors for the synthesis stage:
+#   cl_01 vs us:  aux branch IDEA is shared; our differentiator must be
+#                 (a) supervision signal (region-aware heatmap vs feature
+#                 imitation) and (b) inference cost (CFINet keeps the
+#                 two-stage RPN; we drop our aux entirely).
+#   cl_02 vs us:  QueryDet trades sparsity for high-res inference; we trade
+#                 inference time for training-time aux supervision.
+#   cl_03 vs us:  SAHI is post-hoc; ours is intrinsic to training.
+#   cl_04 vs us:  These give a Faster R-CNN baseline; ours is the next-step
+#                 ablation contrast.
+
+summary:
+  cluster_count: 5
+  members_total: 10
+  with_caveat: 1
+  unclustered: 0

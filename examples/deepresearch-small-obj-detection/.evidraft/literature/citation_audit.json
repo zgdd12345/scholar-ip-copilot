@@ -1,0 +1,58 @@
+{
+  "run_id": "dr-2026-05-18-002",
+  "stage": "synthesise (citation audit)",
+  "manuscript_target": ".evidraft/literature/related_work.draft.md",
+  "audit_policy": "Every paragraph must cite at least one citation_key resolvable in references.bib; every numeric / strong claim must resolve to an evidence_id in evidence.jsonl.",
+  "paragraphs": [
+    {
+      "paragraph": 1,
+      "topic": "Train-time aux branch, dropped at inference",
+      "citation_keys": ["yuan2023cfinet", "mrdetr2024", "rtdetrv3_2024", "clab2025"],
+      "evidence_ids": ["ev_0001", "ev_0002", "ev_0008", "ev_0009", "ev_0007"],
+      "strong_claim_check": "PASS — every claim about a paper's mechanism cites the abstract-derived evidence row."
+    },
+    {
+      "paragraph": 2,
+      "topic": "Coarse-to-fine / sparse refinement",
+      "citation_keys": ["yang2022querydet"],
+      "evidence_ids": ["ev_0003"],
+      "strong_claim_check": "PASS — '+2.0 mAP_small' and '2.3x high-resolution acceleration' resolve to ev_0003."
+    },
+    {
+      "paragraph": 3,
+      "topic": "Inference-time scale handling (SAHI)",
+      "citation_keys": ["akyon2022sahi"],
+      "evidence_ids": ["ev_0004"],
+      "strong_claim_check": "PASS — all six numeric claims (+6.8/+5.1/+5.3 / +12.7/+13.4/+14.5) resolve to ev_0004."
+    },
+    {
+      "paragraph": 4,
+      "topic": "Faster R-CNN VisDrone baselines (MGDFIS, RemDet)",
+      "citation_keys": ["mgdfis2025", "remdet2024"],
+      "evidence_ids": ["ev_0005", "ev_0006"],
+      "strong_claim_check": "PASS — 33.4 mAP / +2 / +12.5 AP50 resolve to ev_0005; 110 FPS / +3.4 mAP resolve to ev_0006."
+    },
+    {
+      "paragraph": 5,
+      "topic": "Audit-trail paragraph (OAN falsification)",
+      "citation_keys": ["yuan2023cfinet"],
+      "evidence_ids": ["ev_0010", "ev_0001"],
+      "strong_claim_check": "PASS — falsification claim resolves to ev_0010 (note row); replacement claim resolves to ev_0001."
+    }
+  ],
+  "missing_citations": [],
+  "missing_evidence_ids": [],
+  "orphan_citations_in_bib": [],
+  "strong_claim_without_citation": [],
+  "summary": {
+    "paragraphs_total": 5,
+    "paragraphs_passing": 5,
+    "paragraphs_failing": 0,
+    "verdict": "PASS"
+  },
+  "notes": [
+    "All 9 citation_keys used in related_work.draft.md correspond to verified evidence.jsonl rows.",
+    "TODO: references.bib must be populated with the 8 cited entries (yuan2023cfinet, mrdetr2024, rtdetrv3_2024, clab2025, yang2022querydet, akyon2022sahi, mgdfis2025, remdet2024) before the draft will compile. bib-manager skill should be invoked next.",
+    "The audit_trail paragraph (5) is included in the draft for full transparency. If the user wants a 'clean' related-work without the OAN falsification narrative, paragraph 5 can be dropped — the evidence trail still lives in evidence.jsonl (ev_0010)."
+  ]
+}

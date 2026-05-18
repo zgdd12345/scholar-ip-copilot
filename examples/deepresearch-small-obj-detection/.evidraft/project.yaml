@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=../../../Users/fsm/project/MyProject/agentplugin/scholar-ip-copilot/packages/core/schemas/project.schema.json
+project_type: paper
+title: "EviDraft demo paper"
+field: ""
+target_venue: "arXiv"
+language: "en"
+authors: []
+status:
+  literature: not_started
+  idea: not_started
+  codebase: not_started
+  experiments: not_started
+  manuscript: not_started
+  patent: not_started
+artifacts:
+  evidence: ".evidraft/evidence/evidence.jsonl"
+  bib: ".evidraft/literature/references.bib"
+  manuscript: "manuscript/main.tex"
+rules:
+  require_citation_for_claims: true
+  require_experiment_source_for_numbers: true
+  require_code_trace_for_code_claims: true
+  allow_unverified_claims: false
+hooks:
+  citation_guard: block
+  evidence_consistency: block
+  latex_compile: warn
+  sensitive_file_guard: block
+  scope_required: block
+paper:
+  draft_style: arxiv

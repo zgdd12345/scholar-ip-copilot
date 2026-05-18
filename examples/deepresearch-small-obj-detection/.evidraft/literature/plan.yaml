@@ -1,0 +1,72 @@
+# /scholar:deepresearch Stage 1 — Frame
+# Source scope: .evidraft/scope/2026-05-18-small-obj-aux-roi.md
+# run_id used to tag every artefact this run produces.
+
+run_id: dr-2026-05-18-001
+topic: "training-time auxiliary ROI branch for small-object detection; single-stage at inference"
+budget:
+  breadth: 6          # max sub-queries per fan-out
+  depth: 2            # follow-up hops on retained candidates
+  max_concurrency: 8  # from lit_deep.max_concurrency (default)
+  hard_cap_candidates: 300   # = breadth * 50
+
+providers:
+  - arxiv
+  - semantic-scholar
+  - openalex
+
+year_range:
+  min: 2018           # FPN-era and after; older work is background-only
+  max: 2026
+
+venue_filter:
+  prefer:
+    - CVPR
+    - ICCV
+    - ECCV
+    - NeurIPS
+    - WACV
+    - BMVC
+    - arXiv
+  exclude: []         # no hard exclusions
+
+inclusion_keywords:
+  - "small object detection"
+  - "tiny object detection"
+  - "aerial object detection"
+  - "auxiliary supervision"
+  - "auxiliary branch"
+  - "deep supervision"
+  - "training-time branch"
+  - "single-stage detector"
+
+exclusion_keywords:
+  - "video"           # we are not doing video for v1
+  - "3D"
+  - "point cloud"
+  - "tracking"        # tracking ≠ detection scope
+  - "segmentation"    # different task family
+
+sub_queries:
+  - id: q1
+    text: "training-time auxiliary branch dropped at inference for object detection"
+    rationale: "Directly matches our novelty axis; will catch OAN, RepVGG-detection, deep supervision lineage."
+  - id: q2
+    text: "small object detection with region attention map or saliency supervision"
+    rationale: "Catches saliency-guided / attention-region-prior families."
+  - id: q3
+    text: "VisDrone TinyPerson aerial small object detector"
+    rationale: "Benchmark-anchored — pulls SOTA leaderboard work + dataset-specific methods."
+  - id: q4
+    text: "coarse-to-fine query-guided small object detection"
+    rationale: "QueryDet, CFINet family."
+  - id: q5
+    text: "slicing aided inference detection (SAHI)"
+    rationale: "Closest in motivation but different mechanism (geometric, inference-time)."
+  - id: q6
+    text: "Faster R-CNN small object detection improvement"
+    rationale: "Baseline anchor; surfaces directly-comparable two-stage variants we'll out-perform single-stage."
+
+notes:
+  - "scholar-search-mcp v0.1 raises NotImplementedError → Stage 2 falls back to LLM-seeded candidates with source=llm-seed-unverified and verified=false. Every row needs manual / MCP-re-verification before any draft cites it."
+  - "OAN must be confirmed as the closest prior art (Q3 risk in scope)."

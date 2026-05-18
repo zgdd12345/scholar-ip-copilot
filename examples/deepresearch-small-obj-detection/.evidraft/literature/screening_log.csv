@@ -1,0 +1,12 @@
+id,score,decision,reason,run_id
+cand_0011,5,include,"CFINet (ICCV 2023) — Coarse-to-fine RPN + Feature Imitation BRANCH with auxiliary imitation loss + small obj + Faster R-CNN baseline. Strongest novelty-overlap candidate; the comparison anchor for our work.",dr-2026-05-18-002
+cand_0012,3,include_with_caveat,"CLAB (arXiv:2508.20551) — Contrastive aux branch dropped at inference. Matches our mechanism exactly but for video object detection (excluded keyword 'video'); cite as pattern inspiration in Method, not as direct baseline. Caveat: VOD ≠ single-image; do not compare numbers directly.",dr-2026-05-18-002
+cand_0013,5,include,"QueryDet (CVPR 2022) — sparse-query cascaded coarse-to-fine; ours is dense supervision + drops aux at inference. Clear differentiator axis. Direct baseline.",dr-2026-05-18-002
+cand_0014,4,include,"SAHI — inference-time geometric slicing; clear motivation overlap, mechanism orthogonal. Standard contrast in any small-obj paper.",dr-2026-05-18-002
+cand_0015,3,include,"Mr. DETR — multi-route aux training, DETR-family. Same train-vs-inference asymmetry pattern; different detection-head family. Cite as evidence the asymmetry trick generalises.",dr-2026-05-18-002
+cand_0016,3,include,"RT-DETRv3 — hierarchical dense positive supervision via aux branches at training. Same family as Mr. DETR. Cite together as 'aux-branch-dropped-at-inference is now mainstream in DETR family'; argue extension to Faster R-CNN side is what's missing.",dr-2026-05-18-002
+cand_0017,5,include,"MGDFIS — current VisDrone-on-Faster-R-CNN SOTA (33.4 mAP, +2 over baseline). Primary baseline + main comparison target.",dr-2026-05-18-002
+cand_0018,3,include,"RemDet — UAV efficient detector, VisDrone SOTA +3.4 at 110 FPS / single 4090. Useful inference-cost reference; not a direct baseline (different framework family).",dr-2026-05-18-002
+cand_0019,3,include,"March 2025 small-obj survey — use for scoping the related-work section and citing taxonomy positions; do not cite for novelty comparison.",dr-2026-05-18-002
+cand_0020,3,include,"Better Sampling end-to-end small obj — candidate ablation contrast for the 'supervision-signal variant' axis of our work.",dr-2026-05-18-002
+cand_0001,0,exclude,"FALSIFIED — OAN (Yang 2022 ECCV) was hallucinated; superseded by cand_0011 (CFINet). Kept in candidates.jsonl as audit trail only.",dr-2026-05-18-001
