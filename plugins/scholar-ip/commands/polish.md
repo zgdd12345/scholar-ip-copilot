@@ -39,7 +39,6 @@ outputs:
 retention:
   keep_last: 30
   max_age_days: 90
-  policy: "At command start, prune humanize-* pairs older than max_age_days OR beyond keep_last entries (whichever cuts more)."
 allowed_tools: [Read, Write, Edit, Glob, Grep]
 hooks: [scope-required, citation-guard, evidence-consistency, humanize-evidence-preserve]
 subagents: [prose-polisher, evidence-auditor]
@@ -54,7 +53,7 @@ references:
 
 Williams-style prose polish for a draft that has already passed `/scholar:paper-check`. Reduces AI-flavour without changing meaning, preserves every claim-bearing token, and always ships a diff log so a human can review what changed and why.
 
-This is **not** a detector-evasion tool. The skill defines the full refusal-flag list and regex in `skills/humanize/SKILL.md` §3 — invocation is rejected on any match.
+This is **not** a detector-evasion tool. Invocation framings like `--evade-detector` are refused. The skill defines the full refusal-flag list and regex in `skills/humanize/SKILL.md` §3 — that is the source of truth; the example here exists only so the LLM has an anchor before the skill is loaded.
 
 ## Steps
 

@@ -36,7 +36,6 @@ outputs:
 retention:
   keep_last: 50
   max_age_days: 180
-  policy: "At command start, prune review files older than max_age_days OR beyond keep_last entries (whichever cuts more). .last.yaml always retained."
 allowed_tools:
   - "Bash:codex*"
   - "Bash:claude*"

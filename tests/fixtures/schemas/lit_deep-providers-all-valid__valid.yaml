@@ -1,0 +1,12 @@
+# Expect: VALID. All three MCP-backed providers accepted; max_concurrency
+# in valid range; breadth and depth at default-adjacent values.
+project_type: paper
+title: "regression fixture: full lit_deep configuration"
+status: {}
+artifacts: {}
+rules: {}
+lit_deep:
+  breadth: 8
+  depth: 2
+  max_concurrency: 6
+  providers: [arxiv, semantic-scholar, openalex]

@@ -1,0 +1,8 @@
+# Expect: INVALID. `blocking` is a typo / unknown enum value.
+project_type: paper
+title: "regression fixture: hook_mode typo rejected"
+status: {}
+artifacts: {}
+rules: {}
+hooks:
+  citation_guard: blocking   # typo of `block`; must fail validation

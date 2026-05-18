@@ -103,7 +103,22 @@ Same frontmatter, plus a `role`, `responsibilities`, `inputs`, `outputs`, `const
 
 ## Per-hook file
 
-A hook spec declares `trigger`, `phase`, `behaviour`, and the failure mode (`block` / `warn` / `audit`). Adapters that support hook scripts emit shell or python; adapters that only support prompt-level hints render them as system instructions.
+A hook spec declares `triggers` (array), `phase`, `behaviour`, and the failure mode (`block` / `warn` / `audit`). Adapters that support hook scripts emit shell or python; adapters that only support prompt-level hints render them as system instructions.
+
+### Trigger selectors
+
+Each entry in `triggers:` is a string selector. Adapters dispatch on these prefixes. New selector classes require an entry here before they can be used in a hook file.
+
+| Prefix | Form | Example | Fires on |
+|---|---|---|---|
+| `tool:` | `tool:<ToolName>[<glob>]` | `tool:Bash:codex*` | A specific host tool invocation; supports glob suffix on the argument |
+| `write:` | `write:<glob>` | `write:manuscript/**/*.tex` | A write that targets the matched path glob |
+| `read:` | `read:<glob>` | `read:.env` | A read that targets the matched path glob |
+| `command:` | `command:/<slash>` | `command:/scholar:polish` | The named slash-command runs (any phase of its execution) |
+| `subagent:` | `subagent:<id>` | `subagent:prose-polisher` | The named subagent is dispatched |
+| `phase:` | `phase:<paper\|patent\|shared>` | `phase:paper` | Any command of that phase runs (coarse-grained) |
+
+Prose entries (e.g. `"any external-agent invocation"`) are NOT valid selectors — adapters cannot dispatch on them. Put English prose in the `## When it fires` body section, not in `triggers:`.
 
 ## Adapter contract
 

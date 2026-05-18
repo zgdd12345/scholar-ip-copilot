@@ -1,0 +1,11 @@
+# Expect: INVALID. `local-bib` is a candidates.jsonl row fallback value,
+# NOT a config-side provider. The schema correctly rejects this misuse.
+# Legitimate fallback writes `source: local-bib` on a per-row basis when
+# scholar-search-mcp is unavailable; it never lands in project.yaml.
+project_type: paper
+title: "regression fixture: local-bib not legal in lit_deep.providers"
+status: {}
+artifacts: {}
+rules: {}
+lit_deep:
+  providers: [local-bib]   # category error: fallback row value, not config

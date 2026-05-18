@@ -110,9 +110,10 @@
       "description": "Heavy literature workflow settings consumed by /scholar:deepresearch.",
       "additionalProperties": false,
       "properties": {
-        "breadth":   { "type": "integer", "default": 6, "minimum": 1, "maximum": 12, "description": "Max sub-queries per fan-out. Worst-case candidate count is breadth*50; cap at 12 to bound budget." },
-        "depth":     { "type": "integer", "default": 2, "minimum": 1, "maximum": 3,  "description": "Recursive follow-up depth. Bound at 3 to avoid exponential token blow-up." },
-        "providers": { "type": "array", "items": { "$ref": "#/$defs/lit_provider" } }
+        "breadth":         { "type": "integer", "default": 6,  "minimum": 1, "maximum": 12, "description": "Max sub-queries per fan-out. Worst-case candidate count is breadth*50; cap at 12 to bound budget." },
+        "depth":           { "type": "integer", "default": 2,  "minimum": 1, "maximum": 3,  "description": "Recursive follow-up depth. Bound at 3 to avoid exponential token blow-up." },
+        "max_concurrency": { "type": "integer", "default": 8,  "minimum": 1, "maximum": 16, "description": "Maximum parallel provider × sub-query calls in flight during Stage 2 retrieve. Adapters honour `min(breadth, max_concurrency)`." },
+        "providers":       { "type": "array", "items": { "$ref": "#/$defs/lit_provider" } }
       }
     },
     "paper": {
@@ -146,7 +147,7 @@
     "hook_mode": {
       "type": "string",
       "enum": ["enabled", "block", "warn", "disabled"],
-      "description": "`enabled` and `block` are aliases (both mean: hook fires and blocks on violation). `warn` lets the offending action through but logs to the relevant check report. `disabled` skips the hook entirely."
+      "description": "Canonical: `block` (hook fires and blocks on violation). `enabled` is a legacy alias for `block` retained for back-compat. `warn` lets the action through but logs to the relevant check report. `disabled` skips the hook entirely. Prefer `block` in new config."
     },
     "project_type": {
       "type": "string",

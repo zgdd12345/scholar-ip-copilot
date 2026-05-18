@@ -1,0 +1,10 @@
+# Expect: INVALID. `breadth: 15` exceeds the maximum of 12.
+project_type: paper
+title: "regression fixture: lit_deep.breadth out of range"
+status: {}
+artifacts: {}
+rules: {}
+lit_deep:
+  breadth: 15
+  depth: 2
+  providers: [arxiv]

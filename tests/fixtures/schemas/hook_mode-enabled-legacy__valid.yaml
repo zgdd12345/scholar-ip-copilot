@@ -1,0 +1,10 @@
+# Expect: VALID. The legacy `enabled` value still validates.
+project_type: paper
+title: "regression fixture: hook_mode=enabled still accepted"
+status: {}
+artifacts: {}
+rules: {}
+hooks:
+  citation_guard: enabled
+  evidence_consistency: warn
+  scope_required: disabled

@@ -125,7 +125,7 @@ mode: fast | full
 3. Deduplicate by DOI, then by (normalised title, first author, year). Keep the most authoritative `source` per dedup cluster, but preserve all variants under `aliases`.
 4. Append rows to `candidates.jsonl`. Never blend metadata from two providers into one row without explicit reconciliation (see orchestrator constraints).
 
-**Concurrency.** The `sub_query × provider` matrix in step 1 is fully independent — fan out concurrently with `min(breadth, 8)` in flight. The `depth > 1` hops in step 2 are serial (they depend on step 1's retained set), but each hop's per-paper fan-out is again independent. Dedup (step 3) is single-threaded.
+**Concurrency.** The `sub_query × provider` matrix in step 1 is fully independent — fan out concurrently with `min(breadth, lit_deep.max_concurrency)` in flight (default `lit_deep.max_concurrency: 8`, configurable in `.evidraft/project.yaml`). The `depth > 1` hops in step 2 are serial (they depend on step 1's retained set), but each hop's per-paper fan-out is again independent. Dedup (step 3) is single-threaded.
 
 **Artefact schema — `candidates.jsonl`** (one JSON object per line):
 

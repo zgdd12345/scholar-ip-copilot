@@ -1,0 +1,12 @@
+# Expect: VALID. `block` is a legal alias of `enabled` in hook_mode.
+project_type: paper
+title: "regression fixture: hook_mode=block accepted"
+status: {}
+artifacts: {}
+rules: {}
+hooks:
+  citation_guard: block
+  evidence_consistency: block
+  scope_required: block
+  external_write_zone: block
+  humanize_evidence_preserve: block

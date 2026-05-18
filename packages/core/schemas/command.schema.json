@@ -54,12 +54,11 @@
     "forbidden_tools": { "type": "array", "items": { "type": "string" } },
     "retention": {
       "type": "object",
-      "description": "Disk-retention policy for accumulating-output commands (e.g. xreview, polish).",
+      "description": "Declarative disk-retention policy for accumulating-output commands (e.g. xreview, polish). v0.1 ships the declaration only — adapters enforce in v0.2 by emitting a pre-command pruning step. Until then this block is informational.",
       "additionalProperties": false,
       "properties": {
-        "keep_last":    { "type": "integer", "minimum": 1 },
-        "max_age_days": { "type": "integer", "minimum": 1 },
-        "policy":       { "type": "string" }
+        "keep_last":    { "type": "integer", "minimum": 1, "description": "Maximum number of output files to retain. Older files pruned at next invocation (v0.2)." },
+        "max_age_days": { "type": "integer", "minimum": 1, "description": "Maximum age in days of any retained output file (v0.2)." }
       }
     },
     "hooks":           { "type": "array", "items": { "type": "string" } },
