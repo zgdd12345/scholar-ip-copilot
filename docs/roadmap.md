@@ -17,29 +17,32 @@
 - [x] Claude Code adapter (markdown generator + plugin.json emitter)
 - [x] Codex CLI adapter (prompt/workflow emitter)
 - [x] OpenCode adapter (docs + stubbed generator)
-- [x] MCP stubs with documented interfaces for 6 servers
+- [x] MCP stubs with documented interfaces for 6 servers (deleted in v0.2 — see below)
 - [x] Examples: `cv-detection-paper/`, `generic-paper/`, `patent-disclosure/`
 - [x] Reference analysis of 10 upstream projects
 
-## v0.2 — Real retrieval and parsing
+## v0.2 — Host-native skills + hardening
 
 `next`
 
-- [ ] `scholar-search-mcp`: arXiv + Semantic Scholar minimal client
-- [ ] `bib-manager-mcp`: real BibTeX dedupe / normalize using `bibtexparser`
-- [ ] `latex-build-mcp`: `latexmk` wrapper + structured error parser
-- [ ] `code-intel-mcp`: `summarize_repo` via tree-sitter / language servers; entrypoint detection
-- [ ] `experiment-mcp`: csv/jsonl loader + numeric-claim source check
-- [ ] PDF text extraction (`pypdfium2` or `pymupdf`) behind the scholar-search MCP
+- [x] 5 new skills (`scholar-search`, `bib-manager`, `latex-build`, `code-intel`, `patent-search`) using host-native `WebSearch` / `WebFetch` / `Bash`
+- [x] Delete 7 MCP stub packages — replaced by skills
+- [x] `retention:` adapter enforcement wired
+- [x] schema fixture pytest gate + minimal CI
 
-## v0.3 — Patent retrieval and prior-art automation
+## v0.3 — Patent retrieval depth + optional MCP backends
 
 `later`
 
-- [ ] `patent-search-mcp`: USPTO / Google Patents / EPO connectors
 - [ ] Claim parser (independent / dependent, element extraction)
 - [ ] Automated claim-chart construction
 - [ ] Novelty heuristics against prior art (must remain advisory, no legal conclusion)
+- [ ] (optional) MCP backends for offline / deterministic use — concrete candidates:
+  - `scholar-search` → MCP for air-gapped CI runs, deterministic snapshots, or rate-limit-isolated arXiv / Semantic Scholar / OpenAlex querying
+  - `patent-search` → MCP for jurisdiction-pinned USPTO / EPO / Google Patents fetch with reproducible result sets
+  - `latex-build` → MCP that wraps `latexmk` with a structured error parser so hooks can react on typed failures rather than shell exit codes
+  - `code-intel` → MCP fronted by tree-sitter / language servers / semantic index for repos too large to scan with `Glob` / `Grep`
+  - Rationale: a user might want MCP backends when they need offline operation, deterministic CI fixtures, or a process boundary around heavy parsers — the skill contract is unchanged
 
 ## v0.4 — Authoring quality
 
@@ -56,7 +59,7 @@
 
 - [ ] Semantic code index (vector + symbol)
 - [ ] Repo-wiki generator
-- [ ] Architecture-summary subagent integrated with `code-intel-mcp`
+- [ ] Architecture-summary subagent integrated with the `code-intel` skill (and its optional v0.3+ MCP backend)
 - [ ] `method_to_code.md` auto-bootstrap from method description
 
 ## v1.0 — Hardening and packaging

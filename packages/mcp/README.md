@@ -1,78 +1,33 @@
-# `packages/mcp/` — MCP server stubs
+# MCP layer (reserved — v0.3+)
 
-EviDraft (`scholar-ip-copilot`) is designed so that the plugin remains
-fully usable when every MCP server in this directory is **disabled**. The
-stubs in this folder define the **interfaces** that adapters and commands
-may call once real implementations land; in v0.1 each tool raises
-`NotImplementedError("scheduled for v0.X — see roadmap.md")`.
+**Status.** v0.1 / v0.2 ship retrieval and tooling as **skills** under
+`plugins/scholar-ip/skills/`, which use the host's built-in `WebSearch`,
+`WebFetch`, and `Bash`. MCP servers are reserved for v0.3+ as an
+optional offline / deterministic backend.
 
-See [`docs/architecture.md`](../../docs/architecture.md) for how this
-layer fits in, and [`docs/roadmap.md`](../../docs/roadmap.md) for the
-implementation schedule.
+## Migration: former MCP stub → replacement skill
 
-## Servers
+| Former MCP stub (deleted) | Replacement skill (v0.2) |
+|---|---|
+| `scholar-search-mcp` | [`plugins/scholar-ip/skills/scholar-search/`](../../plugins/scholar-ip/skills/scholar-search/SKILL.md) |
+| `bib-manager-mcp` | [`plugins/scholar-ip/skills/bib-manager/`](../../plugins/scholar-ip/skills/bib-manager/SKILL.md) |
+| `latex-build-mcp` | [`plugins/scholar-ip/skills/latex-build/`](../../plugins/scholar-ip/skills/latex-build/SKILL.md) |
+| `code-intel-mcp` | [`plugins/scholar-ip/skills/code-intel/`](../../plugins/scholar-ip/skills/code-intel/SKILL.md) |
+| `experiment-mcp` | [`plugins/scholar-ip/skills/experiment-analysis/`](../../plugins/scholar-ip/skills/experiment-analysis/SKILL.md) (already existed) |
+| `patent-search-mcp` | [`plugins/scholar-ip/skills/patent-search/`](../../plugins/scholar-ip/skills/patent-search/SKILL.md) |
+| `external-agent-mcp` | [`plugins/scholar-ip/skills/external-agent-bridge/`](../../plugins/scholar-ip/skills/external-agent-bridge/SKILL.md) (already existed) |
 
-| Server | Path | Tools | Status |
-|---|---|---|---|
-| `scholar-search` | [`scholar-search-mcp/`](scholar-search-mcp/) | `search_papers`, `get_paper_metadata`, `download_pdf`, `extract_references` | `stub` |
-| `bib-manager` | [`bib-manager-mcp/`](bib-manager-mcp/) | `dedupe_bib`, `normalize_citation_keys`, `check_missing_entries`, `check_unused_references` | `stub` |
-| `latex-build` | [`latex-build-mcp/`](latex-build-mcp/) | `compile_latex`, `parse_latex_errors`, `render_pdf_preview` | `stub` |
-| `code-intel` | [`code-intel-mcp/`](code-intel-mcp/) | `summarize_repo`, `find_entrypoints`, `extract_config_schema`, `map_method_to_code`, `search_code` | `stub` |
-| `experiment` | [`experiment-mcp/`](experiment-mcp/) | `load_results`, `summarize_metrics`, `generate_latex_table`, `suggest_figures`, `check_number_sources` | `stub` |
-| `patent-search` | [`patent-search-mcp/`](patent-search-mcp/) | `search_patents`, `extract_claims`, `build_prior_art_chart`, `compare_claim_elements` | `stub` |
+## Rationale
 
-Each server folder ships:
+Skills are host-portable (Claude Code / Codex / OpenCode all expose
+`WebSearch` / `WebFetch` / `Bash`), evolve with upstream API changes
+without code churn, and avoid maintaining seven boilerplate MCP stubs
+that simply re-export the same host primitives. MCP comes back in v0.3+
+when there are concrete offline / CI / determinism requirements that
+the host-tool skills cannot meet.
 
-```
-<id>-mcp/
-├── README.md     purpose, tools, status, roadmap pointer
-├── __init__.py   re-exports the tool functions
-└── server.py     tool functions + a minimal __main__ hint
-```
+## If you want an MCP backend for skill X
 
-## Enabling a server when its implementation lands
-
-When a server graduates from `stub` to `mvp` (or higher), opt in from your
-project's `.evidraft/project.yaml`. The exact knobs are documented in each
-server's README; the pattern is:
-
-```yaml
-# .evidraft/project.yaml
-mcp:
-  scholar-search:
-    enabled: true
-    provider: arxiv
-  bib-manager:
-    enabled: true
-    citation_key_pattern: firstauthorYEARkeyword
-  latex-build:
-    enabled: true
-    engine: latexmk
-  code-intel:
-    enabled: true
-    semantic_index: false
-  experiment:
-    enabled: true
-    parquet: false
-  patent-search:
-    enabled: true
-    provider: uspto-patentsview
-    jurisdictions: [US, EP, CN]
-```
-
-If a server is not listed or `enabled: false`, the corresponding command
-degrades gracefully — for example `/scholar:paper-lit` falls back to
-human-supplied PDFs and the local `references.bib`, and
-`/scholar:paper-experiment` falls back to whatever the user already has in
-`experiments/tables/`.
-
-## Quality bar for these stubs
-
-- Every `server.py` starts with `from __future__ import annotations` and
-  has full type hints.
-- Every tool function has a docstring documenting purpose, args, returns,
-  and that it raises `NotImplementedError` in v0.1.
-- No network code, no subprocess calls, no side effects — only
-  `pyyaml` and the stdlib are permitted dependencies.
-- Patent outputs are framed as **advisory** in every README and in
-  `patent-search-mcp/server.py`'s module docstring.
+Copy the relevant skill body and re-implement its `WebFetch` / `Bash`
+calls as MCP tool functions. The **skill remains the contract** — the
+MCP server is one of potentially many backends that satisfy it.

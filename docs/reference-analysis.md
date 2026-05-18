@@ -158,7 +158,7 @@ Codebase indexing and semantic search.
   - Repo wiki + architecture summary.
   - Method-to-code mapping.
 - **What EviDraft adopts**
-  - `code-intel-mcp` interface (`summarize_repo`, `find_entrypoints`, `extract_config_schema`, `map_method_to_code`, `search_code`).
+  - `code-intel` skill (formerly planned as `code-intel-mcp`; v0.2 lives as a skill that uses Glob/Grep/Read + optional `Bash:tree-sitter*`).
   - `codebase-analyst` agent and the `code/method_to_code.md` artefact.
 - **What we skip**
   - Real vector index — stubbed in MVP, listed under v0.5.

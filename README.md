@@ -116,7 +116,7 @@ scholar-ip-copilot/
 ├── packages/
 │   ├── core/                     JSON schemas + (future) python helpers
 │   ├── adapters/                 claude-code / codex-cli / opencode adapters
-│   └── mcp/                      stub MCP servers (scholar-search, bib-manager, latex-build, code-intel, experiment, patent-search)
+│   └── mcp/                      (reserved, v0.3+) MCP backends — host-native skills cover v0.2
 ├── examples/                     cv-detection-paper, generic-paper, patent-disclosure
 └── tests/                        fixtures + integration scaffolding
 ```
@@ -127,7 +127,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the layered architecture 
 
 ## Install / use (MVP draft)
 
-> The MVP ships **manifests, prompts, schemas, and adapter scripts**. Online retrieval, real LaTeX compilation, and full code semantic indexing are **stubbed** and exposed as MCP interfaces under `packages/mcp/`.
+> Retrieval and tooling use the host's built-in `WebSearch`, `WebFetch`, and `Bash` via skills under `plugins/scholar-ip/skills/`. No external MCP is required for v0.2. MCP backends are reserved for v0.3+ as an optional offline / deterministic alternative — see [`packages/mcp/README.md`](packages/mcp/README.md).
 
 ### Claude Code
 

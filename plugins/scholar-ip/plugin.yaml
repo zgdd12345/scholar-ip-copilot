@@ -59,26 +59,7 @@ safety:
     - "Bash:cat*"
     - "Bash:latexmk*"
 
-# Optional MCP servers. The plugin must remain usable with all of these disabled.
-mcp_servers:
-  - id: scholar-search
-    package: packages/mcp/scholar-search-mcp/
-    status: stub
-  - id: bib-manager
-    package: packages/mcp/bib-manager-mcp/
-    status: stub
-  - id: latex-build
-    package: packages/mcp/latex-build-mcp/
-    status: stub
-  - id: code-intel
-    package: packages/mcp/code-intel-mcp/
-    status: stub
-  - id: experiment
-    package: packages/mcp/experiment-mcp/
-    status: stub
-  - id: patent-search
-    package: packages/mcp/patent-search-mcp/
-    status: stub
+mcp_servers: []  # MCP layer reserved for v0.3+; v0.2 uses host-native skills
 
 # Quick-reference command order.
 # Paper default style is arXiv-neutral; /scholar:paper-venue converts at submission time.

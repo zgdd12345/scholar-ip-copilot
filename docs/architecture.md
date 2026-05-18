@@ -1,6 +1,6 @@
 # Architecture
 
-`scholar-ip-copilot` is a layered system. The **core** is a set of platform-neutral schemas and workflow definitions. Each **adapter** translates that core into a specific coding-agent host's plugin format. **MCP servers** (planned) provide retrieval, parsing, and computation; the plugin can run with all of them stubbed.
+`scholar-ip-copilot` is a layered system. The **core** is a set of platform-neutral schemas and workflow definitions. Each **adapter** translates that core into a specific coding-agent host's plugin format. Retrieval, parsing, and computation ship as **skills** that call the host's built-in `WebSearch` / `WebFetch` / `Bash`; **MCP servers** are reserved for v0.3+ as an optional offline / deterministic backend.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
@@ -32,9 +32,7 @@
 └────────────────┘   └──────────────────┘   └───────────────┘   └───────────┘
 
 ┌──────────────────────────────────────────────────────────────────────────┐
-│  MCP layer  (packages/mcp/, stubs)                                       │
-│  scholar-search · bib-manager · latex-build · code-intel ·               │
-│  experiment · patent-search                                              │
+│  (optional, v0.3+) MCP backends — alt impls of skills above              │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -120,18 +118,21 @@ This keeps platform churn out of the plugin author's life.
 
 ## 4. MCP layer (`packages/mcp/`)
 
-MCP servers are **optional**. The plugin must run with them all stubbed; that is what the MVP ships.
+MCP servers are **reserved for v0.3+**; v0.1 / v0.2 ship retrieval and tooling as skills that use the host's built-in `WebSearch`, `WebFetch`, and `Bash`. The `packages/mcp/` directory holds only a README documenting the migration and how to opt back in to an MCP backend later.
 
-| MCP server | Tools | Status |
-|---|---|---|
-| `scholar-search-mcp` | `search_papers`, `get_paper_metadata`, `download_pdf`, `extract_references` | stub |
-| `bib-manager-mcp` | `dedupe_bib`, `normalize_citation_keys`, `check_missing_entries`, `check_unused_references` | stub |
-| `latex-build-mcp` | `compile_latex`, `parse_latex_errors`, `render_pdf_preview` | stub |
-| `code-intel-mcp` | `summarize_repo`, `find_entrypoints`, `extract_config_schema`, `map_method_to_code`, `search_code` | stub |
-| `experiment-mcp` | `load_results`, `summarize_metrics`, `generate_latex_table`, `suggest_figures`, `check_number_sources` | stub |
-| `patent-search-mcp` | `search_patents`, `extract_claims`, `build_prior_art_chart`, `compare_claim_elements` | stub |
+### Skill replacement (former MCP stub → v0.2 skill)
 
-When no MCP is available a command degrades to the best it can do using local Read / Glob / Bash and human-supplied PDFs.
+| Former MCP stub | Replacement skill (v0.2, host-native) |
+|---|---|
+| `scholar-search-mcp` | `plugins/scholar-ip/skills/scholar-search/` |
+| `bib-manager-mcp` | `plugins/scholar-ip/skills/bib-manager/` |
+| `latex-build-mcp` | `plugins/scholar-ip/skills/latex-build/` |
+| `code-intel-mcp` | `plugins/scholar-ip/skills/code-intel/` |
+| `experiment-mcp` | `plugins/scholar-ip/skills/experiment-analysis/` (already existed) |
+| `patent-search-mcp` | `plugins/scholar-ip/skills/patent-search/` |
+| `external-agent-mcp` | `plugins/scholar-ip/skills/external-agent-bridge/` (already existed) |
+
+Each replacement skill is the **contract**. A v0.3+ MCP server, if added, is one possible backend that satisfies that contract — used when offline operation, deterministic CI, or rate-limit isolation matters.
 
 ---
 
@@ -241,4 +242,4 @@ See [`roadmap.md`](roadmap.md). Short version:
 
 **MVP does**: workflow skeleton, prompts, schemas, adapters for Claude Code + Codex CLI, two templates, three examples.
 
-**MVP doesn't**: online paper/patent retrieval, full PDF parsing, real LaTeX compilation, semantic code index, web UI. Interfaces are reserved under `packages/mcp/`.
+**MVP doesn't**: semantic code index, web UI, offline / deterministic backends. Online retrieval, PDF fetch, and LaTeX compilation are delivered through v0.2 host-native skills (`WebSearch` / `WebFetch` / `Bash:latexmk*`); MCP backends for those same skills are reserved for v0.3+.
