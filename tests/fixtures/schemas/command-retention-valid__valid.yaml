@@ -1,0 +1,11 @@
+# Expect: VALID. A minimal command frontmatter carrying a well-formed
+# `retention:` block. Both `keep_last` and `max_age_days` are present and
+# above their `minimum: 1` floor.
+id: xreview
+title: "regression fixture: command with valid retention block"
+kind: command
+slash: /scholar:xreview
+phase: shared
+retention:
+  keep_last: 50
+  max_age_days: 180

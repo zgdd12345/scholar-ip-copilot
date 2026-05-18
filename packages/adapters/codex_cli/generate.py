@@ -23,8 +23,64 @@ from .._shared.loader import (
     FrontmatterDoc,
     Plugin,
     load_plugin as _load_plugin,
+    render_retention_prune_snippet,
     validate as _validate,
 )
+
+
+def _retention_section(meta: dict[str, Any]) -> list[str]:
+    """If ``meta`` declares ``retention:``, return the lines of a
+    ``## Pre-run cleanup`` section. Otherwise return ``[]``.
+
+    Mirrors the Claude Code adapter so the same retention contract is enforced
+    on every host that lacks first-class pre-command hooks.
+    """
+    retention = meta.get("retention") or {}
+    if not retention:
+        return []
+    keep_last = retention.get("keep_last")
+    max_age_days = retention.get("max_age_days")
+    if keep_last is None and max_age_days is None:
+        return []
+
+    outputs = meta.get("outputs") or []
+    output_dir = ".evidraft"
+    file_glob = "*"
+    for o in outputs:
+        path = o.get("path") or ""
+        if "/" in path and "<" not in path.split("/")[0]:
+            import re as _re
+
+            parent, base = path.rsplit("/", 1)
+            output_dir = parent
+            file_glob = _re.sub(r"<[^>]+>", "*", base) or "*"
+            break
+
+    cmd_id = str(meta.get("id") or "command")
+    snippet = render_retention_prune_snippet(
+        command_id=cmd_id,
+        output_dir=output_dir,
+        keep_last=keep_last,
+        max_age_days=max_age_days,
+        file_glob=file_glob,
+    )
+    if snippet is None:
+        return []
+
+    return [
+        "<!-- evidraft: retention -->",
+        "## Pre-run cleanup",
+        "",
+        (
+            "Run the following retention-prune snippet at command start. "
+            "It is idempotent and safe to re-run."
+        ),
+        "",
+        "```bash",
+        snippet,
+        "```",
+        "",
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -61,6 +117,10 @@ def _render_command(
         lines.append("")
         lines.append(desc)
     lines.append("")
+
+    # Retention prune snippet (sits at the very top of the prompt body so the
+    # model runs it before any other tool call).
+    lines.extend(_retention_section(meta))
 
     inputs = meta.get("inputs") or []
     if inputs:

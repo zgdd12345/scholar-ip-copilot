@@ -71,9 +71,13 @@ def main(argv: list[str] | None = None) -> int:
         + len(plugin.skills)
         + len(plugin.hooks)
     )
+    n_retention = sum(
+        1 for d in plugin.commands if (d.meta or {}).get("retention")
+    )
     print(
         f"[opencode] lint: {n} document(s) in {args.plugin.resolve()} passed schema check"
     )
+    print(f"[opencode] lint summary: commands with retention: {n_retention}")
     if args.dry_run:
         print("[opencode] dry-run: nothing to write (stub adapter).")
     return 0

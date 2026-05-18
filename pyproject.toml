@@ -32,6 +32,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8",
+    "jsonschema>=4.20",
     "ruff>=0.4",
 ]
 mcp = [
@@ -45,6 +46,14 @@ evidraft-codex-cli = "packages.adapters.codex_cli.generate:main"
 
 [tool.setuptools.packages.find]
 where = ["packages"]
+
+[tool.pytest.ini_options]
+# Add the repo root to sys.path so tests can import `packages.adapters.*`
+# (the canonical dotted path used throughout the codebase and in
+# `[project.scripts]` entry points). pytest 9 no longer prepends cwd
+# automatically when test files live outside an installed package.
+pythonpath = ["."]
+testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100

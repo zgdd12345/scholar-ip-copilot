@@ -3,6 +3,16 @@
 The platform-neutral source under ``plugins/scholar-ip/`` is parsed once into a
 ``Plugin`` dict-like structure that adapters then translate to their host
 format. Keeps every adapter ~100 lines of pure rendering logic.
+
+Retention enforcement
+---------------------
+v0.2 emits the ``retention:`` block declared on a command as a POSIX bash
+snippet that adapters splice into the rendered command body as a
+``## Pre-run cleanup`` section. The snippet is run by the LLM at command start
+(host-agnostic, no special API needed). v0.3 will promote this to a first-class
+adapter hook (PreToolUse on Claude Code; equivalent on Codex CLI / OpenCode)
+once those host APIs converge on a uniform pre-command callback contract. The
+body-level snippet path stays as a safety net for hosts without hooks.
 """
 
 from __future__ import annotations
@@ -169,3 +179,69 @@ def validate(plugin: Plugin, schema_path: Path) -> list[str]:
     for d in plugin.hooks:
         _check(d, "hook")
     return errors
+
+
+# ---------------------------------------------------------------------------
+# Retention enforcement
+# ---------------------------------------------------------------------------
+
+
+def render_retention_prune_snippet(
+    command_id: str,
+    output_dir: str,
+    keep_last: int | None,
+    max_age_days: int | None,
+    file_glob: str = "*",
+) -> str | None:
+    """Generate a bash one-liner that prunes ``<output_dir>/<file_glob>``
+    to the retention budget. Returns ``None`` if no retention is declared.
+
+    Returns shell-safe POSIX (used by Claude Code and Codex CLI adapters).
+    Operates on regular files only; never traverses into subdirs unless
+    ``file_glob`` explicitly says so. Skips hidden files (``.last.yaml`` etc.)
+    because ``find -name '*'`` and shell globs do not match leading-dot files
+    by default — that is precisely the behaviour we want for the index file
+    ``.evidraft/reviews/.last.yaml`` and any other dotfile under
+    ``<output_dir>``.
+
+    Properties:
+        * Idempotent — running the snippet twice in a row is a no-op the
+          second time.
+        * Guarded — when ``<output_dir>`` does not exist the snippet is a
+          no-op, so the very first invocation of a command never errors out.
+        * Order — age-based pruning runs first, then keep-last takes the
+          remaining file count down to the cap.
+    """
+    if keep_last is None and max_age_days is None:
+        return None
+
+    parts: list[str] = []
+    parts.append(f"# evidraft retention prune for /{command_id} ({output_dir})")
+    parts.append(f'DIR="{output_dir}"')
+    parts.append(f'GLOB="{file_glob}"')
+    if max_age_days is not None:
+        parts.append(f"MAX_AGE_DAYS={int(max_age_days)}")
+    if keep_last is not None:
+        parts.append(f"KEEP_LAST={int(keep_last)}")
+    parts.append('if [ -d "$DIR" ]; then')
+    if max_age_days is not None:
+        # -maxdepth 1: never descend into subdirs.
+        # -type f: regular files only.
+        # -name "$GLOB": leading-dot files are not matched by '*' globs,
+        #   which is intentional — preserves .last.yaml and any dotfiles.
+        # -mtime +N: strictly older than N*24h.
+        parts.append(
+            '  find "$DIR" -maxdepth 1 -type f -name "$GLOB" '
+            '-mtime +$MAX_AGE_DAYS -delete 2>/dev/null || true'
+        )
+    if keep_last is not None:
+        # `ls -1t` lists newest first; `tail -n +K` skips the first K-1 lines
+        # so we delete everything from line K onward (i.e. everything past
+        # the keep-last cap). Quote the path to survive spaces; xargs -I{}
+        # handles per-file rm with no shell expansion.
+        parts.append(
+            '  ls -1t "$DIR"/$GLOB 2>/dev/null | tail -n +$((KEEP_LAST + 1)) '
+            "| xargs -I{} rm -f -- {} 2>/dev/null || true"
+        )
+    parts.append("fi")
+    return "\n".join(parts)

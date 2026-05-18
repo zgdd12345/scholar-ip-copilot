@@ -1,0 +1,10 @@
+# Expect: INVALID. `retention.keep_last` has `minimum: 1` in the schema;
+# `0` (and any non-positive integer) must be rejected.
+id: xreview
+title: "regression fixture: retention.keep_last below minimum"
+kind: command
+slash: /scholar:xreview
+phase: shared
+retention:
+  keep_last: 0   # below `minimum: 1`; must fail validation
+  max_age_days: 90

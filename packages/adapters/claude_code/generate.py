@@ -22,7 +22,67 @@ from typing import Any
 
 import yaml
 
-from .._shared.loader import FrontmatterDoc, Plugin, load_plugin as _load_plugin, validate as _validate
+from .._shared.loader import (
+    FrontmatterDoc,
+    Plugin,
+    load_plugin as _load_plugin,
+    render_retention_prune_snippet,
+    validate as _validate,
+)
+
+
+def _retention_preamble(meta: dict[str, Any]) -> str:
+    """If ``meta`` declares ``retention:``, return a ``## Pre-run cleanup``
+    section to splice at the top of the rendered command body. Otherwise ``""``.
+
+    The output directory is inferred from the first ``outputs[].path`` that
+    contains a slash — its parent directory becomes ``<output_dir>``. The file
+    glob is the basename of that same output path with ``<...>`` placeholders
+    replaced by ``*`` (e.g. ``humanize-<ts>.log`` -> ``humanize-*.log``).
+    """
+    retention = meta.get("retention") or {}
+    if not retention:
+        return ""
+    keep_last = retention.get("keep_last")
+    max_age_days = retention.get("max_age_days")
+    if keep_last is None and max_age_days is None:
+        return ""
+
+    outputs = meta.get("outputs") or []
+    output_dir = ".evidraft"
+    file_glob = "*"
+    for o in outputs:
+        path = o.get("path") or ""
+        if "/" in path and "<" not in path.split("/")[0]:
+            parent, base = path.rsplit("/", 1)
+            output_dir = parent
+            # Replace any "<placeholder>" with "*" so the glob matches the
+            # rendered filenames produced at runtime.
+            import re as _re
+
+            file_glob = _re.sub(r"<[^>]+>", "*", base) or "*"
+            break
+
+    cmd_id = str(meta.get("id") or "command")
+    snippet = render_retention_prune_snippet(
+        command_id=cmd_id,
+        output_dir=output_dir,
+        keep_last=keep_last,
+        max_age_days=max_age_days,
+        file_glob=file_glob,
+    )
+    if snippet is None:
+        return ""
+
+    return (
+        "<!-- evidraft: retention -->\n"
+        "## Pre-run cleanup\n\n"
+        "Run the following retention-prune snippet at command start. It is "
+        "idempotent and safe to re-run.\n\n"
+        "```bash\n"
+        f"{snippet}\n"
+        "```\n\n"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -139,9 +199,12 @@ def render(plugin: Plugin, out_dir: Path) -> list[Path]:
     cmd_dir = out_dir / "commands"
     cmd_dir.mkdir(parents=True, exist_ok=True)
     for d in plugin.commands:
-        fm = _command_frontmatter(d.meta or {})
+        meta = d.meta or {}
+        fm = _command_frontmatter(meta)
+        preamble = _retention_preamble(meta)
+        body = preamble + d.body.lstrip("\n") if preamble else d.body
         target = cmd_dir / d.path.name
-        target.write_text(_dump_frontmatter(fm, d.body), encoding="utf-8")
+        target.write_text(_dump_frontmatter(fm, body), encoding="utf-8")
         written.append(target)
 
     if plugin.agents:
