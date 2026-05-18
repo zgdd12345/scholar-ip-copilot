@@ -52,6 +52,16 @@
     },
     "allowed_tools":   { "type": "array", "items": { "type": "string" } },
     "forbidden_tools": { "type": "array", "items": { "type": "string" } },
+    "retention": {
+      "type": "object",
+      "description": "Disk-retention policy for accumulating-output commands (e.g. xreview, polish).",
+      "additionalProperties": false,
+      "properties": {
+        "keep_last":    { "type": "integer", "minimum": 1 },
+        "max_age_days": { "type": "integer", "minimum": 1 },
+        "policy":       { "type": "string" }
+      }
+    },
     "hooks":           { "type": "array", "items": { "type": "string" } },
     "subagents":       { "type": "array", "items": { "type": "string" } },
     "references": {

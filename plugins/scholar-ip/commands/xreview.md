@@ -33,6 +33,10 @@ outputs:
     description: "Markdown review file produced from the external agent's structured output."
   - path: .evidraft/reviews/.last.yaml
     description: "Index of the most recent xreview invocation (agent, persona, target, output_path, ts, tokens, cost_usd)."
+retention:
+  keep_last: 50
+  max_age_days: 180
+  policy: "At command start, prune review files older than max_age_days OR beyond keep_last entries (whichever cuts more). .last.yaml always retained."
 allowed_tools:
   - "Bash:codex*"
   - "Bash:claude*"
@@ -191,20 +195,9 @@ in their shell.
 7. **Clean up.** Delete `$PROMPT_FILE` and the `.evidraft/reviews/.tmp/`
    directory if empty.
 
-## Security checklist (must all hold)
+## Security checklist
 
-- [ ] No API key in `argv`. All keys come from env vars only.
-- [ ] Prompt is delivered via stdin (Codex) or `"$(cat …)"` (Claude /
-      OpenCode); never via `-m "<user-content>"`-style flags.
-- [ ] `target` is rejected if it matches `sensitive-file-guard`
-      patterns.
-- [ ] Write zone is `.evidraft/reviews/` and nothing else.
-      `external-write-zone` enforces this with `failure_mode: block`.
-- [ ] Codex uses `--sandbox read-only`. Claude bare uses
-      `--permission-mode dontAsk --allowedTools "Read"`. OpenCode runs
-      against a worktree / copy, not the live tree.
-- [ ] Hard timeout: 600 seconds per invocation; on timeout, kill the
-      subprocess and write a partial report noting the timeout.
+Source of truth: `skills/external-agent-bridge/SKILL.md` §Security checklist. The invocation MUST satisfy every item there (no key in argv; stdin-only prompts; sensitive-file-guard on target; write zone locked to `.evidraft/reviews/`; per-agent read-only flags; 600 s hard timeout with SIGTERM→SIGKILL escalation; no nested invocation).
 
 ## Chat output (what the user sees at the end)
 

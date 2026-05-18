@@ -4,12 +4,19 @@ title: "Clarify scope before any drafting: paper or patent"
 kind: command
 slash: /scholar:brainstorming
 phase: shared
+description: >
+  superpowers-style requirement clarification. Asks one question per turn
+  along paper or patent axes, applies Carlini's conclusion-first test,
+  proposes 2-3 approaches with tradeoffs, and persists a dated scope
+  artefact under .evidraft/scope/. Hard precondition for the six gated
+  commands (see hooks/scope-required.md). --fast mode trims to 3 questions.
 inputs:
   - name: branch
     type: enum
-    values: [paper, patent, auto]
+    values: [paper, patent, mixed, auto]
     optional: true
     default: auto
+    description: "paper|patent|mixed select the project's project_type axis explicitly; auto = read .evidraft/project.yaml.project_type (and ask once if mixed)."
   - name: mode
     type: enum
     values: [full, fast]

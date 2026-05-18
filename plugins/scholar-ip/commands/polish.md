@@ -36,6 +36,10 @@ outputs:
     description: "Unified diff between original and rewrite, annotated per-hunk with the rule(s) that fired."
   - path: .evidraft/style/humanize-<ts>.report.md
     description: "Plain-English change report: banned-phrase counts before/after, evidence-diff verdict, ethics statement."
+retention:
+  keep_last: 30
+  max_age_days: 90
+  policy: "At command start, prune humanize-* pairs older than max_age_days OR beyond keep_last entries (whichever cuts more)."
 allowed_tools: [Read, Write, Edit, Glob, Grep]
 hooks: [scope-required, citation-guard, evidence-consistency, humanize-evidence-preserve]
 subagents: [prose-polisher, evidence-auditor]
@@ -50,12 +54,12 @@ references:
 
 Williams-style prose polish for a draft that has already passed `/scholar:paper-check`. Reduces AI-flavour without changing meaning, preserves every claim-bearing token, and always ships a diff log so a human can review what changed and why.
 
-This is **not** a detector-evasion tool. The skill refuses if invoked with `--evade-detector`, `--bypass-gptzero`, `--humanize-for-detection`, or any equivalent framing.
+This is **not** a detector-evasion tool. The skill defines the full refusal-flag list and regex in `skills/humanize/SKILL.md` §3 — invocation is rejected on any match.
 
 ## Steps
 
 1. **Pre-flight.**
-   - Refuse if the invocation flags include `--evade-detector` or a synonym ("bypass detector", "fool gptzero", "evade ai-detection"). Print the ethics block and exit non-zero.
+   - Refuse if the invocation matches any refusal flag / regex from `skills/humanize/SKILL.md` §3. Print the ethics block (from the skill) and exit non-zero.
    - Refuse if `.evidraft/evidence/evidence.jsonl` does not exist or is empty — no evidence to protect means no draft worth polishing; route the user back to `/scholar:paper-lit` and `/scholar:paper-draft`.
    - Refuse if `target` resolves to a path under `.evidraft/`. We polish manuscripts (`manuscript/...`), not the evidence store.
    - Refuse if `scope-required` is unsatisfied (Phase 2 projects that require an `approved` scope file).

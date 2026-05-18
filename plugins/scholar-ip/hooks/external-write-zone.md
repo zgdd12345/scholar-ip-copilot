@@ -7,8 +7,6 @@ triggers:
   - "tool:Bash:codex*"
   - "tool:Bash:claude*"
   - "tool:Bash:opencode*"
-  - "any external-agent invocation"
-  - "any subprocess that could write outside .evidraft/reviews/"
 behaviour: "Pin every external-agent subprocess to .evidraft/reviews/ as its sole write zone. Any file appearing elsewhere after the agent exits is treated as a sandbox escape and the call is rejected."
 failure_mode: block
 references:
@@ -53,18 +51,23 @@ Concretely:
 
 ## Detection logic
 
-```
-pre  = snapshot(project_root)               # before subprocess
-run  = invoke(agent, prompt_via_stdin)      # external agent runs
-post = snapshot(project_root)               # after subprocess
-diff = post - pre
+**Scoped snapshot** — do not scan the entire project tree (large `data/`, `manuscript/figures/`, etc. make full-tree snapshots costly). Use `git status --porcelain --untracked-files=all` post-call to enumerate only changed paths.
 
-violations = [p for p in diff if not p.startswith(".evidraft/reviews/")]
+```
+marker = touch(/tmp/xreview-pre-marker)      # before subprocess
+run    = invoke(agent, prompt_via_stdin)     # external agent runs
+diff   = git_status_porcelain()              # cheap; lists changed paths only
+new_or_modified = paths_in(diff)
+                  + find(. -newer marker -not -path './.evidraft/reviews/*')
+
+violations = [p for p in new_or_modified if not p.startswith(".evidraft/reviews/")]
 
 if violations:
-    delete(violations)                      # do not retain attacker writes
+    delete(violations)                       # do not retain attacker writes
     block(reason="external-write-zone violation", paths=violations)
 ```
+
+Cost: O(changed paths) regardless of repo size.
 
 The hook also rejects any external-agent CLI invocation that:
 

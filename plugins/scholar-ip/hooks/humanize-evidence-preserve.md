@@ -4,8 +4,8 @@ title: "Humanize evidence preserve"
 kind: hook
 phase: paper
 triggers:
-  - "/scholar:polish::rewrite-pass"
-  - "subagent:prose-polisher::emit-hunk"
+  - "command:/scholar:polish"
+  - "subagent:prose-polisher"
 behaviour: "Token-level diff between original and rewrite for every hunk; block on any drift in numeric literals, citation keys, named entities, or empirical hedging adverbs."
 failure_mode: block
 references:

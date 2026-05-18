@@ -21,6 +21,8 @@ Run a multi-role review pass over `invention_disclosure.md`, `claims.md`, and
 
 ## Reviewer roles
 
+The 5 roles share inputs but have no inter-role dependency — **dispatch them in parallel** and assemble the report at the end. Only the final aggregation is serial.
+
 For each role, generate a section in the report.
 
 1. **Patent engineer** — Are the technical solution, alternatives, examples, and diagrams sufficient to teach the invention to a skilled person?

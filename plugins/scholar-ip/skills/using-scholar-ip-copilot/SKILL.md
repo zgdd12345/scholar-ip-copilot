@@ -169,7 +169,21 @@ The plugin **refuses** to make strong claims without citable evidence, and refus
 | `external-write-zone` | any external-agent invocation via `/scholar:xreview` | Block: outputs may only land under `.evidraft/reviews/`. |
 | `humanize-evidence-preserve` | `/scholar:polish` rewrite step | Block: token-level diff for numbers, citation keys, named entities, hedging adverbs must be empty before applying a hunk. |
 
-Downgrade is allowed in `.evidraft/project.yaml`'s `hooks:` block — but each downgrade is logged in the relevant check report.
+Downgrade is allowed in `.evidraft/project.yaml`'s `hooks:` block — but each downgrade is logged in the relevant check report. Schema enum: `enabled` (alias `block`) | `warn` | `disabled`.
+
+### Hook evaluation order (cheap → expensive)
+
+When multiple hooks fire on the same action, adapters MUST run them in this order so a cheap check rejects fast and the expensive checks run only on actions that have already passed:
+
+```
+1. sensitive-file-guard          # path-glob match, microseconds
+2. scope-required                # one yaml read, cached per session
+3. citation-guard                # regex over the touched section
+4. external-write-zone           # git status post-call (only on Bash:codex*/claude*/opencode*)
+5. humanize-evidence-preserve    # token-multiset diff, hunk-scale
+6. evidence-consistency          # jsonl scan + cross-reference (most expensive)
+7. latex-compile                 # subprocess (slowest; runs last and async-friendly)
+```
 
 ## What to do on first interaction
 

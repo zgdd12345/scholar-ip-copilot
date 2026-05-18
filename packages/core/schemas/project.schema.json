@@ -7,10 +7,7 @@
   "required": ["project_type", "title", "status", "artifacts", "rules"],
   "additionalProperties": false,
   "properties": {
-    "project_type": {
-      "type": "string",
-      "enum": ["paper", "patent", "mixed"]
-    },
+    "project_type": { "$ref": "#/$defs/project_type" },
     "title":         { "type": "string" },
     "field":         { "type": "string" },
     "target_venue":  { "type": "string" },
@@ -102,11 +99,10 @@
     },
     "reviewers": {
       "type": "object",
-      "description": "External-agent review settings consumed by /scholar:xreview and external-write-zone hook.",
+      "description": "External-agent review settings consumed by /scholar:xreview.",
       "additionalProperties": false,
       "properties": {
-        "allowed":    { "type": "array", "items": { "type": "string", "enum": ["codex", "claude-bare", "opencode"] } },
-        "write_zone": { "type": "string", "default": ".evidraft/reviews/" }
+        "allowed": { "type": "array", "items": { "$ref": "#/$defs/external_agent" } }
       }
     },
     "lit_deep": {
@@ -114,12 +110,9 @@
       "description": "Heavy literature workflow settings consumed by /scholar:deepresearch.",
       "additionalProperties": false,
       "properties": {
-        "breadth":   { "type": "integer", "default": 6, "minimum": 1 },
-        "depth":     { "type": "integer", "default": 2, "minimum": 1 },
-        "providers": {
-          "type": "array",
-          "items": { "type": "string", "enum": ["arxiv", "semantic-scholar", "openalex"] }
-        }
+        "breadth":   { "type": "integer", "default": 6, "minimum": 1, "maximum": 12, "description": "Max sub-queries per fan-out. Worst-case candidate count is breadth*50; cap at 12 to bound budget." },
+        "depth":     { "type": "integer", "default": 2, "minimum": 1, "maximum": 3,  "description": "Recursive follow-up depth. Bound at 3 to avoid exponential token blow-up." },
+        "providers": { "type": "array", "items": { "$ref": "#/$defs/lit_provider" } }
       }
     },
     "paper": {
@@ -141,7 +134,7 @@
           "enum": ["US", "EP", "CN", "JP", "PCT", "OTHER"],
           "default": "US"
         },
-        "primary_deliverable": { "type": "string", "default": "invention_disclosure" }
+        "primary_deliverable": { "type": "string", "default": "invention_disclosure", "description": "Constant for v0.1; future-proof if patent_review or claims becomes the primary deliverable." }
       }
     }
   },
@@ -152,7 +145,20 @@
     },
     "hook_mode": {
       "type": "string",
-      "enum": ["enabled", "warn", "disabled"]
+      "enum": ["enabled", "block", "warn", "disabled"],
+      "description": "`enabled` and `block` are aliases (both mean: hook fires and blocks on violation). `warn` lets the offending action through but logs to the relevant check report. `disabled` skips the hook entirely."
+    },
+    "project_type": {
+      "type": "string",
+      "enum": ["paper", "patent", "mixed"]
+    },
+    "external_agent": {
+      "type": "string",
+      "enum": ["codex", "claude-bare", "opencode"]
+    },
+    "lit_provider": {
+      "type": "string",
+      "enum": ["arxiv", "semantic-scholar", "openalex"]
     }
   }
 }

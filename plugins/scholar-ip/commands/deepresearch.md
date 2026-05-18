@@ -4,6 +4,13 @@ title: "Deep literature research (6-stage pipeline)"
 kind: command
 slash: /scholar:deepresearch
 phase: paper
+description: >
+  Heavyweight 6-stage literature workflow (Frame → Retrieve → Screen →
+  Cluster → Critique → Synthesise) with PRISMA-style screening log and a
+  mandatory final citation-audit pass. Multi-provider retrieval (arxiv /
+  semantic-scholar / openalex). breadth/depth knobs bound the budget;
+  resume_from skips earlier stages. Procedure detail in
+  skills/deep-literature-review/SKILL.md.
 inputs:
   - name: topic
     type: string
@@ -118,6 +125,8 @@ mode: fast | full
 3. Deduplicate by DOI, then by (normalised title, first author, year). Keep the most authoritative `source` per dedup cluster, but preserve all variants under `aliases`.
 4. Append rows to `candidates.jsonl`. Never blend metadata from two providers into one row without explicit reconciliation (see orchestrator constraints).
 
+**Concurrency.** The `sub_query × provider` matrix in step 1 is fully independent — fan out concurrently with `min(breadth, 8)` in flight. The `depth > 1` hops in step 2 are serial (they depend on step 1's retained set), but each hop's per-paper fan-out is again independent. Dedup (step 3) is single-threaded.
+
 **Artefact schema — `candidates.jsonl`** (one JSON object per line):
 
 ```json
@@ -202,6 +211,8 @@ clusters:
 2. Each section is a SWOT — **Strengths, Weaknesses, Opportunities, Threats** — plus a mandatory `Delta vs our angle` paragraph that names how *this* project differs.
 3. Every SWOT bullet must trace to a section / figure / table / equation of the actual paper (not an abstract paraphrase).
 4. In `mode=fast`, skip SWOT bullets that require opening the full PDF; keep only `Delta vs our angle`.
+
+**Concurrency.** Per-paper SWOT writes within a single cluster are independent — dispatch in parallel. Across clusters, serialise (one `critique/<id>.md` write at a time per cluster file to keep the append atomic). Net speedup at typical breadth=6 / 5 papers per cluster: ~5×.
 
 **Artefact schema — `critique/<cluster-id>.md`.**
 
