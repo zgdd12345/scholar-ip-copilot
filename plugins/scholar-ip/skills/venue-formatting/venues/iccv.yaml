@@ -1,0 +1,29 @@
+id: iccv
+name: "IEEE/CVF International Conference on Computer Vision"
+documentclass: '\documentclass[10pt,twocolumn,letterpaper]{article}'
+class_files_url: "https://iccv.thecvf.com/Conferences/<year>/AuthorKit"
+bib_style: ieeenat_fullname
+anonymous_review: true
+page_limit:
+  main: 8
+  refs: unlimited
+  supplement: unlimited
+column_layout: two-column
+font_size: 10pt
+usepackage_required:
+  - iccv
+  - times
+  - epsfig
+  - graphicx
+  - amsmath
+  - amssymb
+  - booktabs
+usepackage_forbidden: []
+caption_convention: "Figure N. Caption."
+section_numbering: yes
+line_numbers_for_review: true
+notes: >
+  Double-blind review. Same author-kit family as CVPR but uses iccv.sty.
+  Anonymise authors, funding, acknowledgements, repository links during
+  review. Fetch class files from the AuthorKit URL per submission year — do
+  not vendor.

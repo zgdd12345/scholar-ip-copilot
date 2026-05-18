@@ -1,0 +1,31 @@
+id: icml
+name: "International Conference on Machine Learning"
+documentclass: '\documentclass{article}'
+class_files_url: "https://icml.cc/Conferences/<year>/StyleAuthorInstructions (icml<year>.sty)"
+bib_style: icml<year>
+anonymous_review: true
+page_limit:
+  main: 8
+  refs: unlimited
+  supplement: unlimited
+column_layout: two-column
+font_size: 10pt
+usepackage_required:
+  - icml<year>             # \usepackage{icml<year>}; pass [accepted] only at camera-ready
+  - graphicx
+  - amsmath
+  - amssymb
+  - booktabs
+  - natbib
+  - hyperref
+usepackage_forbidden: []
+caption_convention: "Figure N. Caption."
+section_numbering: yes
+line_numbers_for_review: true
+notes: >
+  Double-blind review. Style file is named icml<year>.sty; switch the
+  \\usepackage line accordingly. Pass the [accepted] option only at
+  camera-ready (omitting it during review keeps the paper anonymous).
+  Main paper is 8 pages excluding references; appendices allowed after
+  references. Fetch the style kit from the year's instructions page —
+  not vendored.

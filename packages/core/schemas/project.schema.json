@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scholar-ip-copilot/schemas/project.schema.json",
+  "title": "EviDraft project descriptor",
+  "description": "Validates the on-disk file `.evidraft/project.yaml` of an EviDraft project.",
+  "type": "object",
+  "required": ["project_type", "title", "status", "artifacts", "rules"],
+  "additionalProperties": false,
+  "properties": {
+    "project_type": {
+      "type": "string",
+      "enum": ["paper", "patent", "mixed"]
+    },
+    "title":         { "type": "string" },
+    "field":         { "type": "string" },
+    "target_venue":  { "type": "string" },
+    "language":      { "type": "string", "default": "en" },
+    "authors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": false,
+        "properties": {
+          "name":        { "type": "string" },
+          "affiliation": { "type": "string" },
+          "orcid":       { "type": "string" },
+          "email":       { "type": "string", "format": "email" }
+        }
+      }
+    },
+    "status": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "literature":  { "$ref": "#/$defs/stage" },
+        "idea":        { "$ref": "#/$defs/stage" },
+        "codebase":    { "$ref": "#/$defs/stage" },
+        "experiments": { "$ref": "#/$defs/stage" },
+        "manuscript":  { "$ref": "#/$defs/stage" },
+        "patent":      { "$ref": "#/$defs/stage" }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "evidence":             { "type": "string" },
+        "bib":                  { "type": "string" },
+        "manuscript":           { "type": "string" },
+        "invention_disclosure": { "type": "string" }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "require_citation_for_claims":         { "type": "boolean", "default": true },
+        "require_experiment_source_for_numbers": { "type": "boolean", "default": true },
+        "require_code_trace_for_code_claims":  { "type": "boolean", "default": true },
+        "allow_unverified_claims":             { "type": "boolean", "default": false }
+      }
+    },
+    "hooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "citation_guard":        { "$ref": "#/$defs/hook_mode" },
+        "evidence_consistency":  { "$ref": "#/$defs/hook_mode" },
+        "latex_compile":         { "$ref": "#/$defs/hook_mode" },
+        "sensitive_file_guard":  { "$ref": "#/$defs/hook_mode" }
+      }
+    },
+    "paper": {
+      "type": "object",
+      "description": "Paper-side extension fields (used when project_type ∈ paper, mixed).",
+      "additionalProperties": false,
+      "properties": {
+        "draft_style": { "type": "string", "default": "arxiv" },
+        "submission_dir": { "type": "string" }
+      }
+    },
+    "patent": {
+      "type": "object",
+      "description": "Patent-side extension fields (used when project_type ∈ patent, mixed).",
+      "additionalProperties": false,
+      "properties": {
+        "jurisdiction": {
+          "type": "string",
+          "enum": ["US", "EP", "CN", "JP", "PCT", "OTHER"],
+          "default": "US"
+        },
+        "primary_deliverable": { "type": "string", "default": "invention_disclosure" }
+      }
+    }
+  },
+  "$defs": {
+    "stage": {
+      "type": "string",
+      "enum": ["not_started", "in_progress", "done"]
+    },
+    "hook_mode": {
+      "type": "string",
+      "enum": ["enabled", "warn", "disabled"]
+    }
+  }
+}

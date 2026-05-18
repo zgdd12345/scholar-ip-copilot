@@ -1,0 +1,21 @@
+% ILLUSTRATIVE EXAMPLE -- Main results table for cv-detection-paper.
+% Auto-generated from .evidraft/experiments/result_analysis.md.
+% All numbers are fictional.
+\begin{table}[t]
+  \centering
+  \caption{Main results of Method X (mean over three seeds). Numbers are
+  illustrative and come from \texttt{experiments/runs/exp\_2026\_03\_01.csv}
+  and \texttt{experiments/runs/exp\_2026\_03\_02.csv}.}
+  \label{tab:main_results}
+  \begin{tabular}{lccc}
+    \toprule
+    Setting                                 & Dataset      & mAP@0.5 & mAP@0.5:0.95 \\
+    \midrule
+    Method X (full)                         & COCO val2017 & 0.612   & 0.418        \\
+    Method X (full)                         & VOC test2007 & 0.823   & 0.564        \\
+    \midrule
+    Ablation: IoU-aware classification off  & COCO val2017 & --      & 0.402        \\
+    Ablation: IoU-aware classification off  & VOC test2007 & --      & 0.547        \\
+    \bottomrule
+  \end{tabular}
+\end{table}

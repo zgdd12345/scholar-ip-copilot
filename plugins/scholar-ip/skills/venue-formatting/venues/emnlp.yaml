@@ -1,0 +1,33 @@
+id: emnlp
+name: "Empirical Methods in Natural Language Processing (ACL family)"
+documentclass: '\documentclass[11pt]{article}'
+class_files_url: "https://2024.emnlp.org/calls/main_conference_papers/ (uses ACL Rolling Review / acl.sty)"
+bib_style: acl_natbib
+anonymous_review: true
+page_limit:
+  main: 8
+  refs: unlimited
+  supplement: unlimited
+column_layout: two-column
+font_size: 11pt
+usepackage_required:
+  - acl                    # \usepackage[<review|final>]{acl}
+  - times
+  - latexsym
+  - graphicx
+  - amsmath
+  - amssymb
+  - booktabs
+  - hyperref
+usepackage_forbidden: []
+caption_convention: "Figure N: Caption."
+section_numbering: yes
+line_numbers_for_review: true
+notes: >
+  ACL Rolling Review and ACL-family venues (ACL, EMNLP, NAACL, EACL)
+  share the acl.sty style. Long papers are 8 pages, short papers 4
+  pages (the spec entry here assumes long). Pass [review] during
+  review (line numbers, anonymous) and [final] at camera-ready.
+  Limitations section is mandatory in recent years. Ethics statement
+  required for certain topics — read the year's CFP. Fetch style from
+  ACL's GitHub (acl-org/acl-style-files) — not vendored.

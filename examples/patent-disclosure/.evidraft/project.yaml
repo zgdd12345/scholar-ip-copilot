@@ -1,0 +1,37 @@
+# ILLUSTRATIVE EXAMPLE -- EviDraft patent-disclosure project.
+# All technical content, inventor names, and prior-art references are
+# fictional.
+
+project_type: patent
+title: "Adaptive Cosine Warmup with Momentum Scaling"
+field: "machine learning / optimisation"
+target_venue: ""
+language: "en"
+authors:
+  - name: "Example Inventor"
+    affiliation: "Example Research Lab"
+    orcid: ""
+status:
+  literature: in_progress
+  idea: done
+  codebase: done
+  experiments: not_started
+  manuscript: not_started
+  patent: in_progress
+artifacts:
+  evidence: ".evidraft/evidence/evidence.jsonl"
+  bib: ".evidraft/literature/references.bib"
+  manuscript: ""
+  invention_disclosure: ".evidraft/patent/invention_disclosure.md"
+rules:
+  require_citation_for_claims: true
+  require_experiment_source_for_numbers: true
+  require_code_trace_for_code_claims: true
+  allow_unverified_claims: false
+hooks:
+  citation_guard: enabled
+  evidence_consistency: enabled
+  latex_compile: enabled
+  sensitive_file_guard: enabled
+patent:
+  jurisdiction: US

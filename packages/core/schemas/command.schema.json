@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scholar-ip-copilot/schemas/command.schema.json",
+  "title": "EviDraft platform-neutral command/agent/skill/hook",
+  "description": "Validates the YAML frontmatter of every markdown file in plugins/scholar-ip/{commands,agents,skills,hooks}.",
+  "type": "object",
+  "required": ["id", "title", "kind"],
+  "additionalProperties": false,
+  "properties": {
+    "id":    { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "title": { "type": "string" },
+    "kind":  { "type": "string", "enum": ["command", "agent", "skill", "hook"] },
+    "slash": {
+      "type": "string",
+      "pattern": "^/(?:[a-z][a-z0-9-]*:)?[a-z][a-z0-9-]*$",
+      "description": "Slash-command form (commands only). Either bare `/cmd` or plugin-namespaced `/plugin:cmd`."
+    },
+    "phase": { "type": "string", "enum": ["paper", "patent", "shared"] },
+    "version": { "type": "string", "default": "0.0.1" },
+    "description": { "type": "string" },
+    "primary_deliverable": {
+      "type": "boolean",
+      "description": "Marks the command as the primary deliverable for its phase (e.g., /scholar:patent-disclosure produces the TID)."
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "name":        { "type": "string" },
+          "type":        { "type": "string", "enum": ["string", "boolean", "integer", "number", "enum", "path", "list"] },
+          "values":      { "type": "array" },
+          "optional":    { "type": "boolean", "default": false },
+          "default":     {},
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path"],
+        "additionalProperties": false,
+        "properties": {
+          "path":        { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "allowed_tools":   { "type": "array", "items": { "type": "string" } },
+    "forbidden_tools": { "type": "array", "items": { "type": "string" } },
+    "hooks":           { "type": "array", "items": { "type": "string" } },
+    "subagents":       { "type": "array", "items": { "type": "string" } },
+    "references": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "doc": { "type": "string" },
+          "url": { "type": "string" }
+        }
+      }
+    },
+    "role":            { "type": "string", "description": "agents only" },
+    "responsibilities": { "type": "array", "items": { "type": "string" }, "description": "agents only" },
+    "constraints":     { "type": "array", "items": { "type": "string" }, "description": "agents only" },
+    "review_checklist": { "type": "array", "items": { "type": "string" }, "description": "agents only" },
+    "triggers":        { "type": "array", "items": { "type": "string" }, "description": "skills/hooks only" },
+    "provides":        { "type": "array", "items": { "type": "string" }, "description": "skills only" },
+    "behaviour":       { "type": "string", "description": "hooks only" },
+    "failure_mode":    { "type": "string", "enum": ["block", "warn", "audit"], "description": "hooks only" }
+  }
+}

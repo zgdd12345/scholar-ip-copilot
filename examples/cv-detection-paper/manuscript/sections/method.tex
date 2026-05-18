@@ -1,0 +1,23 @@
+% ILLUSTRATIVE EXAMPLE -- method section.
+\section{Method}
+\label{sec:method}
+
+Method X is an anchor-free detection head with three branches per location:
+classification, regression, and centerness. The branches share a four-conv
+tower per task that is reused across all FPN levels. This is the
+\emph{shared per-level tower} of~\citet{chen2023anchorfreebaseline} and is
+implemented by the \texttt{AnchorFreeHead} class
+(\texttt{src/models/detector.py:33--77}; evidence ev\_0042).
+
+\paragraph{Distribution-focal decoding.}
+The regression branch predicts, per location, a softmax distribution over
+$\texttt{reg\_max}=16$ bins for each of the four box-side distances
+$(\ell, t, r, b)$. The decoded distance is the expectation under that
+distribution. The decoder is the \texttt{decode\_box} method
+(\texttt{src/models/detector.py:79--85}; evidence ev\_0043).
+
+\paragraph{IoU-aware classification.}
+Method X gates classification logits with an IoU-aware score on the
+regression branch. The flag \texttt{use\_iou\_aware} in
+\texttt{configs/base.yaml} toggles the gate; the ablation in
+Section~\ref{sec:experiments} reports the impact (evidence ev\_0018).

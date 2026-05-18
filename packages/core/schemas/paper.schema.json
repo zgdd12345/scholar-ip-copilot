@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scholar-ip-copilot/schemas/paper.schema.json",
+  "title": "EviDraft paper metadata",
+  "description": "Optional file at `manuscript/paper.yaml` capturing structure of the LaTeX manuscript.",
+  "type": "object",
+  "required": ["title", "main_tex", "sections"],
+  "additionalProperties": false,
+  "properties": {
+    "title":  { "type": "string" },
+    "abstract": { "type": "string" },
+    "keywords": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "target_venue": { "type": "string" },
+    "main_tex":   { "type": "string", "default": "manuscript/main.tex" },
+    "bib_file":   { "type": "string", "default": "manuscript/references.bib" },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "tex_path"],
+        "additionalProperties": false,
+        "properties": {
+          "id":          { "type": "string" },
+          "title":       { "type": "string" },
+          "tex_path":    { "type": "string" },
+          "status":      { "type": "string", "enum": ["outline", "draft", "review", "final"] },
+          "claims":      {
+            "type": "array",
+            "items": { "type": "string", "description": "evidence id, e.g. ev_0001" }
+          }
+        }
+      }
+    },
+    "figures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "id":       { "type": "string" },
+          "caption":  { "type": "string" },
+          "source":   { "type": "string", "description": "Path to .pdf/.png/.tikz or `experiments/...` source." },
+          "evidence": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "tables": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "tex_path"],
+        "additionalProperties": false,
+        "properties": {
+          "id":       { "type": "string" },
+          "caption":  { "type": "string" },
+          "tex_path": { "type": "string" },
+          "evidence": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

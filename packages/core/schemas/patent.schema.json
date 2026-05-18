@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scholar-ip-copilot/schemas/patent.schema.json",
+  "title": "EviDraft patent metadata",
+  "description": "Optional file at `.evidraft/patent/patent.yaml` capturing structure of the invention disclosure and claim set.",
+  "type": "object",
+  "required": ["title", "jurisdiction", "inventors", "disclosure_path"],
+  "additionalProperties": false,
+  "properties": {
+    "title": { "type": "string" },
+    "jurisdiction": {
+      "type": "string",
+      "enum": ["US", "EP", "CN", "JP", "PCT", "OTHER"],
+      "default": "US"
+    },
+    "field": { "type": "string" },
+    "inventors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": false,
+        "properties": {
+          "name":        { "type": "string" },
+          "affiliation": { "type": "string" },
+          "email":       { "type": "string", "format": "email" }
+        }
+      }
+    },
+    "disclosure_path": { "type": "string" },
+    "claim_chart_path": { "type": "string" },
+    "claims_path": { "type": "string" },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "text"],
+        "additionalProperties": false,
+        "properties": {
+          "id":   { "type": "string", "pattern": "^c[0-9]+$" },
+          "kind": { "type": "string", "enum": ["independent", "dependent"] },
+          "depends_on": { "type": ["string", "null"], "pattern": "^c[0-9]+$" },
+          "text": { "type": "string" },
+          "elements": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "text"],
+              "additionalProperties": false,
+              "properties": {
+                "id":       { "type": "string" },
+                "text":     { "type": "string" },
+                "spec_support":  { "type": "array", "items": { "type": "string" } },
+                "code_support":  { "type": "array", "items": { "type": "string" } },
+                "prior_art":     { "type": "array", "items": { "type": "string" } },
+                "risk":          { "type": "string", "enum": ["low", "medium", "high"] }
+              }
+            }
+          }
+        }
+      }
+    },
+    "needs_attorney_review": {
+      "type": "boolean",
+      "const": true,
+      "description": "Must remain true. The plugin refuses to remove this flag."
+    }
+  }
+}

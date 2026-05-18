@@ -1,0 +1,34 @@
+# ILLUSTRATIVE EXAMPLE -- EviDraft cv-detection-paper.
+# All authors, venues, and titles below are fictional.
+
+project_type: paper
+title: "Anchor-Free Detection with Method X"
+field: "computer vision"
+target_venue: "arXiv"
+language: "en"
+authors:
+  - name: "Example Author"
+    affiliation: "Example University"
+    orcid: ""
+status:
+  literature: done
+  idea: done
+  codebase: done
+  experiments: done
+  manuscript: in_progress
+  patent: not_started
+artifacts:
+  evidence: ".evidraft/evidence/evidence.jsonl"
+  bib: ".evidraft/literature/references.bib"
+  manuscript: "manuscript/main.tex"
+  invention_disclosure: ""
+rules:
+  require_citation_for_claims: true
+  require_experiment_source_for_numbers: true
+  require_code_trace_for_code_claims: true
+  allow_unverified_claims: false
+hooks:
+  citation_guard: enabled
+  evidence_consistency: enabled
+  latex_compile: enabled
+  sensitive_file_guard: enabled

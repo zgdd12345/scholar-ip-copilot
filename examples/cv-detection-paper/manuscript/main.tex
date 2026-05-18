@@ -1,0 +1,45 @@
+% ILLUSTRATIVE EXAMPLE -- arXiv-style manuscript for the EviDraft
+% cv-detection-paper example. Title, authors, and results are fictional.
+%
+% At submission time the user would run /scholar:paper-venue <venue> to convert
+% this neutral arXiv style into a venue template.
+
+\documentclass[10pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{natbib}
+
+\bibliographystyle{plainnat}
+
+\title{Anchor-Free Detection with Method X (Illustrative)}
+\author{Example Author\\ Example University}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We describe Method X, an anchor-free detection head with shared per-level
+towers and a distribution-focal box decoder. On COCO val2017 across three
+seeds Method X attains a mean mAP@0.5:0.95 of 0.418
+(ev\_0017). An ablation that removes IoU-aware classification drops the
+metric to 0.402, supporting the design choice (ev\_0018). This manuscript
+is part of the EviDraft \emph{cv-detection-paper} example and contains
+fictional content for illustration only.
+\end{abstract}
+
+\input{sections/introduction}
+\input{sections/related_work}
+\input{sections/method}
+\input{sections/experiments}
+\input{sections/conclusion}
+
+\bibliography{references}
+
+\end{document}

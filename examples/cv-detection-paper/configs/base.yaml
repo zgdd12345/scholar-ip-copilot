@@ -1,0 +1,27 @@
+# ILLUSTRATIVE EXAMPLE -- fictional hyper-parameters for the EviDraft
+# cv-detection-paper example. Do not treat as a real config.
+
+model:
+  name: AnchorFreeMethodX
+  head:
+    in_channels: 256
+    num_classes: 80
+    feat_strides: [8, 16, 32, 64, 128]
+    centerness_on_reg: true
+    use_iou_aware: true
+    reg_max: 16
+
+train:
+  optimizer: sgd
+  lr: 0.01
+  momentum: 0.9
+  weight_decay: 0.0001
+  warmup_iters: 1000
+  max_iters: 90000
+  batch_size: 16
+  seed: 0
+
+data:
+  train: coco_train2017
+  val: coco_val2017
+  image_size: [800, 1333]

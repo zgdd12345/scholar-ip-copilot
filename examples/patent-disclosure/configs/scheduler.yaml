@@ -1,0 +1,13 @@
+# ILLUSTRATIVE EXAMPLE -- fictional config for the synthetic
+# AdaptiveCosineWarmupMomentumScaler used in the patent-disclosure
+# example.
+
+scheduler:
+  name: AdaptiveCosineWarmupMomentumScaler
+  base_lr: 0.1
+  base_momentum: 0.9
+  warmup_iters: 1000
+  total_iters: 90000
+  min_lr_ratio: 0.01
+  momentum_floor: 0.5
+  coupling_alpha: 0.75

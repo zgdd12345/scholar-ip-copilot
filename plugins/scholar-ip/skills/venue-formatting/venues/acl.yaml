@@ -1,0 +1,31 @@
+id: acl
+name: "Annual Meeting of the Association for Computational Linguistics"
+documentclass: '\documentclass[11pt]{article}'
+class_files_url: "https://github.com/acl-org/acl-style-files (acl.sty + acl_natbib.bst)"
+bib_style: acl_natbib
+anonymous_review: true
+page_limit:
+  main: 8
+  refs: unlimited
+  supplement: unlimited
+column_layout: two-column
+font_size: 11pt
+usepackage_required:
+  - acl                    # \usepackage[<review|final>]{acl}
+  - times
+  - latexsym
+  - graphicx
+  - amsmath
+  - amssymb
+  - booktabs
+  - hyperref
+usepackage_forbidden: []
+caption_convention: "Figure N: Caption."
+section_numbering: yes
+line_numbers_for_review: true
+notes: >
+  Same acl.sty family as EMNLP / NAACL / EACL. Long papers 8 pages,
+  short papers 4 pages (this spec is for long). Pass [review] during
+  review and [final] at camera-ready. Mandatory Limitations section.
+  Reproducibility checklist common. Fetch style from acl-org/acl-style-
+  files — not vendored.

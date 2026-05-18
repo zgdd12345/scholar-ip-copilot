@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Build / dist
+build/
+dist/
+*.egg
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# LaTeX build artefacts (examples may compile locally)
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+*.lof
+*.lot
+
+# EviDraft scratch (only inside example/test workspaces, not the repo root)
+**/.evidraft/cache/
+**/.evidraft/tmp/
+
+# Test artefacts
+.pytest_cache/
+.coverage
+htmlcov/

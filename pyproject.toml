@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scholar-ip-copilot"
+version = "0.0.1"
+description = "EviDraft — evidence-grounded academic and patent copilot for codebases, experiments, literature, LaTeX papers, and invention disclosures."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [{ name = "scholar-ip-copilot contributors" }]
+keywords = [
+    "claude-code", "codex", "opencode", "mcp",
+    "latex", "research", "patent", "literature-review",
+    "agent", "ai-tools"
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Legal Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "pyyaml>=6.0",
+    "jsonschema>=4.20",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.4",
+]
+mcp = [
+    # Reserved for future MCP server implementations.
+    # "mcp>=0.1",
+]
+
+[project.scripts]
+evidraft-claude-code = "packages.adapters.claude_code.generate:main"
+evidraft-codex-cli = "packages.adapters.codex_cli.generate:main"
+
+[tool.setuptools.packages.find]
+where = ["packages"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

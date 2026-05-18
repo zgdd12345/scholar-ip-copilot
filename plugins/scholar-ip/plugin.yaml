@@ -1,0 +1,143 @@
+id: scholar
+name: EviDraft
+version: 0.0.1
+description: >
+  Evidence-grounded academic and patent copilot for codebases, experiments,
+  literature, LaTeX papers, and invention disclosures.
+license: MIT
+homepage: https://github.com/scholar-ip-copilot/scholar-ip-copilot
+authors:
+  - name: scholar-ip-copilot contributors
+
+# Authoring folders — adapters walk these to render host-specific output.
+entrypoints:
+  commands:  commands/
+  agents:    agents/
+  skills:    skills/
+  hooks:     hooks/
+  templates: templates/
+
+# Project type matrix (used by /scholar:paper-init and /scholar:patent-init).
+project_types:
+  - paper
+  - patent
+  - mixed
+
+# Adapter registry. Status reflects MVP coverage in this repository.
+adapters:
+  - id: claude-code
+    status: mvp
+    out: .claude/plugins/scholar-ip/
+  - id: codex-cli
+    status: mvp
+    out: .codex/prompts/scholar-ip/
+  - id: opencode
+    status: planned
+    out: .opencode/plugins/scholar-ip/
+
+# Safety policy applied by adapters wherever the host supports it.
+safety:
+  forbidden_paths:
+    - .env
+    - "**/.env*"
+    - secrets/
+    - credentials.json
+    - "**/*.pem"
+    - "**/*.key"
+    - "**/id_rsa*"
+  forbidden_tool_patterns:
+    - "Bash:rm -rf*"
+    - "Bash:sudo*"
+  default_allowed_tools:
+    - Read
+    - Glob
+    - Grep
+    - Edit
+    - Write
+    - "Bash:git*"
+    - "Bash:ls*"
+    - "Bash:cat*"
+    - "Bash:latexmk*"
+
+# Optional MCP servers. The plugin must remain usable with all of these disabled.
+mcp_servers:
+  - id: scholar-search
+    package: packages/mcp/scholar-search-mcp/
+    status: stub
+  - id: bib-manager
+    package: packages/mcp/bib-manager-mcp/
+    status: stub
+  - id: latex-build
+    package: packages/mcp/latex-build-mcp/
+    status: stub
+  - id: code-intel
+    package: packages/mcp/code-intel-mcp/
+    status: stub
+  - id: experiment
+    package: packages/mcp/experiment-mcp/
+    status: stub
+  - id: patent-search
+    package: packages/mcp/patent-search-mcp/
+    status: stub
+
+# Quick-reference command order.
+# Paper default style is arXiv-neutral; /scholar:paper-venue converts at submission time.
+# Patent primary deliverable is the 技术交底书 / Technical Invention Disclosure (TID).
+# /scholar:using is the meta orientation entry (loads the using-scholar-ip-copilot skill).
+workflows:
+  meta:
+    - /scholar:using                # orientation; safe to run any time
+  paper:
+    - /scholar:paper-init
+    - /scholar:paper-lit
+    - /scholar:paper-idea
+    - /scholar:paper-code-audit
+    - /scholar:paper-experiment
+    - /scholar:paper-review
+    - /scholar:paper-draft
+    - /scholar:paper-check
+    - /scholar:paper-venue          # submission-time, optional
+  patent:
+    - /scholar:patent-init
+    - /scholar:patent-scout
+    - /scholar:patent-prior-art
+    - /scholar:patent-disclosure    # primary deliverable: 技术交底书 / TID
+    - /scholar:patent-claims        # advisory artefact
+    - /scholar:patent-review
+
+# Naming convention.
+naming:
+  invocation: "scholar:<cmd>"       # what the user types, e.g. /scholar:paper-init
+  filename:   "<cmd>.md"            # filesystem-safe; namespace is implicit from plugin id
+  meta_entry: /scholar:using        # loads skills/using-scholar-ip-copilot/SKILL.md
+  rationale: >
+    Mirrors superpowers:<skill> convention. Filenames stay bare so Windows
+    filesystems and shells handle them without quoting.
+
+# Style and submission defaults.
+paper_defaults:
+  draft_style: arxiv         # arxiv neutral by default
+  supported_venues:
+    - arxiv
+    - cvpr
+    - iccv
+    - eccv
+    - neurips
+    - icml
+    - iclr
+    - emnlp
+    - acl
+    - aaai
+    - ieee
+    - acm-generic
+    - generic
+
+patent_defaults:
+  primary_deliverable: invention_disclosure   # 技术交底书 / TID
+  jurisdictions:
+    - US
+    - EP
+    - CN
+    - JP
+    - PCT
+    - OTHER

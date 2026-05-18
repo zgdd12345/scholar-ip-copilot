@@ -1,0 +1,24 @@
+% ILLUSTRATIVE EXAMPLE -- introduction section.
+\section{Introduction}
+\label{sec:introduction}
+
+Object detection has converged on two families of dense detectors: anchor-based
+heads and anchor-free heads. Recent anchor-free designs reach parity with
+anchor-based detectors on COCO~\citep{smith2024examplekey}, suggesting that the
+per-location regression formulation is competitive. Building on this line of
+work we describe Method X, an anchor-free head with the following ingredients:
+
+\begin{itemize}
+  \item A shared per-level tower~\citep{chen2023anchorfreebaseline} that
+        amortises parameters across FPN levels (Section~\ref{sec:method}).
+  \item A 16-bin distribution-focal regression branch with a centerness
+        sibling, both implemented in \texttt{src/models/detector.py}
+        (evidence ev\_0042, ev\_0043).
+  \item An IoU-aware classification gate whose contribution is quantified by
+        the ablation in Section~\ref{sec:experiments} (evidence ev\_0018).
+\end{itemize}
+
+The remainder of this paper describes the method (Section~\ref{sec:method}),
+empirical results on COCO and VOC (Section~\ref{sec:experiments}), and the
+limitations we are aware of in the current implementation
+(Section~\ref{sec:conclusion}).

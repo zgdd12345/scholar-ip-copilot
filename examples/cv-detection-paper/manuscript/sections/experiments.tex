@@ -1,0 +1,16 @@
+% ILLUSTRATIVE EXAMPLE -- experiments section.
+\section{Experiments}
+\label{sec:experiments}
+
+We report mean mAP@0.5 and mAP@0.5:0.95 over three seeds (0, 1, 2) for
+each (dataset, split) cell. Per-seed numbers are stored in
+\texttt{experiments/runs/exp\_2026\_03\_01.csv} (main) and
+\texttt{experiments/runs/exp\_2026\_03\_02.csv} (ablation: IoU-aware off).
+Table~\ref{tab:main_results} summarises the means.
+
+\input{../.evidraft/experiments/tables/main_results.tex}
+
+\paragraph{Reading.} On COCO val2017 Method X attains a mean
+mAP@0.5:0.95 of 0.418 (evidence ev\_0017). Disabling the IoU-aware gate
+reduces the same metric to 0.402, a delta of $-1.6$ points (evidence
+ev\_0018). The VOC test2007 split shows a similar pattern.

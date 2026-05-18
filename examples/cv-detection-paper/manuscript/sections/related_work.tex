@@ -1,0 +1,14 @@
+% ILLUSTRATIVE EXAMPLE -- related work section.
+\section{Related work}
+\label{sec:related}
+
+\paragraph{Anchor-free detection.} \citet{smith2024examplekey} report that
+per-location distance regression matches anchor-based detectors on COCO.
+We adopt this formulation as the starting point for the regression branch
+(evidence ev\_0001).
+
+\paragraph{Shared per-level towers.} \citet{chen2023anchorfreebaseline} show
+that sharing convolutional towers across FPN levels reduces head parameter
+count without a measurable drop in mAP (evidence ev\_0002). Method X reuses
+this design and is implemented in \texttt{src/models/detector.py:33--77}
+(evidence ev\_0042).

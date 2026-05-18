@@ -1,0 +1,32 @@
+# ILLUSTRATIVE EXAMPLE -- EviDraft generic-paper starter state.
+# This is what a user sees right after /scholar:paper-init, before any literature
+# or codebase work.
+
+project_type: paper
+title: ""
+field: ""
+target_venue: "arXiv"
+language: "en"
+authors: []
+status:
+  literature: not_started
+  idea: not_started
+  codebase: not_started
+  experiments: not_started
+  manuscript: not_started
+  patent: not_started
+artifacts:
+  evidence: ".evidraft/evidence/evidence.jsonl"
+  bib: ".evidraft/literature/references.bib"
+  manuscript: "manuscript/main.tex"
+  invention_disclosure: ""
+rules:
+  require_citation_for_claims: true
+  require_experiment_source_for_numbers: true
+  require_code_trace_for_code_claims: true
+  allow_unverified_claims: false
+hooks:
+  citation_guard: enabled
+  evidence_consistency: enabled
+  latex_compile: enabled
+  sensitive_file_guard: enabled
