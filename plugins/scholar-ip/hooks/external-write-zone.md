@@ -54,16 +54,29 @@ Concretely:
 **Scoped snapshot** — do not scan the entire project tree (large `data/`, `manuscript/figures/`, etc. make full-tree snapshots costly). Use `git status --porcelain --untracked-files=all` post-call to enumerate only changed paths.
 
 ```
-marker = touch(/tmp/xreview-pre-marker)      # before subprocess
-run    = invoke(agent, prompt_via_stdin)     # external agent runs
-diff   = git_status_porcelain()              # cheap; lists changed paths only
-new_or_modified = paths_in(diff)
-                  + find(. -newer marker -not -path './.evidraft/reviews/*')
+marker  = touch(/tmp/xreview-pre-marker)         # before subprocess
+run     = invoke(agent, prompt_via_stdin)        # external agent runs
+status  = git_status_porcelain()                 # cheap; lists changed paths only
 
-violations = [p for p in new_or_modified if not p.startswith(".evidraft/reviews/")]
+# git status --porcelain prefixes (XY):
+#   A , M ,  M , ??   -> create / modify / untracked      (kind=add)
+#   D ,  D            -> delete                            (kind=del)
+#   R , C             -> rename / copy                     (kind=both: old=del, new=add)
+adds = paths_with_kind(status, "add") \
+       + find(. -newer marker -not -path './.evidraft/reviews/*')
+dels = paths_with_kind(status, "del")
+
+violations = (
+    [p for p in adds if not p.startswith(".evidraft/reviews/")] +
+    [p for p in dels if not p.startswith(".evidraft/reviews/")]    # deletes are violations too
+)
 
 if violations:
-    delete(violations)                       # do not retain attacker writes
+    # additions: remove the stray files; deletions: restore from HEAD
+    delete([p for p in violations if p in adds])
+    for p in violations:
+        if p in dels:
+            run("git", "checkout", "HEAD", "--", p)               # restore from index
     block(reason="external-write-zone violation", paths=violations)
 ```
 

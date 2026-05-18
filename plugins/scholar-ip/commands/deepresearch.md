@@ -137,7 +137,7 @@ mode: fast | full
  "run_id":"..."}
 ```
 
-**Failure mode.** If `scholar-search-mcp` raises `NotImplementedError` or is disabled in `project.yaml`, fall back to: (a) BibTeX entries already in `.evidraft/literature/references.bib`, (b) PDFs under `references/` or `papers/`. Each fallback row uses `source: "local-bib"` or `source: "local-pdf"` and `provider_id: null`. Log the fallback in `plan.yaml.notes`.
+**Failure mode.** If `scholar-search-mcp` raises `NotImplementedError` or is disabled in `project.yaml`, fall back to: (a) BibTeX entries already in `.evidraft/literature/references.bib`, (b) PDFs under `references/` or `papers/`. Each fallback row uses `source: "local-bib"` or `source: "local-pdf"` and `provider_id: null`. Log the fallback in `plan.yaml.notes`. **Note:** `local-bib` / `local-pdf` only ever appear as `source:` on `candidates.jsonl` rows; they are **not** legal values for `project.yaml.lit_deep.providers` (the config enum is MCP-only).
 
 **Handoff.** Stage 3 reads `candidates.jsonl` and `plan.yaml.inclusion_keywords` / `exclusion_keywords`.
 

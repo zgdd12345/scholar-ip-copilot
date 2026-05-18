@@ -158,7 +158,8 @@
     },
     "lit_provider": {
       "type": "string",
-      "enum": ["arxiv", "semantic-scholar", "openalex"]
+      "enum": ["arxiv", "semantic-scholar", "openalex"],
+      "description": "MCP-backed retrieval providers configured in `lit_deep.providers`. Local fallbacks (`local-bib`, `local-pdf`) are NOT configured here; they activate automatically when MCP retrieval fails and only ever appear as `source:` on `candidates.jsonl` rows, never in project.yaml."
     }
   }
 }
