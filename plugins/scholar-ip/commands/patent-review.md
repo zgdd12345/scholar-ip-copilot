@@ -8,7 +8,7 @@ outputs:
   - path: .evidraft/patent/patent_review_report.md
 allowed_tools: [Read, Glob, Grep, Write, Edit]
 hooks: [evidence-consistency]
-subagents: [patent-engineer, claim-drafter, novelty-critic, methodology-reviewer, evidence-auditor]
+subagents: [patent-engineer, claim-drafter, novelty-critic, methodology-reviewer, evidence-auditor, consistency-checker]
 references:
   - doc: ../skills/patent-disclosure/SKILL.md
   - doc: ../skills/patent-claims/SKILL.md

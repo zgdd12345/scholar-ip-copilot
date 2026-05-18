@@ -46,12 +46,14 @@
 
 ## v0.4 — Authoring quality
 
-`later`
+`done`
 
-- [ ] LaTeX style auditor (figure captions, table notation, math consistency)
-- [ ] Bibliography auditor (uncited entries, missing entries, malformed keys)
-- [ ] Cross-reference auditor (`\ref`, `\eqref`, `\cite` round-trip)
-- [ ] `prose-polisher` and `consistency-checker` reviewers (multi-pass)
+- [x] `latex-style-audit` skill — 28 rules covering captions, cross-refs, math, tables/figures, microtypography, common misuses
+- [x] `bib-audit` skill — 20 rules covering required fields per entry type, year/venue/DOI/URL hygiene, cross-entry author drift, coverage against evidence.jsonl + manuscript
+- [x] `xref-audit` skill — 14 rules covering label hygiene, broken refs, macro consistency, float order
+- [x] `consistency-checker` agent — 9 rules covering term drift, number drift (`fail`), abbreviation order, symbol drift, voice/tense, claim-vs-result mismatch (`fail`), section-order, dataset-name normalisation
+- [x] `/scholar:paper-check` upgraded from 5 audit blocks to 9 (Citation / LaTeX / Style / Bib quality / Cross-references / Figures & tables / Claim-evidence / Numbers / Consistency)
+- [x] `consistency-checker` wired into `/scholar:paper-review` and `/scholar:patent-review` subagents
 
 ## v0.5 — Code understanding
 

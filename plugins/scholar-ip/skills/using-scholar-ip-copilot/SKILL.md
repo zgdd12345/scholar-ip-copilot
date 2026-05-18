@@ -99,7 +99,7 @@ The plugin **refuses** to make strong claims without citable evidence, and refus
 | `/scholar:paper-code-audit` | Method ↔ code mapping + claim audit (5-state verdict) | `.evidraft/code/method_to_code.md`, `paper_code_audit.md` |
 | `/scholar:paper-experiment` | Experiment analysis + LaTeX tables | `.evidraft/experiments/result_analysis.md` + `tables/*.tex` |
 | `/scholar:paper-draft` | Outline → section plan → full LaTeX | `manuscript/sections/*.tex` |
-| `/scholar:paper-check` | Citation / LaTeX / refs / claim-evidence / number-source audit | `.evidraft/manuscript/paper_check_report.md` |
+| `/scholar:paper-check` | 9-block audit: Citation / LaTeX compile / Style (28 rules) / Bib quality (20 rules) / Cross-references (14 rules) / Figures & tables / Claim-evidence / Number-source / Consistency (semantic, 9 rules) | `.evidraft/manuscript/paper_check_report.md` + per-audit `*_audit-<ts>.findings.json` |
 | `/scholar:paper-venue` | Convert arXiv-style → CVPR/NeurIPS/ICCV/… template at submission | `submissions/<venue>/main.tex` |
 
 ### Patent (6) — 技术交底书 / TID first

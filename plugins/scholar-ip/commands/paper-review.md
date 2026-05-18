@@ -19,7 +19,7 @@ outputs:
   - path: .evidraft/literature/related_work_outline.md
 allowed_tools: [Read, Glob, Grep, Write, Edit]
 hooks: [citation-guard, evidence-consistency]
-subagents: [literature-reviewer, evidence-auditor]
+subagents: [literature-reviewer, evidence-auditor, consistency-checker]
 references:
   - doc: ../skills/literature-review/SKILL.md
 ---
