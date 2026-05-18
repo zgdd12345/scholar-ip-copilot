@@ -113,14 +113,16 @@ The plugin **refuses** to make strong claims without citable evidence, and refus
 | `/scholar:patent-claims` | Advisory: draft independent + dependent claims | `.evidraft/patent/claims.md` |
 | `/scholar:patent-review` | 5-role review (engineer / drafter / novelty critic / technical / examiner) | `.evidraft/patent/patent_review_report.md` |
 
-### Phase 2 (planned — separate ship)
+### Shared / Phase 2 (4 modules)
 
-| Command | Purpose |
-|---|---|
-| `/scholar:brainstorming` | superpowers-style requirement clarification; writes `.evidraft/scope/YYYY-MM-DD-<slug>.md`; hard precondition for paper-idea / patent-scout / draft / claims |
-| `/scholar:deepresearch` | 6-stage heavy literature workflow: Frame → Retrieve → Screen → Cluster → Critique → Synthesise; PRISMA-style screening log |
-| `/scholar:xreview` | Delegate to an external agent (Codex / Claude bare / OpenCode); writes `.evidraft/reviews/<agent>-<persona>-<ts>.md`; read-only enforced |
-| `/scholar:polish` | Williams-style humanize: reduce AI-flavour, preserve numbers/citations; mandatory diff log |
+| Command | Purpose | Key output |
+|---|---|---|
+| `/scholar:brainstorming` | superpowers-style requirement clarification (paper or patent branch); Carlini conclusion-first test; Pursue/Refine/Kill verdict; `--fast` mode for 3 questions | `.evidraft/scope/YYYY-MM-DD-<slug>.md` |
+| `/scholar:deepresearch` | 6-stage heavy literature workflow: Frame → Retrieve → Screen → Cluster → Critique → Synthesise; PRISMA-style log; mandatory citation audit | `.evidraft/literature/{plan.yaml, candidates.jsonl, screening_log.csv, clusters.yaml, critique/, citation_audit.json, related_work.draft.md}` |
+| `/scholar:xreview` | Delegate to an external agent (Codex / Claude bare / OpenCode) for a second-opinion review; read-only enforced; stdin-only prompts | `.evidraft/reviews/<agent>-<persona>-<ts>.md` |
+| `/scholar:polish` | Williams-style humanize: preserves numbers/citations/entities/hedges; mandatory diff log; ethics-bound (not detector-evasion) | rewritten target + `.evidraft/style/humanize-<ts>.{log,report.md}` |
+
+`/scholar:brainstorming` is a **hard precondition** (via `scope-required` hook, default `block`) for `/scholar:paper-idea`, `/scholar:patent-scout`, `/scholar:paper-draft`, `/scholar:patent-claims`, `/scholar:deepresearch`, and `/scholar:polish`. Downgradable via `.evidraft/project.yaml.hooks.scope_required` to `warn` or `disabled`.
 
 ## Workflow ordering
 
@@ -128,31 +130,34 @@ The plugin **refuses** to make strong claims without citable evidence, and refus
 
 ```
 /scholar:paper-init
-  └─► /scholar:brainstorming           (Phase 2; recommended)
-        └─► /scholar:paper-lit
-              └─► /scholar:paper-idea  (or /scholar:deepresearch for heavy review)
+  └─► /scholar:brainstorming           (required, scope-required hook)
+        └─► /scholar:paper-lit               (light, single-pass)
+        OR /scholar:deepresearch             (heavy, 6-stage; PRISMA-style)
+              └─► /scholar:paper-idea
                     └─► /scholar:paper-code-audit
                           └─► /scholar:paper-experiment
                                 └─► /scholar:paper-review
                                       └─► /scholar:paper-draft
                                             └─► /scholar:paper-check
-                                                  └─► /scholar:paper-polish  (Phase 2)
-                                                        └─► /scholar:paper-venue  (submission time)
+                                                  └─► /scholar:polish           (optional)
+                                                        └─► /scholar:paper-venue (submission)
+                                            └─► /scholar:xreview                (any time, optional)
 ```
 
 ### Patent
 
 ```
 /scholar:patent-init
-  └─► /scholar:brainstorming        (Phase 2)
+  └─► /scholar:brainstorming        (required, scope-required hook)
         └─► /scholar:patent-scout
               └─► /scholar:patent-prior-art
                     └─► /scholar:patent-disclosure   ◀ primary deliverable: 技术交底书
                           └─► /scholar:patent-claims
                                 └─► /scholar:patent-review
+                                      └─► /scholar:xreview  (second opinion, optional)
 ```
 
-## The 4 guardrail hooks
+## The 7 guardrail hooks
 
 | Hook | Trigger | Behaviour |
 |---|---|---|
@@ -160,6 +165,9 @@ The plugin **refuses** to make strong claims without citable evidence, and refus
 | `evidence-consistency` | writing any paper section / TID section | Block: literature claims must trace to `evidence.jsonl`; numbers must trace to `experiments/`; code claims must include `file_path` + line range. |
 | `latex-compile` | `.tex` modified | Warn: run `latexmk`, parse structured errors. |
 | `sensitive-file-guard` | reading `.env`, `secrets/`, `credentials.json`, `*.pem`, `*.key` | Block by default; explicit one-shot user-confirmed override required. |
+| `scope-required` | invoking `/scholar:paper-idea`, `/scholar:patent-scout`, `/scholar:paper-draft`, `/scholar:patent-claims`, `/scholar:deepresearch`, `/scholar:polish` | Block: requires an approved `.evidraft/scope/<date>-<slug>.md` ≤ `staleness_days` (default 14) old. |
+| `external-write-zone` | any external-agent invocation via `/scholar:xreview` | Block: outputs may only land under `.evidraft/reviews/`. |
+| `humanize-evidence-preserve` | `/scholar:polish` rewrite step | Block: token-level diff for numbers, citation keys, named entities, hedging adverbs must be empty before applying a hunk. |
 
 Downgrade is allowed in `.evidraft/project.yaml`'s `hooks:` block — but each downgrade is logged in the relevant check report.
 

@@ -86,6 +86,22 @@ The **primary** patent deliverable is a **技术交底书** (Technical Invention
 /scholar:patent-review       → multi-role review (engineer, drafter, novelty critic, technical reviewer, examiner)
 ```
 
+### Shared / Phase 2 — clarify, deep-search, delegate, polish
+
+```
+/scholar:brainstorming       → requirement clarification (superpowers-style); writes .evidraft/scope/<date>-<slug>.md;
+                                hard precondition (scope-required hook, block→warn|disabled in project.yaml) for
+                                /scholar:paper-idea, /scholar:patent-scout, /scholar:paper-draft,
+                                /scholar:patent-claims, /scholar:deepresearch, /scholar:polish
+/scholar:deepresearch        → 6-stage heavyweight literature workflow (Frame → Retrieve → Screen → Cluster →
+                                Critique → Synthesise); PRISMA-style screening log; multi-provider
+                                (arxiv | semantic-scholar | openalex); breadth/depth knobs
+/scholar:xreview             → delegate to another coding agent (Codex / Claude bare / OpenCode) for a second
+                                opinion; output zone locked to .evidraft/reviews/; user-supplied API keys via env
+/scholar:polish              → Williams-style humanize: cut AI-flavour, preserve numbers/citations/entities/hedges;
+                                mandatory diff log under .evidraft/style/; NOT a detector-evasion tool
+```
+
 All outputs land in `.evidraft/` so the workspace stays inspectable and diffable.
 
 ---

@@ -18,7 +18,7 @@ outputs:
   - path: manuscript/main.tex
   - path: manuscript/sections/
 allowed_tools: [Read, Glob, Grep, Write, Edit]
-hooks: [citation-guard, evidence-consistency, latex-compile]
+hooks: [scope-required, citation-guard, evidence-consistency, latex-compile]
 subagents: [latex-editor, evidence-auditor, methodology-reviewer]
 references:
   - doc: ../skills/latex-writing/SKILL.md

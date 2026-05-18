@@ -8,7 +8,7 @@ outputs:
   - path: .evidraft/patent/invention_candidates.md
   - path: .evidraft/evidence/evidence.jsonl   # appended
 allowed_tools: [Read, Glob, Grep, Write, Edit]
-hooks: [evidence-consistency, sensitive-file-guard]
+hooks: [scope-required, evidence-consistency, sensitive-file-guard]
 subagents: [codebase-analyst, patent-engineer, novelty-critic]
 references:
   - doc: ../skills/patent-disclosure/SKILL.md

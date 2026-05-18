@@ -13,7 +13,7 @@ outputs:
   - path: .evidraft/ideas/risk_matrix.md
   - path: .evidraft/ideas/experiment_to_validate.md
 allowed_tools: [Read, Glob, Grep, Write, Edit]
-hooks: [citation-guard, evidence-consistency]
+hooks: [scope-required, citation-guard, evidence-consistency]
 subagents: [literature-reviewer, codebase-analyst, novelty-critic]
 references:
   - doc: ../skills/codebase-audit/SKILL.md

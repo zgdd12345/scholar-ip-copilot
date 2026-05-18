@@ -20,7 +20,7 @@ outputs:
   - path: .evidraft/patent/claims.md
   - path: .evidraft/patent/claim_chart.md
 allowed_tools: [Read, Glob, Grep, Write, Edit]
-hooks: [citation-guard, evidence-consistency]
+hooks: [scope-required, citation-guard, evidence-consistency]
 subagents: [claim-drafter, patent-engineer, novelty-critic, evidence-auditor]
 references:
   - doc: ../skills/patent-claims/SKILL.md

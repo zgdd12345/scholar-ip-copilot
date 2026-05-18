@@ -5,11 +5,16 @@ Everything EviDraft produces lives on disk under the project's `.evidraft/` dire
 ```
 <your-project>/
 ├── .evidraft/
-│   ├── project.yaml
+│   ├── project.yaml           project type, status, rules, hooks, scope/style/reviewers/lit_deep
+│   ├── scope/                 /scholar:brainstorming output (dated, gated by scope-required hook)
+│   │   └── YYYY-MM-DD-<slug>.md
 │   ├── evidence/evidence.jsonl
 │   ├── literature/
 │   │   ├── references.bib
-│   │   └── matrix.md
+│   │   ├── matrix.md
+│   │   └── (deepresearch artefacts: plan.yaml, candidates.jsonl,
+│   │        screening_log.csv, clusters.yaml, critique/, citation_audit.json,
+│   │        related_work.draft.md)
 │   ├── ideas/
 │   │   ├── novelty_matrix.md
 │   │   ├── risk_matrix.md
@@ -21,8 +26,14 @@ Everything EviDraft produces lives on disk under the project's `.evidraft/` dire
 │   ├── experiments/
 │   │   ├── result_analysis.md
 │   │   └── tables/
+│   ├── style/                 /scholar:polish humanize output
+│   │   ├── humanize-<ts>.log
+│   │   └── humanize-<ts>.report.md
+│   ├── reviews/               /scholar:xreview external-agent reviews (write zone locked here)
+│   │   ├── <agent>-<persona>-<ts>.md
+│   │   └── .last.yaml
 │   └── patent/                # only if project_type ∈ patent, mixed
-│       ├── invention_disclosure.md
+│       ├── invention_disclosure.md     # 技术交底书 / TID — primary deliverable
 │       ├── invention_candidates.md
 │       ├── prior_art_map.md
 │       ├── claim_chart.md
