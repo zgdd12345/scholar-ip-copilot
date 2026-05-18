@@ -39,6 +39,7 @@ Thumbs.db
 
 # EviDraft scratch (only inside example/test workspaces, not the repo root)
 **/.evidraft/cache/
+**/.evidraft/.cache/
 **/.evidraft/tmp/
 
 # Test artefacts

@@ -7,12 +7,14 @@ phase: patent
 outputs:
   - path: .evidraft/patent/invention_candidates.md
   - path: .evidraft/evidence/evidence.jsonl   # appended
-allowed_tools: [Read, Glob, Grep, Write, Edit]
+allowed_tools: [Read, Glob, Grep, Write, Edit, WebSearch, WebFetch, "Bash:git*", "Bash:ls*", "Bash:tree-sitter*"]
 hooks: [scope-required, evidence-consistency, sensitive-file-guard]
 subagents: [codebase-analyst, patent-engineer, novelty-critic]
 references:
   - doc: ../skills/patent-disclosure/SKILL.md
   - doc: ../skills/codebase-audit/SKILL.md
+  - doc: ../skills/code-intel/SKILL.md
+  - doc: ../skills/patent-search/SKILL.md
 ---
 
 # /scholar:patent-scout
@@ -21,7 +23,7 @@ Read the code and docs to surface **candidate** inventions. Output is a structur
 
 ## Steps
 
-1. **Repo scan.** Walk top-level modules and `README*`, `DESIGN*`, `RFC*`, `MODEL_CARD*`. Identify non-obvious technical mechanisms: novel algorithms, optimisations, data structures, system architectures, training schemes, pipelines, hardware/software co-designs.
+1. **Repo scan.** Drive via `skills/code-intel/SKILL.md`. Walk top-level modules and `README*`, `DESIGN*`, `RFC*`, `MODEL_CARD*`. Identify non-obvious technical mechanisms: novel algorithms, optimisations, data structures, system architectures, training schemes, pipelines, hardware/software co-designs. (Optionally cross-check each candidate against public patent databases via `skills/patent-search/SKILL.md` before recording the novelty hypothesis.)
 2. **Cluster candidates.** Group related code into one candidate where appropriate. Drop trivial or library-level wrappers.
 3. **Write `.evidraft/patent/invention_candidates.md`.** One H2 section per candidate, with:
    ```

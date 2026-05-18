@@ -18,6 +18,7 @@ hooks: [evidence-consistency]
 subagents: [experiment-analyst, evidence-auditor]
 references:
   - doc: ../skills/experiment-analysis/SKILL.md
+  - doc: ../skills/evidence-check/SKILL.md
 ---
 
 # /scholar:paper-experiment

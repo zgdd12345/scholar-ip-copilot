@@ -30,7 +30,7 @@ inputs:
     type: list
     optional: true
     default: [arxiv, semantic-scholar, openalex]
-    description: "Ordered MCP backends. Records `source` per row; never blends silently."
+    description: "Ordered retrieval backends consumed by skills/scholar-search/SKILL.md. Records `source` per row; never blends silently."
   - name: mode
     type: enum
     values: [fast, full]
@@ -51,21 +51,22 @@ outputs:
   - path: .evidraft/literature/critique/
   - path: .evidraft/literature/related_work.draft.md
   - path: .evidraft/literature/citation_audit.json
-allowed_tools: [Read, Glob, Grep, Write, Edit, "Bash:cat*", "Bash:ls*"]
+allowed_tools: [Read, Glob, Grep, Write, Edit, WebSearch, WebFetch, "Bash:cat*", "Bash:ls*"]
 hooks: [scope-required, citation-guard, evidence-consistency]
 subagents: [deep-research-orchestrator, screener, paper-critic, literature-reviewer, evidence-auditor]
 references:
   - doc: ../skills/deep-literature-review/SKILL.md
   - doc: ../skills/literature-review/SKILL.md
+  - doc: ../skills/scholar-search/SKILL.md
+  - doc: ../skills/bib-manager/SKILL.md
   - doc: ../skills/evidence-check/SKILL.md
-  - doc: ../../../packages/mcp/scholar-search-mcp/README.md
 ---
 
 # /scholar:deepresearch
 
 Heavyweight 6-stage literature workflow: **Frame → Retrieve → Screen → Cluster → Critique → Synthesise**. Complements `/scholar:paper-lit` (which stays the light single-pass command); does **not** replace it. Every stage emits a durable artefact under `.evidraft/literature/` so partial runs are resumable via `resume_from`.
 
-All retrieval flows through `scholar-search-mcp` (`search_papers`, `get_paper_references`, `get_paper_citations`, `resolve_citation`). When the MCP is unavailable, every stage degrades to local PDFs + BibTeX and records that fallback in the stage artefact.
+All retrieval flows through the `scholar-search` skill (`skills/scholar-search/SKILL.md`), which drives host-native `WebSearch` + `WebFetch` against arXiv / Semantic Scholar / OpenAlex (URL templates + rate-limit policy + cache convention live in the skill). When the host has no network, every stage degrades to local PDFs + BibTeX and records that fallback in the stage artefact.
 
 The orchestration is owned by `deep-research-orchestrator`; this command is the executable contract.
 
@@ -120,8 +121,8 @@ mode: fast | full
 
 **Procedure.**
 
-1. For every sub-query, call `scholar-search-mcp.search_papers(query, year_range=..., venue=..., top_k=breadth*5, provider=<p>)` once per provider in `plan.yaml.providers`. Record `provider` as the `source` field of each row.
-2. For `depth > 1`: for each retained paper, fan out via `get_paper_references` and `get_paper_citations` (one hop per depth level beyond 1). Cap total candidates at `breadth * 50` to prevent runaway expansion.
+1. For every sub-query, invoke `skills/scholar-search/SKILL.md` with `query`, `year_range`, `venue`, `top_k=breadth*5`, once per provider in `plan.yaml.providers`. The skill issues the appropriate `WebFetch` against arXiv / S2 / OpenAlex (URL templates verbatim in the skill), parses the response, dedups, and emits rows conforming to the `candidates.jsonl` schema below. Record `provider` as the `source` field of each row.
+2. For `depth > 1`: for each retained paper, fan out via the skill's per-paper detail URLs to enumerate references (S2 `/paper/<id>?fields=references`) and citations (S2 `/paper/<id>?fields=citations` or OpenAlex `/works?filter=cites:<id>`) — one hop per depth level beyond 1. Cap total candidates at `breadth * 50` to prevent runaway expansion.
 3. Deduplicate by DOI, then by (normalised title, first author, year). Keep the most authoritative `source` per dedup cluster, but preserve all variants under `aliases`.
 4. Append rows to `candidates.jsonl`. Never blend metadata from two providers into one row without explicit reconciliation (see orchestrator constraints).
 
@@ -137,7 +138,7 @@ mode: fast | full
  "run_id":"..."}
 ```
 
-**Failure mode.** If `scholar-search-mcp` raises `NotImplementedError` or is disabled in `project.yaml`, fall back to: (a) BibTeX entries already in `.evidraft/literature/references.bib`, (b) PDFs under `references/` or `papers/`. Each fallback row uses `source: "local-bib"` or `source: "local-pdf"` and `provider_id: null`. Log the fallback in `plan.yaml.notes`. **Note:** `local-bib` / `local-pdf` only ever appear as `source:` on `candidates.jsonl` rows; they are **not** legal values for `project.yaml.lit_deep.providers` (the config enum is MCP-only).
+**Failure mode.** If `WebFetch` is unavailable, every provider returns a hard rate-limit after retries, or the host has no network, fall back to: (a) BibTeX entries already in `.evidraft/literature/references.bib`, (b) PDFs under `references/` or `papers/`. Each fallback row uses `source: "local-bib"` or `source: "local-pdf"` and `provider_id: null`. Log the fallback in `plan.yaml.notes`. **Note:** `local-bib` / `local-pdf` only ever appear as `source:` on `candidates.jsonl` rows; they are **not** legal values for `project.yaml.lit_deep.providers` (the config enum is web-retrieval providers only).
 
 **Handoff.** Stage 3 reads `candidates.jsonl` and `plan.yaml.inclusion_keywords` / `exclusion_keywords`.
 
@@ -149,7 +150,7 @@ mode: fast | full
 
 1. Score each candidate against the inclusion / exclusion rubric derived from `plan.yaml`. Use a 0–5 integer score; `decision in {include, exclude, maybe}`.
 2. Every drop carries a single-sentence `reason`. No silent rejects.
-3. When the abstract is missing and the candidate's score is borderline (`maybe`), call `scholar-search-mcp.get_paper_metadata(provider_id)` to fetch it; if that still fails, set `decision=exclude` with `reason="abstract unavailable"`.
+3. When the abstract is missing and the candidate's score is borderline (`maybe`), invoke `skills/scholar-search/SKILL.md` with the candidate's `provider_id` to fetch the per-paper detail (S2 `/paper/<id>?fields=abstract` is the cheapest retry); if that still fails, set `decision=exclude` with `reason="abstract unavailable"`.
 4. Emit PRISMA counts: `retrieved`, `after_dedup`, `screened_in`, `screened_out`, plus `excluded_by_reason` histogram.
 
 **Artefact schema — `screening_log.csv`.**
@@ -173,7 +174,7 @@ PRISMA counts append to `plan.yaml.prisma:`.
 **Procedure.**
 
 1. Group included candidates into 3–6 clusters by **technical mechanism**, not by application (see `skills/literature-review/SKILL.md` — same family rules as the light command).
-2. For each cluster, surface the method lineage, dataset lineage, theory lineage by walking one hop of `get_paper_references` (parent works) and one hop of `get_paper_citations` (follow-on works), capped by `depth`.
+2. For each cluster, surface the method lineage, dataset lineage, theory lineage by walking one hop of references (parent works) and one hop of citations (follow-on works) via `skills/scholar-search/SKILL.md`, capped by `depth`.
 3. Write `clusters.yaml` and `evidence_map.json`. Every member paper gets a provisional `citation_key` following the `firstauthorYEARkeyword` convention from `skills/literature-review/SKILL.md`.
 
 **Artefact schema — `clusters.yaml`.**
@@ -197,7 +198,7 @@ clusters:
               "evidence_ids":["ev_0123"],"source":"arxiv"}}
 ```
 
-**Failure mode.** If `get_paper_references` / `get_paper_citations` raise `NotImplementedError`, skip the lineage fields (leave `[]`) and note `"lineage: degraded (mcp stub)"` per cluster.
+**Failure mode.** If the reference / citation hops return no data (network down, provider 429 after retries, paper id unresolvable), skip the lineage fields (leave `[]`) and note `"lineage: degraded (retrieval unavailable)"` per cluster.
 
 **Handoff.** Stage 5 reads `clusters.yaml` and (for the SWOT inputs) the candidate abstracts from `candidates.jsonl`.
 
@@ -244,7 +245,7 @@ clusters:
 2. Every paragraph must cite ≥ 2 `citation_key`s and end with a contrast sentence that names our angle, backed by at least one `evidence_id`. `citation-guard` and `evidence-consistency` block silently otherwise.
 3. Append every synthesised position to `.evidraft/evidence/evidence.jsonl` as `type=note` records with `verified=false` (the auditor flips them later).
 4. **Citation-audit pass (mandatory).** Walk every claim in `related_work.draft.md`. For each:
-   - Resolve to a `citation_key` (must exist in `references.bib`; use `scholar-search-mcp.resolve_citation` when the draft only has a free-text claim).
+   - Resolve to a `citation_key` (must exist in `references.bib`; when the draft only has a free-text claim, invoke `skills/scholar-search/SKILL.md` with the free-text title to discover the canonical paper and then `skills/bib-manager/SKILL.md` to land the entry under the right key).
    - Resolve to ≥ 1 `evidence_id` (must exist in `evidence.jsonl`).
    - Record the resolution in `citation_audit.json`. If any claim fails to resolve, the audit fails — do **not** proceed; the orchestrator must surface the failing claims and stop.
 
@@ -264,7 +265,7 @@ clusters:
 }
 ```
 
-**Failure mode.** If `resolve_citation` raises `NotImplementedError`, fall back to manual lookup against `references.bib` + `evidence.jsonl`. If a claim still cannot be resolved, leave the claim in the draft but flag `status: failed` and refuse to mark the run complete.
+**Failure mode.** If `skills/scholar-search/SKILL.md` cannot resolve a free-text claim (network down, all providers 429), fall back to manual lookup against `references.bib` + `evidence.jsonl`. If a claim still cannot be resolved, leave the claim in the draft but flag `status: failed` and refuse to mark the run complete.
 
 **Handoff.** The draft is **not** copied into `manuscript/sections/related_work.tex` by this command — that remains the job of `/scholar:paper-review`, which will consume `related_work.draft.md` as its outline.
 

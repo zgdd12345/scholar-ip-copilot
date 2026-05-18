@@ -28,6 +28,7 @@ subagents: [latex-editor, evidence-auditor]
 references:
   - doc: ../skills/venue-formatting/SKILL.md
   - doc: ../skills/latex-writing/SKILL.md
+  - doc: ../skills/latex-build/SKILL.md
 ---
 
 # /scholar:paper-venue
@@ -55,7 +56,7 @@ This command is **submission-time only**. Until the venue is decided, work in `m
    - Strip funding / acknowledgements (move to a separate `acknowledgements.tex` excluded from `main.tex`).
    - Comment out any url, repo link, or self-citation marker that reveals identity.
    - Replace "our previous work [12]" patterns with neutral language.
-5. **Compile sanity check.** Try `latexmk -pdf -interaction=nonstopmode submissions/<venue>/main.tex`. If `latex-build-mcp` is unavailable, mark as `SKIPPED`.
+5. **Compile sanity check.** Drive via `skills/latex-build/SKILL.md`: run `latexmk -pdf -interaction=nonstopmode -file-line-error submissions/<venue>/main.tex`, parse the log into the six-entry taxonomy, and write `.evidraft/manuscript/compile-<ts>.errors.json`. If `latexmk` is not on `$PATH`, mark compile `SKIPPED`.
 6. **Page-limit check.** If the venue declares a page limit, compute the compiled length and warn if over.
 7. **Write `submissions/<venue>/MANIFEST.md`:**
    - source: `manuscript/main.tex`

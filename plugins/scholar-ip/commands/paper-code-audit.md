@@ -14,11 +14,12 @@ outputs:
   - path: .evidraft/code/repo_summary.md
   - path: .evidraft/code/method_to_code.md
   - path: .evidraft/code/paper_code_audit.md
-allowed_tools: [Read, Glob, Grep, Write, Edit, "Bash:git*", "Bash:ls*"]
+allowed_tools: [Read, Glob, Grep, Write, Edit, "Bash:git*", "Bash:ls*", "Bash:tree-sitter*"]
 hooks: [evidence-consistency, sensitive-file-guard]
 subagents: [codebase-analyst, methodology-reviewer, evidence-auditor]
 references:
   - doc: ../skills/codebase-audit/SKILL.md
+  - doc: ../skills/code-intel/SKILL.md
 ---
 
 # /scholar:paper-code-audit
@@ -27,13 +28,13 @@ Verify that each claim about the method or implementation **actually exists in t
 
 ## Steps
 
-1. **Repo summary (refresh).** Update `.evidraft/code/repo_summary.md`:
+1. **Repo summary (refresh).** Drive via `skills/code-intel/SKILL.md`. Update `.evidraft/code/repo_summary.md`:
    - language(s), build/run commands, entry points (CLI, training script, server),
    - directory map (top-level only),
    - configs (e.g. `configs/*.yaml`),
    - test command, CI file paths,
    - any `README*`, `MODEL_CARD*`, `DATASHEET*` files.
-2. **Method-to-code mapping.** Update `.evidraft/code/method_to_code.md`:
+2. **Method-to-code mapping.** Drive via `skills/code-intel/SKILL.md` (Grep / Glob defaults; `tree-sitter` when on `$PATH`). Update `.evidraft/code/method_to_code.md`:
    | Method component | Source files | Entry points | Configs | Key functions/classes | Evidence | Gaps |
    - "Method component" is a row per planned section/sub-section of the Method.
    - "Evidence" lists evidence ids of `type=code`; create new ones as needed with `file_path` + `line_range`.

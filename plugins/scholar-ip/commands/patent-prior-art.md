@@ -14,19 +14,19 @@ inputs:
 outputs:
   - path: .evidraft/patent/prior_art_map.md
   - path: .evidraft/patent/claim_chart.md
-allowed_tools: [Read, Glob, Grep, Write, Edit]
+allowed_tools: [Read, Glob, Grep, Write, Edit, WebSearch, WebFetch]
 hooks: [evidence-consistency]
 subagents: [literature-reviewer, patent-engineer, novelty-critic]
 references:
   - doc: ../skills/patent-disclosure/SKILL.md
+  - doc: ../skills/patent-search/SKILL.md
+  - doc: ../skills/scholar-search/SKILL.md
   - doc: ../skills/evidence-check/SKILL.md
 ---
 
 # /scholar:patent-prior-art
 
-Build a prior-art map for each candidate invention. **Online retrieval requires
-`patent-search-mcp`; if absent, operate on user-supplied PDFs / patent numbers
-/ BibTeX.**
+Build a prior-art map for each candidate invention. **Online retrieval uses the host-native `WebSearch` + `WebFetch` tools driven by `skills/patent-search/SKILL.md` (Google Patents / USPTO PatentsView / EPO OPS); if the host has no network, operate on user-supplied PDFs / patent numbers / BibTeX.**
 
 ## Steps
 
@@ -34,7 +34,8 @@ Build a prior-art map for each candidate invention. **Online retrieval requires
    - `invention_candidates.md` (the targets),
    - `references.bib` (academic prior art),
    - user-supplied patent numbers / pdfs / urls,
-   - any output from `patent-search-mcp` if available.
+   - patent rows fetched via `skills/patent-search/SKILL.md` (URL templates, rate-limit policy, cache, and ethics disclaimer live in the skill),
+   - academic rows fetched via `skills/scholar-search/SKILL.md` for any adjacent papers.
 2. **Per-candidate map.** For each candidate, write a section in `prior_art_map.md`:
    ```
    ## C-001 <name>

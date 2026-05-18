@@ -18,24 +18,26 @@ outputs:
   - path: .evidraft/literature/references.bib
   - path: .evidraft/literature/matrix.md
   - path: .evidraft/evidence/evidence.jsonl  # append-only
-allowed_tools: [Read, Glob, Grep, Write, Edit, "Bash:cat*"]
+allowed_tools: [Read, Glob, Grep, Write, Edit, WebSearch, WebFetch, "Bash:cat*"]
 hooks: [citation-guard, evidence-consistency]
 subagents: [literature-reviewer, evidence-auditor]
 references:
   - doc: ../skills/literature-review/SKILL.md
+  - doc: ../skills/scholar-search/SKILL.md
+  - doc: ../skills/bib-manager/SKILL.md
   - doc: ../skills/evidence-check/SKILL.md
 ---
 
 # /scholar:paper-lit
 
-Build a literature foundation for the paper. Online retrieval requires `scholar-search-mcp`; **if the MCP is unavailable, operate only on what the user already provided** (PDFs in `references/`, BibTeX in `references.bib`, notes in `.evidraft/literature/`).
+Build a literature foundation for the paper. Online retrieval uses the host-native `WebSearch` + `WebFetch` tools driven by the `scholar-search` skill (`skills/scholar-search/SKILL.md`); **if the host has no network, operate only on what the user already provided** (PDFs in `references/`, BibTeX in `references.bib`, notes in `.evidraft/literature/`).
 
 ## Steps
 
 1. **Inventory existing material.**
    - Look for `references.bib`, `references/*.pdf`, `papers/*.pdf`.
    - Read `.evidraft/literature/matrix.md` (may be empty).
-2. **Online retrieval (optional).** If `scholar-search-mcp` is enabled and the user supplies a topic, request up to N (default 20) candidate papers. For each candidate produce a structured stub (title, authors, year, venue, abstract, why-relevant).
+2. **Online retrieval (optional).** If the user supplies a topic, load the `scholar-search` skill and request up to N (default 20) candidate papers per the URL templates / rate-limit policy in `skills/scholar-search/SKILL.md` (arXiv, Semantic Scholar, OpenAlex). For each candidate produce a structured stub (title, authors, year, venue, abstract, why-relevant). All bib edits go through `skills/bib-manager/SKILL.md` for dedup + key normalisation.
 3. **Per-paper extraction.** For every paper you commit to (existing or new):
    - Add a clean BibTeX entry to `.evidraft/literature/references.bib`. Citation key: `firstauthorYEARkeyword` (lowercase).
    - Add one or more rows to `.evidraft/literature/matrix.md`:
