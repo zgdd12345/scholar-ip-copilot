@@ -121,3 +121,25 @@ def test_opencode_propagates_bundle_files(bundle_plugin: Path, tmp_path: Path) -
     beta_dir = out_dir / "skills" / "beta"
     beta_files = {p.name for p in beta_dir.iterdir() if p.is_file()}
     assert beta_files == {"SKILL.md"}, f"beta should have only SKILL.md, got {beta_files}"
+
+
+def test_claude_code_propagates_bundle_files(bundle_plugin: Path, tmp_path: Path) -> None:
+    """Claude Code renders skills/<id>/SKILL.md AND every bundle sibling."""
+    from packages.adapters.claude_code.generate import render as render_claude_code
+
+    out_dir = tmp_path / "claude-out"
+    written = render_claude_code(load_plugin(bundle_plugin), out_dir)
+
+    # Bundle files must appear in the written-paths list, not only on disk
+    # (regression guard against future bug where copy happens but
+    # written.extend(...) is forgotten).
+    assert (out_dir / "skills" / "alpha" / "references" / "stage-1.md") in written
+    assert (out_dir / "skills" / "alpha" / "references" / "schemas" / "plan.yaml") in written
+
+    assert (out_dir / "skills" / "alpha" / "SKILL.md").is_file()
+    assert (out_dir / "skills" / "alpha" / "references" / "stage-1.md").is_file()
+    assert (out_dir / "skills" / "alpha" / "references" / "schemas" / "plan.yaml").is_file()
+
+    beta_dir = out_dir / "skills" / "beta"
+    beta_files = {p.name for p in beta_dir.iterdir() if p.is_file()}
+    assert beta_files == {"SKILL.md"}

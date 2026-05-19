@@ -218,7 +218,10 @@ def test_invariant_a_file_counts(
     if adapter == "claude_code":
         n_cmd = len(_files_under(files, "commands"))
         n_agent = len(_files_under(files, "agents"))
-        n_skill = len(_files_under(files, "skills"))
+        # Count rendered SKILL.md files only (one per source skill); bundle
+        # siblings (references/, assets/, scripts/) are propagated as part of
+        # the same logical skill and would inflate a naive file-count.
+        n_skill = sum(1 for p in _files_under(files, "skills") if p.name == "SKILL.md")
         assert n_cmd == n_src_commands, (
             f"claude_code: commands rendered={n_cmd} != source={n_src_commands}"
         )
