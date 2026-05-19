@@ -125,42 +125,144 @@ See [`docs/architecture.md`](docs/architecture.md) for the layered architecture 
 
 ---
 
-## Install / use (MVP draft)
+## Install
 
-> Retrieval and tooling use the host's built-in `WebSearch`, `WebFetch`, and `Bash` via skills under `plugins/scholar-ip/skills/`. No external MCP is required for v0.2. MCP backends are reserved for v0.3+ as an optional offline / deterministic alternative — see [`packages/mcp/README.md`](packages/mcp/README.md).
+`scholar-ip-copilot` is a platform-neutral plugin source. Three host adapters render
+it into the shape Claude Code, Codex CLI, and OpenCode each load. Everything is
+local — no GitHub publishing or marketplace upload required.
 
-### Claude Code
+> Retrieval and tooling use the host's built-in `WebSearch`, `WebFetch`, and
+> `Bash` via skills under `plugins/scholar-ip/skills/`. No external MCP is
+> required for v0.2. MCP backends are reserved for v0.3+ — see
+> [`packages/mcp/README.md`](packages/mcp/README.md).
+
+### Prerequisites
+
+- Python 3.10+
+- `make`, `bash`, `jq` (jq is required by `citation-guard.sh` and
+  `scope-required.sh`; available on every standard dev box)
+- One or more of: `claude` CLI · `codex` CLI · `opencode` CLI
+
+### Quick install (works on all three hosts)
 
 ```bash
-# clone
-git clone https://github.com/<you>/scholar-ip-copilot.git
+# 1. Clone and set up the venv
+git clone https://github.com/zgdd12345/scholar-ip-copilot
 cd scholar-ip-copilot
+python -m venv .venv && source .venv/bin/activate
+pip install -e .
 
-# generate Claude-Code-flavored plugin into your project
-python -m packages.adapters.claude_code.generate \
-    --plugin plugins/scholar-ip \
-    --out ~/your-project/.claude/plugins/scholar-ip
+# 2. Render every host adapter (parallel, ~0.5s)
+make install
 ```
 
-Then from inside `~/your-project`:
+`make install` produces:
 
-```
-/scholar:paper-init
-/scholar:paper-code-audit
-/scholar:paper-experiment
-/scholar:paper-draft
-/scholar:paper-check
-```
+| Path | Purpose |
+|---|---|
+| `.claude/plugins/scholar-ip/` | Claude Code plugin (with `.claude-plugin/plugin.json` + `hooks/hooks.json` + 3 executable hooks) |
+| `.codex/plugins/scholar/` | Codex plugin (with `.codex-plugin/plugin.json` + 44 skills) |
+| `.opencode/{commands,agents,skills}/` | OpenCode auto-discovery layout |
+| `.agents/skills/scholar-*` | Codex's actual skill-discovery directory (synced from `.codex/plugins/scholar/skills/`) |
 
-### Codex CLI
+The render outputs are `.gitignore`'d — re-run `make install` after pulling.
+
+### Per-host registration
+
+#### Claude Code
 
 ```bash
-python -m packages.adapters.codex_cli.generate \
-    --plugin plugins/scholar-ip \
-    --out ~/your-project/.codex/prompts/scholar-ip
+claude plugin marketplace add ./ --scope project
+claude plugin install scholar@scholar-ip-copilot --scope project
 ```
 
-See [`packages/adapters/claude-code/README.md`](packages/adapters/claude-code/README.md) and [`packages/adapters/codex-cli/README.md`](packages/adapters/codex-cli/README.md) for full instructions and the platform-neutral schema in [`docs/plugin-format.md`](docs/plugin-format.md).
+Verify, then **restart any active Claude Code session**:
+
+```bash
+claude plugin list | grep scholar      # → ✔ enabled
+claude plugin validate .claude/plugins/scholar-ip
+```
+
+In the new session you get:
+- 20 `/scholar:*` slash commands (each with a `## Dispatch plan` if it declares subagents)
+- 15 subagents listed in `/agents` (per-agent `model:` + `effort:` hints)
+- 24 skills (`/skills` lists them and the model implicit-matches against the rich descriptions)
+- 3 real hooks firing on session start / `Write|Edit` / gated `/scholar:*` prompts
+
+#### Codex CLI
+
+```bash
+codex plugin marketplace add ./
+```
+
+Then add this once to `~/.codex/config.toml` (alongside any other `[plugins."..."]` blocks):
+
+```toml
+[plugins."scholar@scholar-ip-copilot"]
+enabled = true
+```
+
+Restart Codex. `/skills` now lists **44** entries — 20 commands rendered as
+`scholar-<id>` plus 24 source skills as `scholar-skill-<id>`. Skills are
+auto-discovered from `<repo>/.agents/skills/` (walked from cwd up to the
+worktree root). The marketplace + config block are forward-looking; until
+Codex 0.131+ syncs local marketplaces the `.agents/skills/` path is what
+actually loads.
+
+#### OpenCode
+
+Just stay inside the repo — OpenCode walks `cwd` for
+`.opencode/{commands,agents,skills}/`. No registration needed:
+
+```bash
+opencode    # in the repo root → 20 commands + 15 agents + 24 skills
+```
+
+For **global** access (anywhere on the machine), copy or symlink:
+
+```bash
+mkdir -p ~/.config/opencode
+cp -R .opencode/commands ~/.config/opencode/commands
+cp -R .opencode/agents   ~/.config/opencode/agents
+cp -R .opencode/skills   ~/.config/opencode/skills
+```
+
+Note: 7 source hooks are **not** rendered for OpenCode (hooks must be JS
+modules under `.opencode/plugins/`). See
+[`packages/adapters/opencode/README.md`](packages/adapters/opencode/README.md)
+for the gap.
+
+### Verify all hosts
+
+```bash
+make verify
+```
+
+This re-renders, runs the 17 conformance invariants + 39 unit tests, and
+prints which CLIs are detected. Use it as a smoke test after `git pull`
+or before reporting a host-specific issue.
+
+### Updating
+
+```bash
+git pull
+make install   # re-renders + re-syncs codex skills
+# Claude Code: restart to pick up the new marketplace cache
+# Codex:        restart — new skills appear in /skills
+# OpenCode:    next session auto-discovers
+```
+
+### Agentic install (CC / Codex reading this README)
+
+If you ask a host's coding agent to "install this plugin" while pointing it
+at this repo, the agent can follow this section verbatim. The exact command
+order is: `make install` → host-specific registration → restart session.
+
+See [`packages/adapters/claude_code/README.md`](packages/adapters/claude_code/README.md),
+[`packages/adapters/codex_cli/README.md`](packages/adapters/codex_cli/README.md),
+and [`packages/adapters/opencode/README.md`](packages/adapters/opencode/README.md)
+for adapter internals + the platform-neutral schema in
+[`docs/plugin-format.md`](docs/plugin-format.md).
 
 ---
 
