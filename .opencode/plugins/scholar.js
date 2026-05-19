@@ -22,12 +22,21 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// DIAGNOSTIC #1: fires on ES-module evaluation. If this never appears in
+// stderr, OpenCode never imported the plugin file at all.
+console.error('[scholar-plugin] DIAG-1 module loaded; __dirname=' + __dirname);
+
 export const ScholarPlugin = async ({ client, directory }) => {
   // .opencode/plugins/scholar.js sits two levels below the repo root:
   // <repo>/.opencode/plugins/scholar.js -> <repo>/plugins/scholar-ip/...
   const repoRoot = path.resolve(__dirname, '../..');
   const sourceSkillsDir = path.join(repoRoot, 'plugins', 'scholar-ip', 'skills');
   const sourceAgentsDir = path.join(repoRoot, 'plugins', 'scholar-ip', 'agents');
+
+  // DIAGNOSTIC #2: fires when OpenCode invokes the exported factory function.
+  // If DIAG-1 fires but DIAG-2 does not, OpenCode loaded the module but never
+  // instantiated the plugin.
+  console.error('[scholar-plugin] DIAG-2 ScholarPlugin invoked; sourceSkillsDir=' + sourceSkillsDir + '; directory=' + directory);
 
   if (!fs.existsSync(sourceSkillsDir)) {
     throw new Error(
@@ -39,11 +48,21 @@ export const ScholarPlugin = async ({ client, directory }) => {
 
   return {
     config: async (config) => {
+      // DIAGNOSTIC #3: fires when OpenCode invokes the config hook. If DIAG-2
+      // fires but DIAG-3 does not, OpenCode received the plugin object but
+      // chose not to call our config hook (wrong key name / wrong contract).
+      console.error('[scholar-plugin] DIAG-3 config hook fired; pre-push config.skills=' + JSON.stringify(config.skills));
+
       config.skills = config.skills || {};
       config.skills.paths = config.skills.paths || [];
       if (!config.skills.paths.includes(sourceSkillsDir)) {
         config.skills.paths.push(sourceSkillsDir);
       }
+
+      // DIAGNOSTIC #4 (post-push state): if DIAG-3 fires but the skill list
+      // still does not include source skills, the key name `skills.paths` is
+      // not the contract OpenCode 1.3.0 reads from.
+      console.error('[scholar-plugin] DIAG-4 post-push config.skills.paths=' + JSON.stringify(config.skills.paths));
 
       // Only add agents path if Task 6 confirmed the agents.paths key exists.
       // Until then, leave this commented so a misnamed key doesn't silently
