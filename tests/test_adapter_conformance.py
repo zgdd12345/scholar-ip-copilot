@@ -750,3 +750,52 @@ def test_invariant_h_effort_set_when_model_pinned(plugin: Plugin) -> None:
         f"agent(s) with invalid `effort:` value (must be one of "
         f"{sorted(_VALID_EFFORTS)}): {bad}"
     )
+
+
+# ---------------------------------------------------------------------------
+# F. skill bundle propagation
+# ---------------------------------------------------------------------------
+
+
+def test_invariant_f_bundle_resources_propagated(
+    plugin: Plugin,
+    rendered: dict[str, dict[str, Any]],
+) -> None:
+    """For every source skill that has a bundle (any non-SKILL.md file under
+    its directory), each writing adapter must render those files into the
+    skill's rendered directory, preserving sub-paths.
+
+    When no source skill has a bundle (current master baseline) this test is
+    vacuously true — it asserts only what is present, never that bundles must
+    exist."""
+    skills_with_bundle = [
+        d for d in plugin.skills
+        if d.bundle_dir is not None
+        and any(
+            p.is_file() and not (p.name == "SKILL.md" and p.parent == d.bundle_dir)
+            for p in d.bundle_dir.rglob("*")
+        )
+    ]
+
+    for d in skills_with_bundle:
+        bundle_rel_paths = sorted(
+            str(p.relative_to(d.bundle_dir))
+            for p in d.bundle_dir.rglob("*")
+            if p.is_file() and not (p.name == "SKILL.md" and p.parent == d.bundle_dir)
+        )
+
+        # Claude Code: skills/<id>/<rel-path>
+        cc_root = rendered["claude_code"]["root"]
+        for rel in bundle_rel_paths:
+            target = cc_root / "skills" / d.id / rel
+            assert target.is_file(), (
+                f"claude_code: missing bundle file skills/{d.id}/{rel}"
+            )
+
+        # Codex CLI: skills/scholar-skill-<id>/<rel-path>
+        cx_root = rendered["codex_cli"]["root"]
+        for rel in bundle_rel_paths:
+            target = cx_root / "skills" / f"scholar-skill-{d.id}" / rel
+            assert target.is_file(), (
+                f"codex_cli: missing bundle file skills/scholar-skill-{d.id}/{rel}"
+            )
