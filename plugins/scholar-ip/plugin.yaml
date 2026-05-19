@@ -70,6 +70,7 @@ mcp_servers: []  # MCP layer reserved for v0.3+; v0.2 uses host-native skills
 workflows:
   meta:
     - /scholar:using                # orientation; safe to run any time
+    - /scholar:using-deep-research  # single entry to the PRISMA-style deep lit review workflow
     - /scholar:brainstorming        # scope clarification; precondition for paper-idea, patent-scout, draft, claims, deepresearch, polish
   paper:
     - /scholar:paper-init
