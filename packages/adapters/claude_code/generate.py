@@ -331,10 +331,10 @@ def _render_executable_hooks(plugin: Plugin, out_dir: Path) -> list[Path]:
 
     if entries:
         manifest_path = out_hooks_dir / "hooks.json"
-        # Sort event keys for stable output.
+        # CC schema requires the events nested under a top-level ``hooks`` key.
         sorted_entries = {k: entries[k] for k in sorted(entries)}
         manifest_path.write_text(
-            json.dumps(sorted_entries, indent=2, ensure_ascii=False) + "\n",
+            json.dumps({"hooks": sorted_entries}, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
         written.append(manifest_path)

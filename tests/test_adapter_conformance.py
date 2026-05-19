@@ -627,11 +627,13 @@ def test_invariant_g_executable_hooks_present(
         "missing — adapter did not emit hooks/hooks.json"
     )
 
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert isinstance(manifest, dict), (
-        f"claude_code: hooks.json must be a JSON object keyed by event name, "
-        f"got {type(manifest).__name__}"
+    raw = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert isinstance(raw, dict) and isinstance(raw.get("hooks"), dict), (
+        f"claude_code: hooks.json must be a JSON object with a top-level "
+        f"`hooks` record keyed by event name (per CC schema), got top-level "
+        f"keys={sorted(raw.keys()) if isinstance(raw, dict) else type(raw).__name__}"
     )
+    manifest = raw["hooks"]
 
     required_events = {"SessionStart", "PostToolUse", "UserPromptSubmit"}
     missing_events = required_events - set(manifest.keys())
