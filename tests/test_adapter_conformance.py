@@ -753,11 +753,11 @@ def test_invariant_h_effort_set_when_model_pinned(plugin: Plugin) -> None:
 
 
 # ---------------------------------------------------------------------------
-# F. skill bundle propagation
+# I. skill-bundle propagation invariant
 # ---------------------------------------------------------------------------
 
 
-def test_invariant_f_bundle_resources_propagated(
+def test_invariant_i_bundle_resources_propagated(
     plugin: Plugin,
     rendered: dict[str, dict[str, Any]],
 ) -> None:
