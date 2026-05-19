@@ -1,0 +1,111 @@
+{
+  "run_id": "pr-2026-05-18-001",
+  "ts": "20260518T140105Z",
+  "schema_version": "1.0.0",
+  "advisory_only": "Overlap scores are LLM heuristics; not patentability opinions. A registered patent agent / attorney must review every row.",
+  "candidates": [
+    {
+      "candidate_id": "C-001",
+      "claims_covered": ["c1", "c2", "c3", "c4"],
+      "rows": [
+        {
+          "claim_id": "c1",
+          "element_label": "a",
+          "element_text": "providing a base learning rate eta_0 and a base momentum mu_0 to an SGD optimiser;",
+          "spec_support": [{"section": "Technical solution", "loc": "para 1-2"}],
+          "code_support": [{"file": "src/optim/scheduler.py", "lines": "21-34", "symbol": "AdaptiveCosineWarmupMomentumScaler.__init__"}],
+          "prior_art_overlap": [
+            {"prior_art_id": "PA-01", "title": "US App 2024/0XXXXXX A1 (fictional)", "overlap_score": "high",
+             "overlap_passage": "step (a): providing a base learning rate and a base momentum to an SGD-class optimiser.",
+             "differentiator_note": "Element (a) is descriptive setup shared by both works; the differentiator lives in elements (c) and (d)."}
+          ],
+          "risk": "low",
+          "suggested_revision": null
+        },
+        {
+          "claim_id": "c1",
+          "element_label": "b",
+          "element_text": "computing a cosine-annealed learning rate eta_t over a warmup interval [0, T_w] and a main interval [T_w, T];",
+          "spec_support": [{"section": "Technical solution", "loc": "para 3 (Eq. 1)"}],
+          "code_support": [{"file": "src/optim/scheduler.py", "lines": "48-57", "symbol": "AdaptiveCosineWarmupMomentumScaler.lr"}],
+          "prior_art_overlap": [
+            {"prior_art_id": "PA-01", "title": "US App 2024/0XXXXXX A1 (fictional)", "overlap_score": "high",
+             "overlap_passage": "step (b): a cosine annealing schedule comprising a warmup phase and a main phase.",
+             "differentiator_note": "Cosine + warmup is shared. Differentiator is in (c): main-phase momentum is coupled to eta_t / eta_0, not held constant."}
+          ],
+          "risk": "medium",
+          "suggested_revision": "Narrow phrasing to 'cosine-annealed learning rate eta_t with a warmup interval whose end T_w is determined as a configurable fraction of T'."
+        },
+        {
+          "claim_id": "c1",
+          "element_label": "c",
+          "element_text": "scaling the momentum mu_t during the main interval by the ratio eta_t / eta_0 weighted by a coupling weight alpha in [0, 1];",
+          "spec_support": [{"section": "Technical solution", "loc": "para 4 (Eq. 2)"}, {"section": "Implementation details", "loc": "code block 2"}],
+          "code_support": [{"file": "src/optim/scheduler.py", "lines": "59-73", "symbol": "AdaptiveCosineWarmupMomentumScaler.momentum"}],
+          "prior_art_overlap": [
+            {"prior_art_id": "PA-01", "title": "US App 2024/0XXXXXX A1 (fictional)", "overlap_score": "low",
+             "overlap_passage": "main-phase momentum is held constant at mu_0 (no coupling).",
+             "differentiator_note": "PA-01 has no coupling weight. This is the strongest distinguishing element."},
+            {"prior_art_id": "PA-02", "title": "Park & Yamada 2023 (fictional)", "overlap_score": "medium",
+             "overlap_passage": "linear momentum decay schedule independent of LR.",
+             "differentiator_note": "PA-02 decouples momentum from LR entirely; ours couples them via alpha. Mechanism direction differs."}
+          ],
+          "risk": "low",
+          "suggested_revision": null
+        },
+        {
+          "claim_id": "c1",
+          "element_label": "d",
+          "element_text": "applying the updates (eta_t, mu_t) to model parameters via the SGD optimiser for each training step.",
+          "spec_support": [{"section": "Technical solution", "loc": "para 5"}],
+          "code_support": [{"file": "src/optim/scheduler.py", "lines": "21-73", "symbol": "AdaptiveCosineWarmupMomentumScaler (overall)"}],
+          "prior_art_overlap": [],
+          "risk": "low",
+          "suggested_revision": null
+        },
+        {
+          "claim_id": "c2",
+          "element_label": "a",
+          "element_text": "wherein the coupling weight alpha is determined by validation-loss feedback at the end of each epoch.",
+          "spec_support": [],
+          "code_support": [],
+          "prior_art_overlap": [],
+          "risk": "high",
+          "suggested_revision": "No spec or code support: either add a paragraph + reference implementation in invention_disclosure.md before filing, or drop c2 and replace with a narrower dependent (e.g. 'wherein alpha is a configurable hyperparameter in [0,1]')."
+        },
+        {
+          "claim_id": "c3",
+          "element_label": "a",
+          "element_text": "wherein the warmup interval end T_w is determined as a configurable fraction of the total training steps T.",
+          "spec_support": [{"section": "Implementation details", "loc": "configs/scheduler.yaml"}],
+          "code_support": [{"file": "configs/scheduler.yaml", "lines": "3-5", "symbol": "warmup_fraction"}],
+          "prior_art_overlap": [
+            {"prior_art_id": "PA-01", "title": "US App 2024/0XXXXXX A1 (fictional)", "overlap_score": "medium",
+             "overlap_passage": "warmup interval end is set as a constant fraction.",
+             "differentiator_note": "Same idea; configurability is shared. Marginal narrowing."}
+          ],
+          "risk": "medium",
+          "suggested_revision": "Tighten with a specific range bound or coupling rule (e.g. 'between 0.05 and 0.20 of total steps')."
+        },
+        {
+          "claim_id": "c4",
+          "element_label": "a",
+          "element_text": "wherein the base momentum mu_0 is selected from the range [0.85, 0.99].",
+          "spec_support": [{"section": "Implementation details", "loc": "configs/scheduler.yaml"}],
+          "code_support": [{"file": "configs/scheduler.yaml", "lines": "8-9", "symbol": "base_momentum"}],
+          "prior_art_overlap": [],
+          "risk": "low",
+          "suggested_revision": null
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "rows_total": 7,
+    "rows_high_risk": 1,
+    "rows_medium_risk": 2,
+    "rows_low_risk": 4,
+    "rows_no_spec_support": 1,
+    "rows_no_code_support": 1
+  }
+}

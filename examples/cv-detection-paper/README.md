@@ -110,11 +110,18 @@ number in the draft traces back to an `ev_*` id in `evidence.jsonl`.
 
 ### 5. `/scholar:paper-check`
 
-In a real run this would produce `paper_check_report.md` covering
-citation completeness, LaTeX compilation, figure/table references,
-claim-evidence linkage, and number-source provenance. For this
-example we have not committed the report file -- the audit
-artefacts above already demonstrate the format.
+Produces `paper_check_report.md` covering the v0.4 9-block audit (Citation / LaTeX / Style / Bib quality / Cross-references / Figures & tables / Claim-evidence / Numbers / Consistency). Each per-audit step ships a paired `.findings.json` + `.log` artefact under `.evidraft/manuscript/` (style / xref / consistency / compile) or `.evidraft/literature/` (bib).
+
+This example now ships the full set as a fixture:
+
+- `.evidraft/manuscript/compile-20260518T140000Z.errors.json` — `latex-build` skill output, structured error taxonomy.
+- `.evidraft/manuscript/style_audit-20260518T140005Z.{findings.json,log}` — 7 findings against the 28-rule style taxonomy (1 fail, 3 warn, 3 info).
+- `.evidraft/literature/bib_audit-20260518T140010Z.{findings.json,log}` — 5 bib-quality findings including a cross-coverage check.
+- `.evidraft/manuscript/xref_audit-20260518T140012Z.{findings.json,log}` — 5 cross-reference findings (LABEL_ORPHANED, REF_BROKEN, …).
+- `.evidraft/manuscript/consistency_audit-20260518T140020Z.{findings.json,log}` — 6 consistency findings including **one `NUMBER_DRIFT (fail)`** demonstrating the most important rule.
+- `.evidraft/manuscript/paper_check_report.md` — the human-readable 9-block report. Overall verdict is `WARN` because the `hooks.consistency_audit: warn` downgrade has been applied (the underlying `NUMBER_DRIFT` is at rounding-boundary precision); without the downgrade it would be `FAIL`. The "Hook configuration applied this run" section documents the choice.
+
+The findings are illustrative — no actual `latexmk` compile was run on this synthetic manuscript. The format is what a real `/scholar:paper-check` would produce.
 
 ## Consistency notes
 

@@ -2,11 +2,34 @@
 
 # Patent review report
 
-Generated: 2026-03-04T11:00:00Z
+Generated: 2026-05-18T14:01:30Z
+run_id: pr-2026-05-18-001
 Targets:
 - disclosure: .evidraft/patent/invention_disclosure.md
 - claims:     .evidraft/patent/claims.md
 - chart:      .evidraft/patent/claim_chart.md
+Structured-audit artefacts (this run):
+- claims_parsed:    .evidraft/patent/claims_parsed.json
+- claim_chart:      .evidraft/patent/claim_chart-20260518T140105Z.json
+- novelty_audit:    .evidraft/patent/novelty_audit-20260518T140110Z.findings.json
+
+## Structured audits (pre-pass)
+
+### Claim parser
+- Fail: 0  Warn: 0  Info: 1
+- Top issues: TERMINOLOGY_DRIFT info — "coupling weight" (claims) vs "coupling_alpha" (disclosure / config). Surface to roles 2 (claim drafter) and 4 (methodology reviewer).
+
+### Claim chart
+- Rows total: 7. high risk: 1, medium risk: 2, low risk: 4.
+- Rows with no spec OR code support: 1 (c2[a]); no-support override raises that row to high risk regardless of overlap.
+
+### Novelty heuristics
+- Per-claim verdict_hint (ADVISORY ONLY — convenience labels for attorney triage, no legal weight):
+  - c1: narrow      (1 high + 1 medium overlap; differentiator lives in c1[c])
+  - c2: redraft     (no spec / code support for c2[a]; enabling disclosure fails)
+  - c3: narrow      (medium overlap with PA-01; tighten or absorb into c1)
+  - c4: novel       (no prior-art hit; obviousness risk independent of anticipation)
+- Top overlap findings: c1[b] HIGH vs PA-01 (cosine + warmup shared); c1[c] MEDIUM vs PA-02 (oppositely-directed coupling — clarify alpha range excludes 0).
 
 ## 1. Patent engineer
 
@@ -82,9 +105,19 @@ Targets:
   - Add a means-plus-function-free apparatus claim that recites the
     same formula.
 
+## 6. Consistency checker
+
+- **Terminology drift between TID and claims**:
+  - "coupling weight" (disclosure §6) vs "coupling_alpha" (claims §1[c], `configs/scheduler.yaml`) — single concept, two surface forms; pick one and apply globally (echoes the parser warning above).
+- **Number / symbol consistency**:
+  - The blend formula in disclosure §6 and `src/optim/scheduler.py:72` (ev_0102) agree on $\alpha(\eta_t/\eta_0) + (1-\alpha)$. No drift detected.
+  - Momentum range bound $[0.85, 0.99]$ in claim 4 agrees with `configs/scheduler.yaml:8-9`. No drift detected.
+
 ## Overall verdict
 
 - **Verdict**: NEEDS_WORK
+
+  Forced to NEEDS_WORK because (a) the novelty heuristics flagged `redraft` on c2 (no spec/code support for the validation-loss-feedback alpha selection), AND (b) the claim chart has one high-risk row (c2[a]) due to the no-support override. Both must clear before this is `READY_FOR_ATTORNEY`.
 
 - **Top-3 next actions**:
   1. Resolve terminology drift between "coupling weight" and

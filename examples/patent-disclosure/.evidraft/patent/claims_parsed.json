@@ -1,0 +1,149 @@
+{
+  "run_id": "patent-review-20260518T140100Z",
+  "ts": "20260518T140100Z",
+  "claims_md_path": ".evidraft/patent/claims.md",
+  "claims": [
+    {
+      "id": "c1",
+      "number": 1,
+      "kind": "independent",
+      "depends_on": null,
+      "preamble": "A method for training a neural network by stochastic gradient descent, the method comprising:",
+      "transition": "comprising",
+      "elements": [
+        {
+          "label": "a",
+          "text": "receiving, at each training step $t$ of a training procedure, a configuration comprising a warmup length $T_w$, a total length $T$, a base learning rate $\\eta_0$, a base momentum coefficient $m_0$, a minimum momentum $m_{\\min}$, a minimum learning-rate ratio $\\rho$, and a coupling weight $\\alpha \\in [0, 1]$;",
+          "antecedents_introduced": ["training step", "training procedure", "configuration", "warmup length", "total length", "base learning rate", "base momentum coefficient", "minimum momentum", "minimum learning-rate ratio", "coupling weight"],
+          "antecedents_referenced": []
+        },
+        {
+          "label": "b",
+          "text": "computing a learning rate $\\eta_t$ from a two-phase cosine envelope, the envelope rising during $t < T_w$ and decaying during $t \\ge T_w$ towards $\\rho \\eta_0$;",
+          "antecedents_introduced": ["learning rate", "two-phase cosine envelope"],
+          "antecedents_referenced": ["envelope", "warmup length", "minimum learning-rate ratio", "base learning rate"]
+        },
+        {
+          "label": "c",
+          "text": "computing a momentum coefficient $m_t$ as a linear blend between $m_{\\min}$ and $m_0$, the blend weight depending on the ratio $\\eta_t / \\eta_0$ and the coupling weight $\\alpha$, such that at $\\alpha = 0$ the momentum coefficient is constant during the $t \\ge T_w$ phase;",
+          "antecedents_introduced": ["momentum coefficient", "linear blend", "blend weight"],
+          "antecedents_referenced": ["minimum momentum", "base momentum coefficient", "ratio", "learning rate", "base learning rate", "coupling weight"]
+        },
+        {
+          "label": "d",
+          "text": "applying the pair $(\\eta_t, m_t)$ to the stochastic gradient descent update at step $t$.",
+          "antecedents_introduced": [],
+          "antecedents_referenced": ["learning rate", "momentum coefficient", "stochastic gradient descent update", "training step"]
+        }
+      ],
+      "terminus": "."
+    },
+    {
+      "id": "c2",
+      "number": 2,
+      "kind": "dependent",
+      "depends_on": "c1",
+      "preamble": "The method of Claim 1, wherein the linear blend is replaced by a power blend $(\\eta_t / \\eta_0)^{\\alpha}$.",
+      "transition": null,
+      "elements": [
+        {
+          "label": "a",
+          "text": "wherein the linear blend is replaced by a power blend $(\\eta_t / \\eta_0)^{\\alpha}$.",
+          "antecedents_introduced": ["power blend"],
+          "antecedents_referenced": ["linear blend", "learning rate", "base learning rate", "coupling weight"]
+        }
+      ],
+      "terminus": "."
+    },
+    {
+      "id": "c3",
+      "number": 3,
+      "kind": "dependent",
+      "depends_on": "c1",
+      "preamble": "The method of Claim 1, wherein the coupling weight $\\alpha$ is applied independently per parameter group of the neural network.",
+      "transition": null,
+      "elements": [
+        {
+          "label": "a",
+          "text": "wherein the coupling weight $\\alpha$ is applied independently per parameter group of the neural network.",
+          "antecedents_introduced": ["parameter group"],
+          "antecedents_referenced": ["coupling weight", "neural network"]
+        }
+      ],
+      "terminus": "."
+    },
+    {
+      "id": "c4",
+      "number": 4,
+      "kind": "dependent",
+      "depends_on": "c1",
+      "preamble": "The method of Claim 1, wherein during the warmup phase the momentum coefficient $m_t$ rises linearly from $m_{\\min}$ to $m_0$ over $T_w$ steps.",
+      "transition": null,
+      "elements": [
+        {
+          "label": "a",
+          "text": "wherein during the warmup phase the momentum coefficient $m_t$ rises linearly from $m_{\\min}$ to $m_0$ over $T_w$ steps.",
+          "antecedents_introduced": ["warmup phase"],
+          "antecedents_referenced": ["momentum coefficient", "minimum momentum", "base momentum coefficient", "warmup length"]
+        }
+      ],
+      "terminus": "."
+    }
+  ],
+  "antecedent_chain": {
+    "training step": ["c1[a]", "c1[d]"],
+    "training procedure": ["c1[a]"],
+    "configuration": ["c1[a]"],
+    "warmup length": ["c1[a]", "c1[b]", "c4[a]"],
+    "total length": ["c1[a]"],
+    "base learning rate": ["c1[a]", "c1[b]", "c1[c]", "c2[a]"],
+    "base momentum coefficient": ["c1[a]", "c1[c]", "c4[a]"],
+    "minimum momentum": ["c1[a]", "c1[c]", "c4[a]"],
+    "minimum learning-rate ratio": ["c1[a]", "c1[b]"],
+    "coupling weight": ["c1[a]", "c1[c]", "c2[a]", "c3[a]"],
+    "learning rate": ["c1[b]", "c1[c]", "c1[d]", "c2[a]"],
+    "two-phase cosine envelope": ["c1[b]"],
+    "envelope": ["c1[b]"],
+    "momentum coefficient": ["c1[c]", "c1[d]", "c4[a]"],
+    "linear blend": ["c1[c]", "c2[a]"],
+    "blend weight": ["c1[c]"],
+    "ratio": ["c1[c]"],
+    "stochastic gradient descent update": ["c1[d]"],
+    "power blend": ["c2[a]"],
+    "parameter group": ["c3[a]"],
+    "neural network": ["c3[a]"],
+    "warmup phase": ["c4[a]"]
+  },
+  "warnings": [
+    {
+      "rule_id": "ANTECEDENT_MISSING",
+      "severity": "warn",
+      "claim": "c1",
+      "element": "c",
+      "noun": "ratio",
+      "explanation": "Element [c] references 'the ratio $\\eta_t / \\eta_0$' as if previously introduced, but no 'a ratio' indefinite introduction appears earlier in c1. Definite article on first mention; recite 'a ratio of the learning rate to the base learning rate' first, then 'the ratio' on subsequent reference. Mirrors the claim drafter's note in the existing patent_review_report.md."
+    },
+    {
+      "rule_id": "DEPENDENT_NO_NARROW",
+      "severity": "info",
+      "claim": "c3",
+      "element": "a",
+      "noun": "(claim body)",
+      "explanation": "Claim 3 uses 'wherein' but the narrowing axis (per-parameter-group coupling) is structural rather than a numeric narrowing of the parent. Borderline case — flagged as info, not warn, because per-parameter-group application is a real differentiator supported by the disclosure's Variant B (Section 8)."
+    },
+    {
+      "rule_id": "TERMINOLOGY_DRIFT",
+      "severity": "info",
+      "claim": "c1",
+      "element": "(cross-claim)",
+      "noun": "coupling weight vs coupling_alpha",
+      "explanation": "Claims use 'coupling weight $\\alpha$' uniformly; invention_disclosure.md mixes 'coupling weight' (prose) and 'coupling_alpha' (config key) — a TID/claim drift, not a within-claims drift. Surfaced for cross-document tracking; the consistency-checker agent picks this up separately."
+    }
+  ],
+  "summary": {
+    "independent_count": 1,
+    "dependent_count": 3,
+    "warning_count": 3,
+    "fail_count": 0
+  }
+}

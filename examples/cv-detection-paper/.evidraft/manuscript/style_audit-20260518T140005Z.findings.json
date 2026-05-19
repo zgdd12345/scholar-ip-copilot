@@ -1,0 +1,71 @@
+{
+  "run_id": "paper-check-20260518T140000Z",
+  "ts": "20260518T140005Z",
+  "manuscript_root": "manuscript/",
+  "findings": [
+    {
+      "rule_id": "STRONG_CLAIM_VERB_NO_CITE",
+      "severity": "fail",
+      "file": "manuscript/sections/conclusion.tex",
+      "line": 16,
+      "matched": "Method X is the first anchor-free head with distribution-focal decoding",
+      "suggested": "Method X is the first anchor-free head with distribution-focal decoding \\cite{...} (or attach an evidence id once a literature pass settles the claim)",
+      "explanation": "Strong-claim verb 'first' lacks an adjacent citation or evidence id; the conclusion itself flags this as NOT_AUDITABLE in paper_code_audit.md. Echoed from citation-guard hook output."
+    },
+    {
+      "rule_id": "REF_NONBREAKING_SPACE",
+      "severity": "warn",
+      "file": "manuscript/sections/experiments.tex",
+      "line": 9,
+      "matched": "Table \\ref{tab:main_results}",
+      "suggested": "Table~\\ref{tab:main_results}",
+      "explanation": "ASCII space between 'Table' and the \\ref macro can produce an unwanted line break; use a non-breaking tie."
+    },
+    {
+      "rule_id": "NONBREAKING_CITE",
+      "severity": "warn",
+      "file": "manuscript/sections/related_work.tex",
+      "line": 5,
+      "matched": "\\citet{smith2024examplekey} report",
+      "suggested": "\\citet{smith2024examplekey}~report",
+      "explanation": "Plain ASCII space between citation and following word; a non-breaking tilde keeps the author and verb on the same line in narrow columns."
+    },
+    {
+      "rule_id": "FIRST_PERSON_PLURAL",
+      "severity": "info",
+      "file": "manuscript/main.tex",
+      "line": 27,
+      "matched": "abstract uses 'We' / 'we' 3 times in 6 sentences",
+      "suggested": "consider rephrasing 1 instance passively if abstract feels promotional",
+      "explanation": "Count is at the warning threshold (3) but under the documented bar of 5; surfaced as info to leave the decision to the author."
+    },
+    {
+      "rule_id": "MISSING_GRAPHIC_EXT",
+      "severity": "info",
+      "file": "manuscript/main.tex",
+      "line": null,
+      "matched": "(no \\includegraphics found in current sources)",
+      "suggested": "n/a",
+      "explanation": "Rule precondition (presence of \\includegraphics) absent; emitted as a self-test confirming the rule ran. Will silence on next run per skill spec § 6.3."
+    },
+    {
+      "rule_id": "DASH_OVERUSE",
+      "severity": "info",
+      "file": "manuscript/sections/method.tex",
+      "line": 5,
+      "matched": "three branches per location: classification, regression, and centerness",
+      "suggested": "(no dash drift detected — informational)",
+      "explanation": "Method section uses neither -- nor --- ; recorded for the audit trail."
+    },
+    {
+      "rule_id": "TODO_LEFT_IN_PROSE",
+      "severity": "warn",
+      "file": "manuscript/sections/conclusion.tex",
+      "line": 18,
+      "matched": "is deferred to a literature pass.",
+      "suggested": "resolve the deferred literature pass or remove the deferral note before submission",
+      "explanation": "Conclusion explicitly defers a novelty claim ('not_auditable') — a soft TODO that a reviewer would mark. Not the literal \\todo{} macro but the same concern."
+    }
+  ],
+  "summary": {"info": 3, "warn": 3, "fail": 1}
+}

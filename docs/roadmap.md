@@ -80,9 +80,12 @@ Rationale: Claude Code, Codex CLI, and OpenCode all do general-purpose code unde
 
 `later`
 
-- [ ] Versioned plugin manifest with migration tool
-- [ ] Adapter conformance test suite (Claude Code, Codex, OpenCode)
-- [~] End-to-end fixtures: **partial — `examples/deepresearch-small-obj-detection/` shipped (May 2026)** covering `/scholar:brainstorming` + `/scholar:deepresearch` Stages 1–6 via real WebSearch / WebFetch including an OAN-hallucination audit trail. Outstanding: synthetic-repo → manuscript-pdf and synthetic-repo → disclosure-md end-to-end fixtures.
+- [x] Versioned plugin manifest with migration tool — `manifest_version: "1.0.0"` added to `plugin.yaml`; `packages/core/schemas/plugin.schema.json` defines the top-level schema; `packages/core/src/migrate.py` ships the migration framework + `0.0.0 → 1.0.0` step + CLI; 5 pytest tests pass.
+- [x] Adapter conformance test suite — `tests/test_adapter_conformance.py` (13 tests covering file-count, frontmatter-survival, retention preamble, MCP-reference ratchet, required-skill invariants across claude-code / codex-cli / opencode). 32/32 pytest pass.
+- [x] End-to-end fixtures — three examples now ship full audit / review fixtures:
+  - `examples/deepresearch-small-obj-detection/` — `/scholar:brainstorming` + `/scholar:deepresearch` Stages 1–6 via real WebSearch / WebFetch (incl. OAN-hallucination audit trail).
+  - `examples/cv-detection-paper/` — populated `/scholar:paper-check` 9-block audit: compile errors, style audit (28-rule), bib audit (20-rule), xref audit (14-rule), consistency audit (9-rule, incl. one `NUMBER_DRIFT (fail)` demonstrating the most important rule), final `paper_check_report.md` with documented hook-downgrade.
+  - `examples/patent-disclosure/` — populated v0.3 structured-audit pre-pass: `claims_parsed.json` + `claim_chart-<ts>.json` (with no-support-override demonstration) + `novelty_audit-<ts>.findings.json` (per-claim `verdict_hint` advisory) + v0.3 6-role `patent_review_report.md`.
 - ~~Web UI (read-only) for inspecting `.evidraft/`~~ **DROPPED.** `.evidraft/` is already renderable: GitHub renders the markdown + JSON natively; Obsidian / VSCode / any markdown previewer covers local inspection; PDF handoff to advisors / attorneys is one `pandoc` invocation. Building a Web UI introduces a frontend stack (framework / build pipeline / JS deps / hosting / cross-browser testing) with a cost-to-value ratio that does not pay off for a research-workflow plugin. The plugin's job is to *generate* evidence-grounded artefacts; *consuming* them is the host's job (Claude Code) or the user's IDE / GitHub / email-friendly PDF export.
 
 ---

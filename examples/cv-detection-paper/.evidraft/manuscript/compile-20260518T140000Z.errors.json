@@ -1,0 +1,34 @@
+{
+  "run_id": "paper-check-20260518T140000Z",
+  "ts": "20260518T140000Z",
+  "main_tex": "manuscript/main.tex",
+  "compile": "PASS",
+  "compile_success": true,
+  "errors": [],
+  "warnings": [
+    {
+      "category": "MISSING_CITE",
+      "file": "manuscript/sections/related_work.tex",
+      "line": 6,
+      "raw": "LaTeX Warning: Citation `smith2024examplekey' on page 2 undefined on input line 6.",
+      "fix": "Citation key resolves at next bibtex pass; this is the standard first-run warning. Re-run latexmk to clear, or ignore on intermediate builds."
+    },
+    {
+      "category": "OTHER",
+      "file": "manuscript/main.tex",
+      "line": null,
+      "raw": "Package hyperref Warning: Token not allowed in a PDF string (Unicode): removing `\\texttt'.",
+      "fix": "hyperref bookmark text contains \\texttt{...}; wrap the bookmark target with \\texorpdfstring{...}{...} or accept the warning."
+    }
+  ],
+  "categories_checked": {
+    "MISSING_CITE": "checked — 1 first-run citation warning (clears on second bibtex pass)",
+    "MISSING_REF": "checked — no issues",
+    "UNDEFINED_COMMAND": "checked — no issues",
+    "UNBALANCED_BRACES": "checked — no issues",
+    "PACKAGE_NOT_FOUND": "checked — no issues",
+    "OTHER": "checked — 1 hyperref bookmark warning"
+  },
+  "pdf_path": ".evidraft/manuscript/compile-20260518T140000Z.pdf",
+  "preview_png": null
+}

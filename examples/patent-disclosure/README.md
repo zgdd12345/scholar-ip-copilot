@@ -114,16 +114,16 @@ is always present.
 
 Runs 5 reviewer roles (patent engineer, claim drafter, novelty critic,
 methodology reviewer, skeptical examiner) and writes
-`patent_review_report.md`. In this example the report ends with:
+`patent_review_report.md`. In this example the report opens with the v0.3 **Structured audits (pre-pass)** block and ends with `Verdict: NEEDS_WORK` + top-3 next actions.
 
-```
-Verdict: NEEDS_WORK
+This example now ships the full v0.3 structured-audit fixture:
 
-Top-3 next actions:
- 1. Resolve terminology drift between "coupling weight" and `coupling_alpha`.
- 2. Replace claim 1[c] with the explicit blend formula.
- 3. Add a worked example with alpha=0 and alpha=1 in Sec. 10.
-```
+- `.evidraft/patent/claims_parsed.json` — `claim-parser` output: 4 claims (c1 independent + c2/c3/c4 dependent), 7 total elements, antecedent_chain, 1 info-severity TERMINOLOGY_DRIFT warning. Plus paired `claim_parse-20260518T140100Z.log`.
+- `.evidraft/patent/claim_chart-20260518T140105Z.json` — `claim-chart-builder` output: 7 rows. 1 high-risk row triggered by the **no-support override** on c2[a] (no spec or code support), demonstrating the documented rule. 2 medium-risk rows with `suggested_revision` populated; 4 low-risk rows with `suggested_revision: null`.
+- `.evidraft/patent/novelty_audit-20260518T140110Z.{findings.json,log}` — `novelty-heuristics` output: 6 findings (4 warn, 2 info), per-claim `verdict_hint` ∈ {narrow, redraft, narrow, novel} — **advisory only**, never a legal conclusion. The `advisory_only` framing ships verbatim in both files; the log carries the `# novelty_audit log — advisory only; not legal advice; attorney review required.` header.
+- `.evidraft/patent/patent_review_report.md` — v0.3 6-role panel (engineer / drafter / novelty critic / methodology / examiner / **consistency-checker** new at v0.4). Opens with a `## Structured audits (pre-pass)` block summarising the three structured outputs, then runs the panel. `Verdict: NEEDS_WORK` forced by (a) c2 `verdict_hint: redraft` and (b) c2[a] high-risk row.
+
+The findings are illustrative — no real attorney review was performed and no claim has been filed. The format is what a real `/scholar:patent-claims` + `/scholar:patent-review` would produce.
 
 ## Consistency notes
 

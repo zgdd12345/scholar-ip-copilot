@@ -1,0 +1,51 @@
+{
+  "run_id": "paper-check-20260518T140000Z",
+  "ts": "20260518T140012Z",
+  "manuscript_root": "manuscript/",
+  "labels": {"defined": 5, "duplicated": 0, "orphaned": 1},
+  "refs": {"resolved": 4, "broken": 1},
+  "cites": {"resolved": 4, "broken": 0},
+  "findings": [
+    {
+      "rule_id": "REF_BROKEN",
+      "severity": "fail",
+      "file": "manuscript/sections/method.tex",
+      "line": 23,
+      "target": "tab:ablation_iou",
+      "explanation": "An apparent reference to a planned ablation table 'tab:ablation_iou' (used in the IoU-aware paragraph) does not resolve — no \\label{tab:ablation_iou} exists in any source file. The matching table is currently rolled into tab:main_results; either rename the ref to \\ref{tab:main_results} or split the ablation into its own labelled table."
+    },
+    {
+      "rule_id": "LABEL_ORPHANED",
+      "severity": "warn",
+      "file": "manuscript/sections/related_work.tex",
+      "line": 3,
+      "target": "sec:related",
+      "explanation": "\\label{sec:related} is defined in related_work.tex but no \\ref{sec:related} call site exists across the manuscript. Introduction's narrative jumps from sec:method to sec:experiments without referencing related work; either add 'Section~\\ref{sec:related}' to the intro flow or accept the orphan as scaffolding."
+    },
+    {
+      "rule_id": "AUTOREF_INCONSISTENT_USE",
+      "severity": "info",
+      "file": "manuscript/sections/introduction.tex",
+      "line": 12,
+      "target": "(corpus)",
+      "explanation": "Manuscript uses plain 'Section~\\ref{sec:*}' throughout (3 occurrences in introduction.tex, 1 in experiments.tex); zero \\autoref usage. Consistent — informational row preserved as audit-trail evidence the rule scanned the corpus."
+    },
+    {
+      "rule_id": "LABEL_PREFIX_CONVENTION",
+      "severity": "info",
+      "file": "manuscript/main.tex",
+      "line": null,
+      "target": "(corpus)",
+      "explanation": "Dominant prefixes detected: sec:* for sections (4/4 — introduction, related, method, experiments, conclusion), tab:* for tables (1/1 — tab:main_results). All labels follow convention; no drift."
+    },
+    {
+      "rule_id": "FIGURE_NUMBER_GAP",
+      "severity": "info",
+      "file": "manuscript/main.tex",
+      "line": null,
+      "target": "(no figures)",
+      "explanation": "Corpus contains no \\begin{figure} blocks; rule precondition absent. Informational self-test trace confirming the audit scanned for forward float references."
+    }
+  ],
+  "summary": {"info": 3, "warn": 1, "fail": 1}
+}
