@@ -1,5 +1,6 @@
 {
   "run_id": "paper-check-20260518T140000Z",
+  "schema_version": "1.0.0",
   "ts": "20260518T140000Z",
   "main_tex": "manuscript/main.tex",
   "compile": "PASS",
@@ -22,12 +23,12 @@
     }
   ],
   "categories_checked": {
-    "MISSING_CITE": "checked — 1 first-run citation warning (clears on second bibtex pass)",
-    "MISSING_REF": "checked — no issues",
-    "UNDEFINED_COMMAND": "checked — no issues",
-    "UNBALANCED_BRACES": "checked — no issues",
-    "PACKAGE_NOT_FOUND": "checked — no issues",
-    "OTHER": "checked — 1 hyperref bookmark warning"
+    "MISSING_CITE": "checked \u2014 1 first-run citation warning (clears on second bibtex pass)",
+    "MISSING_REF": "checked \u2014 no issues",
+    "UNDEFINED_COMMAND": "checked \u2014 no issues",
+    "UNBALANCED_BRACES": "checked \u2014 no issues",
+    "PACKAGE_NOT_FOUND": "checked \u2014 no issues",
+    "OTHER": "checked \u2014 1 hyperref bookmark warning"
   },
   "pdf_path": ".evidraft/manuscript/compile-20260518T140000Z.pdf",
   "preview_png": null

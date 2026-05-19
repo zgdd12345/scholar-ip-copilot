@@ -1,5 +1,6 @@
 {
   "run_id": "paper-check-20260518T140000Z",
+  "schema_version": "1.0.0",
   "ts": "20260518T140010Z",
   "bib_path": ".evidraft/literature/references.bib",
   "entry_count": 2,
@@ -10,7 +11,7 @@
       "citation_key": "smith2024examplekey",
       "entry_type": "article",
       "missing_fields": [],
-      "explanation": "@article type does not require publisher; the note field carries the 'Fictional entry' disclaimer instead. Informational only — the entry has author/title/journal/year/volume/number/pages and is well-formed."
+      "explanation": "@article type does not require publisher; the note field carries the 'Fictional entry' disclaimer instead. Informational only \u2014 the entry has author/title/journal/year/volume/number/pages and is well-formed."
     },
     {
       "rule_id": "VENUE_YEAR_IN_BOOKTITLE",
@@ -31,15 +32,19 @@
       "severity": "warn",
       "citation_key": "(placeholder-coverage-check)",
       "entry_type": "n/a",
-      "explanation": "Coverage sweep: cite-set = {smith2024examplekey, chen2023anchorfreebaseline}; evidence-key-set = {smith2024examplekey, chen2023anchorfreebaseline}; bib-key-set = {smith2024examplekey, chen2023anchorfreebaseline}. Zero never-cited entries today — but both bib entries are tagged 'Fictional entry for the EviDraft cv-detection-paper example' in their note field, i.e. placeholder content that must be replaced (or deleted, surfacing this rule for real) before submission. Flagged warn so this placeholder status is not lost."
+      "explanation": "Coverage sweep: cite-set = {smith2024examplekey, chen2023anchorfreebaseline}; evidence-key-set = {smith2024examplekey, chen2023anchorfreebaseline}; bib-key-set = {smith2024examplekey, chen2023anchorfreebaseline}. Zero never-cited entries today \u2014 but both bib entries are tagged 'Fictional entry for the EviDraft cv-detection-paper example' in their note field, i.e. placeholder content that must be replaced (or deleted, surfacing this rule for real) before submission. Flagged warn so this placeholder status is not lost."
     },
     {
       "rule_id": "EVIDENCE_REFERENCES_MISSING_KEY",
       "severity": "info",
       "citation_key": "(coverage-check)",
       "entry_type": "n/a",
-      "explanation": "Coverage check: 2 paper-type evidence rows (ev_0001 -> smith2024examplekey, ev_0002 -> chen2023anchorfreebaseline) resolve cleanly to bib keys. Zero missing — informational confirmation the audit ran."
+      "explanation": "Coverage check: 2 paper-type evidence rows (ev_0001 -> smith2024examplekey, ev_0002 -> chen2023anchorfreebaseline) resolve cleanly to bib keys. Zero missing \u2014 informational confirmation the audit ran."
     }
   ],
-  "summary": {"info": 4, "warn": 1, "fail": 0}
+  "summary": {
+    "info": 4,
+    "warn": 1,
+    "fail": 0
+  }
 }

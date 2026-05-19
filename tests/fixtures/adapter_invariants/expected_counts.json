@@ -1,5 +1,5 @@
 {
-  "_note": "Expected counts of source plugin artefacts. Bump these AND add a CI commit message explaining the rationale when you add/remove commands, agents, skills, or hooks. Tests in tests/test_adapter_conformance.py re-count the source tree and assert equality.",
+  "_note": "Two kinds of state live in this file. (1) `commands` / `agents` / `skills` / `hooks` / `templates_root_dirs` / `retention_commands` — DERIVABLE from the source tree. They are intentional drift catchers: bumping them is a deliberate PR-visible signal. Tests in tests/test_adapter_conformance.py re-count the source tree and assert equality. (2) `_mcp_legacy_baseline` — GENUINE ratchet state (not re-derivable). See its own inline `_note` for the ratchet semantics.",
   "commands": 20,
   "agents": 15,
   "skills": 24,

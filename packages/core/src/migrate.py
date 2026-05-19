@@ -25,7 +25,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-import yaml
+# yaml is lazy-imported inside load_manifest / _dump_yaml so `python -m
+# packages.core.src.migrate --help` does not pay PyYAML's ~10-30 ms cold
+# import cost.
 
 # ---------------------------------------------------------------------------
 # Types & registry
@@ -129,6 +131,7 @@ def _v0_0_0_to_v1_0_0(plugin: dict) -> dict:
 
 def load_manifest(path: Path) -> dict:
     """Load a plugin.yaml from disk. Returns the parsed dict."""
+    import yaml
     text = Path(path).read_text(encoding="utf-8")
     doc = yaml.safe_load(text)
     if not isinstance(doc, dict):
@@ -195,14 +198,10 @@ def apply(
     for step in p.steps:
         label = step.description or f"{step.from_version} -> {step.to_version}"
         log.append(f"applying {step.from_version} -> {step.to_version}: {label}")
-        current = step.fn(copy.deepcopy(current))
-        # Guarantee the new manifest_version is set after the step, even if the
-        # migration fn forgot to do so.
-        current.setdefault("manifest_version", step.to_version)
-        if current.get("manifest_version") != step.to_version:
-            # The migration may have intentionally bumped beyond the edge; if
-            # not, normalise.
-            current["manifest_version"] = step.to_version
+        # Migration fns are documented as pure (see MigrationFn docstring); the
+        # outer deepcopy on line 194 isolates the caller's dict.
+        current = step.fn(current)
+        current["manifest_version"] = step.to_version
 
     if dry_run:
         log.append("dry-run: no files written")
@@ -266,6 +265,7 @@ def _dump_yaml(doc: dict) -> str:
     perfectly preserve comments / quoting — for v1.0.0 we accept that
     migrations may rewrite the file in canonical form.
     """
+    import yaml
     return yaml.safe_dump(doc, sort_keys=False, default_flow_style=False, allow_unicode=True)
 
 

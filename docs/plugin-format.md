@@ -5,7 +5,8 @@
 ## Top-level manifest: `plugin.yaml`
 
 ```yaml
-id: scholar-ip
+manifest_version: "1.0.0"   # required since the v1.0 close-out; see § Manifest versioning
+id: scholar
 name: EviDraft
 version: 0.0.1
 description: >

@@ -1,5 +1,6 @@
 {
   "run_id": "paper-check-20260518T140000Z",
+  "schema_version": "1.0.0",
   "ts": "20260518T140005Z",
   "manuscript_root": "manuscript/",
   "findings": [
@@ -46,7 +47,7 @@
       "line": null,
       "matched": "(no \\includegraphics found in current sources)",
       "suggested": "n/a",
-      "explanation": "Rule precondition (presence of \\includegraphics) absent; emitted as a self-test confirming the rule ran. Will silence on next run per skill spec § 6.3."
+      "explanation": "Rule precondition (presence of \\includegraphics) absent; emitted as a self-test confirming the rule ran. Will silence on next run per skill spec \u00a7 6.3."
     },
     {
       "rule_id": "DASH_OVERUSE",
@@ -54,7 +55,7 @@
       "file": "manuscript/sections/method.tex",
       "line": 5,
       "matched": "three branches per location: classification, regression, and centerness",
-      "suggested": "(no dash drift detected — informational)",
+      "suggested": "(no dash drift detected \u2014 informational)",
       "explanation": "Method section uses neither -- nor --- ; recorded for the audit trail."
     },
     {
@@ -64,8 +65,12 @@
       "line": 18,
       "matched": "is deferred to a literature pass.",
       "suggested": "resolve the deferred literature pass or remove the deferral note before submission",
-      "explanation": "Conclusion explicitly defers a novelty claim ('not_auditable') — a soft TODO that a reviewer would mark. Not the literal \\todo{} macro but the same concern."
+      "explanation": "Conclusion explicitly defers a novelty claim ('not_auditable') \u2014 a soft TODO that a reviewer would mark. Not the literal \\todo{} macro but the same concern."
     }
   ],
-  "summary": {"info": 3, "warn": 3, "fail": 1}
+  "summary": {
+    "info": 3,
+    "warn": 3,
+    "fail": 1
+  }
 }

@@ -105,3 +105,41 @@ def test_migrate_noop_when_already_at_target() -> None:
     assert plan.steps == []
     # Log should be informational only, no "applying ..." lines.
     assert not any(line.startswith("applying ") for line in log)
+
+
+# ---------------------------------------------------------------------------
+# Negative schema tests — exercise the constraints that make
+# plugin.schema.json load-bearing in CI rather than aspirational documentation.
+# ---------------------------------------------------------------------------
+
+
+def _schema():
+    return json.loads(PLUGIN_SCHEMA.read_text(encoding="utf-8"))
+
+
+def test_schema_rejects_missing_manifest_version():
+    """`manifest_version` is `required:`; absence must fail validation."""
+    import jsonschema
+    plugin = _load_plugin()
+    plugin.pop("manifest_version", None)
+    with pytest.raises(jsonschema.ValidationError, match="manifest_version"):
+        jsonschema.validate(plugin, _schema())
+
+
+def test_schema_rejects_malformed_semver():
+    """`manifest_version` must match `^\\d+\\.\\d+\\.\\d+$`; v-prefix etc. must fail."""
+    import jsonschema
+    plugin = _load_plugin()
+    for bad in ("1.0", "v1.0.0", "1.0.0-beta", ""):
+        plugin["manifest_version"] = bad
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(plugin, _schema())
+
+
+def test_schema_rejects_unknown_top_level_property():
+    """`additionalProperties: false`; unknown top-level keys must fail."""
+    import jsonschema
+    plugin = _load_plugin()
+    plugin["some_unknown_key"] = "rejected"
+    with pytest.raises(jsonschema.ValidationError, match="some_unknown_key"):
+        jsonschema.validate(plugin, _schema())

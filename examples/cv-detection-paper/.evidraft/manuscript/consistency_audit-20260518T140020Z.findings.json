@@ -1,5 +1,6 @@
 {
   "run_id": "paper-check-20260518T140000Z",
+  "schema_version": "1.0.0",
   "ts": "20260518T140020Z",
   "manuscript_root": "manuscript/",
   "findings": [
@@ -7,23 +8,59 @@
       "rule_id": "NUMBER_DRIFT",
       "severity": "fail",
       "evidence": [
-        {"file": "manuscript/main.tex", "line": 30, "form": "mean mAP@0.5:0.95 of 0.418"},
-        {"file": "manuscript/sections/experiments.tex", "line": 14, "form": "mAP@0.5:0.95 of 0.418"},
-        {"file": "manuscript/sections/experiments.tex", "line": 16, "form": "delta of $-1.6$ points"},
-        {"file": ".evidraft/experiments/result_analysis.md", "line": 13, "form": "0.402  (Ablation: IoU-aware off, COCO)"},
-        {"file": ".evidraft/experiments/result_analysis.md", "line": 10, "form": "0.418 (Method X, COCO val2017, mAP@0.5:0.95)"}
+        {
+          "file": "manuscript/main.tex",
+          "line": 30,
+          "form": "mean mAP@0.5:0.95 of 0.418"
+        },
+        {
+          "file": "manuscript/sections/experiments.tex",
+          "line": 14,
+          "form": "mAP@0.5:0.95 of 0.418"
+        },
+        {
+          "file": "manuscript/sections/experiments.tex",
+          "line": 16,
+          "form": "delta of $-1.6$ points"
+        },
+        {
+          "file": ".evidraft/experiments/result_analysis.md",
+          "line": 13,
+          "form": "0.402  (Ablation: IoU-aware off, COCO)"
+        },
+        {
+          "file": ".evidraft/experiments/result_analysis.md",
+          "line": 10,
+          "form": "0.418 (Method X, COCO val2017, mAP@0.5:0.95)"
+        }
       ],
-      "canonical_suggestion": "0.418 (main) and 0.402 (ablation) — delta = 0.016 = 1.6 points (the stated form). The drift sits in the rounding of the delta: 0.418 - 0.402 = 0.0160 exactly, which the experiments section presents as -1.6 points, but the underlying csv rows yield 0.4183 - 0.4022 = 0.0161 -> -1.61 points; the abstract/introduction round to -1.6 while a stricter rendering would be -1.61. Reconcile the stated precision (one decimal place vs two) across abstract, intro, experiments, and result_analysis.md.",
-      "explanation": "Abstract and experiments section both report -1.6 points; the underlying per-seed means in exp_2026_03_01.csv vs exp_2026_03_02.csv give -1.61 to two decimal places. The gap (0.01) is within the stated rounding step (one decimal), so this finding is borderline — but result_analysis.md row for the ablation uses the un-rounded 0.402, so a careful reviewer will catch the rounding inconsistency. Flagged at fail-severity per the rule policy that NUMBER_DRIFT is always fail; recommend pinning a single precision (one decimal place across abstract / intro / experiments) and regenerating the table."
+      "canonical_suggestion": "0.418 (main) and 0.402 (ablation) \u2014 delta = 0.016 = 1.6 points (the stated form). The drift sits in the rounding of the delta: 0.418 - 0.402 = 0.0160 exactly, which the experiments section presents as -1.6 points, but the underlying csv rows yield 0.4183 - 0.4022 = 0.0161 -> -1.61 points; the abstract/introduction round to -1.6 while a stricter rendering would be -1.61. Reconcile the stated precision (one decimal place vs two) across abstract, intro, experiments, and result_analysis.md.",
+      "explanation": "Abstract and experiments section both report -1.6 points; the underlying per-seed means in exp_2026_03_01.csv vs exp_2026_03_02.csv give -1.61 to two decimal places. The gap (0.01) is within the stated rounding step (one decimal), so this finding is borderline \u2014 but result_analysis.md row for the ablation uses the un-rounded 0.402, so a careful reviewer will catch the rounding inconsistency. Flagged at fail-severity per the rule policy that NUMBER_DRIFT is always fail; recommend pinning a single precision (one decimal place across abstract / intro / experiments) and regenerating the table."
     },
     {
       "rule_id": "TERM_DRIFT",
       "severity": "warn",
       "evidence": [
-        {"file": "manuscript/sections/method.tex", "line": 6, "form": "shared per-level tower"},
-        {"file": "manuscript/sections/related_work.tex", "line": 10, "form": "shared per-level towers"},
-        {"file": ".evidraft/code/method_to_code.md", "line": 9, "form": "Shared per-level tower"},
-        {"file": "manuscript/sections/method.tex", "line": 6, "form": "four-conv tower per task"}
+        {
+          "file": "manuscript/sections/method.tex",
+          "line": 6,
+          "form": "shared per-level tower"
+        },
+        {
+          "file": "manuscript/sections/related_work.tex",
+          "line": 10,
+          "form": "shared per-level towers"
+        },
+        {
+          "file": ".evidraft/code/method_to_code.md",
+          "line": 9,
+          "form": "Shared per-level tower"
+        },
+        {
+          "file": "manuscript/sections/method.tex",
+          "line": 6,
+          "form": "four-conv tower per task"
+        }
       ],
       "canonical_suggestion": "shared per-level tower",
       "explanation": "Two surface forms ('shared per-level tower(s)' and 'four-conv tower per task') refer to the same component; method_to_code.md uses the canonical 'Shared per-level tower'. Plural / singular drift is reviewer-visible but mild."
@@ -32,10 +69,26 @@
       "rule_id": "TERM_DRIFT",
       "severity": "warn",
       "evidence": [
-        {"file": "manuscript/main.tex", "line": 30, "form": "Method X"},
-        {"file": "manuscript/sections/conclusion.tex", "line": 16, "form": "Method X"},
-        {"file": ".evidraft/code/repo_summary.md", "line": null, "form": "AnchorFreeHead / Method X"},
-        {"file": "manuscript/sections/method.tex", "line": 5, "form": "Method X"}
+        {
+          "file": "manuscript/main.tex",
+          "line": 30,
+          "form": "Method X"
+        },
+        {
+          "file": "manuscript/sections/conclusion.tex",
+          "line": 16,
+          "form": "Method X"
+        },
+        {
+          "file": ".evidraft/code/repo_summary.md",
+          "line": null,
+          "form": "AnchorFreeHead / Method X"
+        },
+        {
+          "file": "manuscript/sections/method.tex",
+          "line": 5,
+          "form": "Method X"
+        }
       ],
       "canonical_suggestion": "Method X (with AnchorFreeHead as the code-side class name)",
       "explanation": "Manuscript consistently uses 'Method X' as the prose label; method_to_code.md uses 'AnchorFreeHead' (Python class) as the code-side handle. Concept-equivalence holds via the explicit mapping in method_to_code.md; flagged warn because reviewers may want a single project-level name reused in both places. Not a fail."
@@ -44,21 +97,49 @@
       "rule_id": "ABBREVIATION_ORDER",
       "severity": "warn",
       "evidence": [
-        {"file": "manuscript/main.tex", "line": 30, "form": "mAP@0.5:0.95 (abstract — first use in document order)"},
-        {"file": "manuscript/sections/experiments.tex", "line": 5, "form": "mAP@0.5 and mAP@0.5:0.95 (first defined-style mention)"},
-        {"file": "manuscript/sections/method.tex", "line": null, "form": "(no introduction of mAP found in method.tex)"}
+        {
+          "file": "manuscript/main.tex",
+          "line": 30,
+          "form": "mAP@0.5:0.95 (abstract \u2014 first use in document order)"
+        },
+        {
+          "file": "manuscript/sections/experiments.tex",
+          "line": 5,
+          "form": "mAP@0.5 and mAP@0.5:0.95 (first defined-style mention)"
+        },
+        {
+          "file": "manuscript/sections/method.tex",
+          "line": null,
+          "form": "(no introduction of mAP found in method.tex)"
+        }
       ],
-      "canonical_suggestion": "Introduce mAP at first use — abstract, line 30 — as 'mean Average Precision (mAP@<IoU range>)' or move the definition to the introduction.",
+      "canonical_suggestion": "Introduce mAP at first use \u2014 abstract, line 30 \u2014 as 'mean Average Precision (mAP@<IoU range>)' or move the definition to the introduction.",
       "explanation": "Abstract uses 'mAP@0.5:0.95' as the headline metric without first expanding 'mean Average Precision'. The metric is widely understood by the CV audience, but the audit rule fires on missing expansion at first use in document order. Severity warn (not fail) per the rule policy."
     },
     {
       "rule_id": "DATASET_NAME_NORMALISATION",
       "severity": "warn",
       "evidence": [
-        {"file": "manuscript/main.tex", "line": 30, "form": "COCO val2017"},
-        {"file": "manuscript/sections/experiments.tex", "line": 14, "form": "COCO val2017"},
-        {"file": "manuscript/sections/experiments.tex", "line": 16, "form": "VOC test2007"},
-        {"file": ".evidraft/experiments/result_analysis.md", "line": 9, "form": "COCO val2017 / VOC test2007"}
+        {
+          "file": "manuscript/main.tex",
+          "line": 30,
+          "form": "COCO val2017"
+        },
+        {
+          "file": "manuscript/sections/experiments.tex",
+          "line": 14,
+          "form": "COCO val2017"
+        },
+        {
+          "file": "manuscript/sections/experiments.tex",
+          "line": 16,
+          "form": "VOC test2007"
+        },
+        {
+          "file": ".evidraft/experiments/result_analysis.md",
+          "line": 9,
+          "form": "COCO val2017 / VOC test2007"
+        }
       ],
       "canonical_suggestion": "COCO val2017 / VOC test2007 (already canonical)",
       "explanation": "Dataset names are spelled consistently across abstract, experiments, and result_analysis.md. Audit-trail warn surfacing the rule ran and resolved cleanly; emitted as warn rather than info so reviewers can quickly grep for dataset-name issues."
@@ -67,12 +148,24 @@
       "rule_id": "VOICE_DRIFT",
       "severity": "info",
       "evidence": [
-        {"file": "manuscript/sections/method.tex", "line": 1, "form": "Method X is an anchor-free head ... (3rd person, present, descriptive)"},
-        {"file": "manuscript/sections/experiments.tex", "line": 1, "form": "We report mean mAP ... (1st person plural)"}
+        {
+          "file": "manuscript/sections/method.tex",
+          "line": 1,
+          "form": "Method X is an anchor-free head ... (3rd person, present, descriptive)"
+        },
+        {
+          "file": "manuscript/sections/experiments.tex",
+          "line": 1,
+          "form": "We report mean mAP ... (1st person plural)"
+        }
       ],
-      "canonical_suggestion": "method.tex stays third-person descriptive; experiments.tex uses we-form. Both are common patterns — flag is informational only.",
+      "canonical_suggestion": "method.tex stays third-person descriptive; experiments.tex uses we-form. Both are common patterns \u2014 flag is informational only.",
       "explanation": "Method section uses descriptive third-person; experiments section uses first-person plural. Both counts are below the section-internal threshold (5) for an emit, but the document-wide voice mix is recorded. Severity info per the rule policy."
     }
   ],
-  "summary": {"info": 1, "warn": 4, "fail": 1}
+  "summary": {
+    "info": 1,
+    "warn": 4,
+    "fail": 1
+  }
 }
