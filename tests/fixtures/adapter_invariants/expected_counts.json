@@ -1,0 +1,52 @@
+{
+  "_note": "Expected counts of source plugin artefacts. Bump these AND add a CI commit message explaining the rationale when you add/remove commands, agents, skills, or hooks. Tests in tests/test_adapter_conformance.py re-count the source tree and assert equality.",
+  "commands": 20,
+  "agents": 15,
+  "skills": 24,
+  "hooks": 7,
+  "templates_root_dirs": 2,
+  "retention_commands": ["polish", "xreview"],
+  "_mcp_legacy_baseline": {
+    "_note": "Files in rendered adapter output that still mention legacy MCP server names (scholar-search-mcp, bib-manager-mcp, latex-build-mcp, code-intel-mcp, experiment-mcp, patent-search-mcp, external-agent-mcp). Invariant D is implemented as a ratchet: this set must not GROW. Removing files from the source/renderer that drop the legacy reference shrinks this set; tests will then flag the JSON as stale and force a contributor to tighten the baseline.",
+    "claude_code": [
+      "agents/latex-editor.md",
+      "agents/literature-reviewer.md",
+      "agents/paper-critic.md",
+      "commands/paper-draft.md",
+      "skills/bib-manager/SKILL.md",
+      "skills/code-intel/SKILL.md",
+      "skills/codebase-audit/SKILL.md",
+      "skills/deep-literature-review/SKILL.md",
+      "skills/experiment-analysis/SKILL.md",
+      "skills/external-agent-bridge/SKILL.md",
+      "skills/latex-build/SKILL.md",
+      "skills/latex-writing/SKILL.md",
+      "skills/literature-review/SKILL.md",
+      "skills/patent-search/SKILL.md",
+      "skills/scholar-search/SKILL.md",
+      "skills/venue-formatting/SKILL.md"
+    ],
+    "codex_cli": [
+      "prompts/deepresearch.md",
+      "prompts/paper-check.md",
+      "prompts/paper-draft.md",
+      "prompts/paper-idea.md",
+      "prompts/paper-lit.md",
+      "prompts/paper-review.md",
+      "prompts/paper-venue.md",
+      "prompts/patent-prior-art.md",
+      "skills/bib-manager.md",
+      "skills/code-intel.md",
+      "skills/codebase-audit.md",
+      "skills/deep-literature-review.md",
+      "skills/experiment-analysis.md",
+      "skills/external-agent-bridge.md",
+      "skills/latex-build.md",
+      "skills/latex-writing.md",
+      "skills/literature-review.md",
+      "skills/patent-search.md",
+      "skills/scholar-search.md",
+      "skills/venue-formatting.md"
+    ]
+  }
+}
