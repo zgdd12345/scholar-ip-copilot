@@ -62,6 +62,11 @@ def _copy_skill_bundle(doc: FrontmatterDoc, dest_skill_dir: Path) -> list[Path]:
 
     Returns the list of destination paths written. Returns [] when doc has no
     bundle_dir or when the bundle contains only SKILL.md.
+
+    Trusts callers (the source tree under plugins/scholar-ip/skills/) for
+    bundle hygiene: symlinks are followed and their targets copied (not the
+    links themselves); circular symlinks within a bundle would loop. This is
+    acceptable because bundles are author-controlled, in-tree content.
     """
     if doc.bundle_dir is None or not doc.bundle_dir.is_dir():
         return []

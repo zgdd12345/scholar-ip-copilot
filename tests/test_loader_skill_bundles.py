@@ -98,7 +98,13 @@ def test_opencode_propagates_bundle_files(bundle_plugin: Path, tmp_path: Path) -
     from packages.adapters.opencode.generate import render as render_opencode
 
     out_dir = tmp_path / "opencode-out"
-    render_opencode(load_plugin(bundle_plugin), out_dir)
+    written = render_opencode(load_plugin(bundle_plugin), out_dir)
+
+    # Bundle files MUST appear in the written-paths list, not only on disk
+    # (regression guard: a future bug that copies files but forgets to extend
+    # `written` would otherwise slip past the filesystem assertions below).
+    assert (out_dir / "skills" / "alpha" / "references" / "stage-1.md") in written
+    assert (out_dir / "skills" / "alpha" / "references" / "schemas" / "plan.yaml") in written
 
     # SKILL.md still rendered
     assert (out_dir / "skills" / "alpha" / "SKILL.md").is_file()
