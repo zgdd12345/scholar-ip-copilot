@@ -38,7 +38,6 @@ from typing import Any
 
 from .._shared.bundle import copy_skill_bundle
 from .._shared.loader import (
-    FrontmatterDoc,
     Plugin,
     dump_frontmatter,
     load_plugin as _load_plugin,
