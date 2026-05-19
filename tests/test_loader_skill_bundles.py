@@ -90,3 +90,28 @@ def test_validate_skips_bundle_resources(bundle_plugin: Path, tmp_path: Path) ->
     assert refs_errors == [], (
         f"validate() raised errors on references/ files: {refs_errors}"
     )
+
+
+def test_opencode_propagates_bundle_files(bundle_plugin: Path, tmp_path: Path) -> None:
+    """OpenCode renders skills/<id>/SKILL.md AND every bundle sibling, with
+    sub-directory structure preserved."""
+    from packages.adapters.opencode.generate import render as render_opencode
+
+    out_dir = tmp_path / "opencode-out"
+    render_opencode(load_plugin(bundle_plugin), out_dir)
+
+    # SKILL.md still rendered
+    assert (out_dir / "skills" / "alpha" / "SKILL.md").is_file()
+
+    # references/ subdir copied verbatim
+    assert (out_dir / "skills" / "alpha" / "references" / "stage-1.md").is_file()
+    content = (out_dir / "skills" / "alpha" / "references" / "stage-1.md").read_text()
+    assert "Stage 1" in content
+
+    # Nested subdir preserved
+    assert (out_dir / "skills" / "alpha" / "references" / "schemas" / "plan.yaml").is_file()
+
+    # Skill without a bundle (just SKILL.md) renders cleanly — no spurious extras
+    beta_dir = out_dir / "skills" / "beta"
+    beta_files = {p.name for p in beta_dir.iterdir() if p.is_file()}
+    assert beta_files == {"SKILL.md"}, f"beta should have only SKILL.md, got {beta_files}"
