@@ -11,6 +11,8 @@ role: >
   specification, and per-element traceability to spec_support + code_support.
   Refuses to draft when the disclosure is incomplete. Every output is
   attorney-reviewable, not filed text.
+model: haiku
+effort: low
 responsibilities:
   - "Draft 1+ independent claims and a configurable number of dependent claims per candidate."
   - 'Enforce antecedent basis: every "the X" has a prior "a X" / "an X" in the same claim.'

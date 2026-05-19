@@ -4,10 +4,12 @@ title: "Scholar search: arXiv / Semantic Scholar / OpenAlex retrieval via WebSea
 kind: skill
 phase: paper
 description: >
-  Host-native retrieval recipe replacing scholar-search-mcp. Tells the LLM how
-  to query arXiv, Semantic Scholar, and OpenAlex with the built-in WebSearch
-  and WebFetch tools, how to dedup, rate-limit, cache, and emit rows that
-  conform to the candidates.jsonl row schema declared in commands/deepresearch.md.
+  Query arXiv, Semantic Scholar, and OpenAlex with the built-in `WebSearch`
+  and `WebFetch` tools to fetch paper metadata; dedup, rate-limit, cache,
+  and emit rows that conform to the `candidates.jsonl` schema declared in
+  `commands/deepresearch.md`. Use when fetching paper metadata, resolving
+  an arXiv id or DOI, building a literature matrix from a topic, or running
+  `/scholar:paper-lit` or `/scholar:deepresearch`.
 triggers:
   - "/scholar:paper-lit"
   - "/scholar:deepresearch"

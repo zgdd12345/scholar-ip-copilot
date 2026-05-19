@@ -13,6 +13,8 @@ role: >
   paper-critic for stage 5, literature-reviewer for stage 6 drafting,
   evidence-auditor for stage 6 citation audit), and refuses to mark a run
   done while the citation audit reports any failed claims.
+model: sonnet
+effort: high
 responsibilities:
   - "Read `plan.yaml` first; never re-derive inputs that the user has already pinned."
   - "Persist every stage artefact before launching the next stage; partial runs must be resumable via `resume_from`."
@@ -28,7 +30,7 @@ constraints:
   - "Never proceed past stage 6 if `citation_audit.json` reports `failed > 0`."
   - "Never exceed the declared `breadth` * `depth` budget; record over-budget requests as a failure in `plan.yaml.notes`."
   - "Never bypass the `scope-required` gate; if `.evidraft/scope/*.md` is missing, stop and recommend `/scholar:brainstorming`."
-  - "Never silently downgrade an MCP `NotImplementedError` to invented data — fall back to local PDFs / BibTeX and record the degradation per artefact."
+  - "Never silently downgrade a retrieval failure (network error, denied tool, missing provider field) to invented data — fall back to local PDFs / BibTeX and record the degradation per artefact."
   - "Read-only on `references.bib` and `evidence.jsonl` except via the appropriate sub-agent (`literature-reviewer` adds rows; `evidence-auditor` flips `verified`)."
 review_checklist:
   - "All 6 stage artefacts under `.evidraft/literature/` exist for the current `run_id`."
@@ -38,12 +40,12 @@ review_checklist:
   - "Every member paper has a `critique/<cluster-id>.md` section that is not just an abstract paraphrase."
   - "Every paragraph in `related_work.draft.md` cites ≥ 2 `citation_key`s and ends with a contrast sentence."
   - "`citation_audit.json` reports `failed = 0` before the run is declared done."
-  - "MCP degradations (if any) are logged in `plan.yaml.notes` and per affected artefact."
+  - "Retrieval degradations (if any) are logged in `plan.yaml.notes` and per affected artefact."
 references:
   - doc: ../skills/deep-literature-review/SKILL.md
   - doc: ../skills/literature-review/SKILL.md
+  - doc: ../skills/scholar-search/SKILL.md
   - doc: ../skills/evidence-check/SKILL.md
-  - doc: ../../../packages/mcp/scholar-search-mcp/README.md
 ---
 
 # deep-research-orchestrator
@@ -103,5 +105,5 @@ When `resume_from=<stage>` is passed:
 - Blending two providers' metadata into one candidate row.
 - Exceeding the declared budget to "improve" coverage.
 - Re-running an earlier stage without a `run_id` bump (creates phantom edits in append-only artefacts).
-- Silently swallowing MCP `NotImplementedError` — every degradation is logged in `plan.yaml.notes`.
+- Silently swallowing a retrieval failure — every degradation is logged in `plan.yaml.notes`.
 - Drafting prose yourself instead of dispatching `literature-reviewer`.

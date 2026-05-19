@@ -29,8 +29,8 @@ allowed_tools: [Read, Glob, Grep, Write, Edit]
 hooks: [citation-guard, evidence-consistency]
 references:
   - doc: ../literature-review/SKILL.md
+  - doc: ../scholar-search/SKILL.md
   - doc: ../evidence-check/SKILL.md
-  - doc: ../../../../packages/mcp/scholar-search-mcp/README.md
 ---
 
 # deep-literature-review
@@ -39,7 +39,7 @@ references:
 
 Pull this skill whenever `/scholar:deepresearch` runs (or when resuming one of its stages). The light single-pass `/scholar:paper-lit` keeps its own skill (`literature-review`); this one is the heavyweight cousin. The two are not interchangeable: `literature-review` defines the citation-key convention, BibTeX hygiene, and method-family clustering that *both* commands share; `deep-literature-review` adds the 6-stage pipeline, the PRISMA screening log, the per-paper SWOT, and the citation audit.
 
-If `scholar-search-mcp` is unavailable, every stage degrades to local PDFs + BibTeX (see *Failure modes*).
+Retrieval is delegated to the `scholar-search` skill (which calls the built-in `WebSearch` / `WebFetch`). When network access is unavailable or the session is offline, every stage degrades to local PDFs + BibTeX (see *Failure modes*).
 
 ## Inputs
 
@@ -136,7 +136,7 @@ cited_in_draft   = count(distinct citation_key referenced in related_work.draft.
 
 For every claim in `related_work.draft.md`:
 
-1. Resolve to one or more `citation_key`s — each must already exist in `.evidraft/literature/references.bib`. Use `scholar-search-mcp.resolve_citation(claim, candidates)` for free-text matches; otherwise look up by hand.
+1. Resolve to one or more `citation_key`s — each must already exist in `.evidraft/literature/references.bib`. For free-text matches, use the `scholar-search` skill's resolution recipe (query a candidate title against arXiv/Semantic Scholar/OpenAlex via `WebSearch` + `WebFetch`, then map to an existing BibTeX entry); otherwise look up by hand.
 2. Resolve to one or more `evidence_id`s — each must already exist in `.evidraft/evidence/evidence.jsonl`.
 3. Append a row to `citation_audit.json.claims[]` with `paragraph, claim, citation_keys, evidence_ids, status, resolver, confidence`.
 4. If `status=failed` for any claim, the run does not complete. Surface the failing claims and tell the user which stage to re-run.
@@ -184,11 +184,11 @@ Rules:
 
 ## Failure modes
 
-- `scholar-search-mcp` raises `NotImplementedError` (v0.1 stubs) → fall back to local BibTeX + PDFs. Each fallback row uses `source: "local-bib"` or `source: "local-pdf"`. Log the fallback in `plan.yaml.notes`.
-- `get_paper_metadata` cannot fetch a missing abstract → screener decides on title + venue alone and notes `reason="abstract unavailable; decided on title+venue"`. No invented abstracts.
-- `get_paper_references` / `get_paper_citations` unavailable → Stage 4 skips lineage fields (leaves `[]`) and logs `"lineage: degraded (mcp stub)"`. Cluster membership still produced.
+- Online retrieval unavailable (no network, rate-limited, or `WebSearch` / `WebFetch` denied) → fall back to local BibTeX + PDFs. Each fallback row uses `source: "local-bib"` or `source: "local-pdf"`. Log the fallback in `plan.yaml.notes`.
+- Metadata cannot fetch a missing abstract → screener decides on title + venue alone and notes `reason="abstract unavailable; decided on title+venue"`. No invented abstracts.
+- References / citations cannot be fetched (no provider exposes them for this paper) → Stage 4 skips lineage fields (leaves `[]`) and logs `"lineage: degraded (no provider lineage)"`. Cluster membership still produced.
 - PDF unavailable at Stage 5 → SWOT bullets tagged `[abstract-only]` with reduced confidence; never invent section numbers.
-- `resolve_citation` unavailable at Stage 6 → fall back to manual lookup against `references.bib` + `evidence.jsonl`; unresolved claims are `status: failed` and the run does not complete.
+- Free-text citation resolution unavailable at Stage 6 → fall back to manual lookup against `references.bib` + `evidence.jsonl`; unresolved claims are `status: failed` and the run does not complete.
 - Budget exceeded → fan-out refused, logged in `plan.yaml.budget_log[]`, surfaced to the user.
 
 ## Resume protocol

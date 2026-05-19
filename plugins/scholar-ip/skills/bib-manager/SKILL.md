@@ -4,11 +4,13 @@ title: "BibTeX manager: dedup, citation-key normalisation, missing + unused dete
 kind: skill
 phase: paper
 description: >
-  Host-native recipe replacing bib-manager-mcp. Read+Edit on
-  .evidraft/literature/references.bib (and manuscript/references.bib when the
-  manuscript inlines its own copy) to keep entries unique, citation keys in
-  the firstauthorYEARkeyword convention, detect \cite{} keys that have no
-  matching entry, and flag bib entries that the manuscript never cites.
+  Manage an EviDraft project's `references.bib`: dedup entries, normalise
+  citation keys to the `firstauthorYEARkeyword` convention, detect `\cite{}`
+  keys with no matching entry, and flag entries the manuscript never cites.
+  Works on `.evidraft/literature/references.bib` plus `manuscript/references.bib`
+  when the manuscript inlines its own copy. Use when adding a BibTeX entry,
+  auditing `references.bib`, renaming a citation key, or running
+  `/scholar:paper-lit` or `/scholar:paper-check`.
 triggers:
   - "/scholar:paper-lit"
   - "/scholar:paper-check"

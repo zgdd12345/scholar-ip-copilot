@@ -25,7 +25,7 @@ allowed_tools: [Read, Glob, Grep, "Bash:git*", "Bash:ls*"]
 hooks: [evidence-consistency, sensitive-file-guard]
 references:
   - doc: ../evidence-check/SKILL.md
-  - doc: ../../../../packages/mcp/code-intel-mcp/
+  - doc: ../code-intel/SKILL.md
   - doc: ../../../../docs/data-model.md
 ---
 
@@ -39,7 +39,7 @@ Pull this skill whenever a downstream artefact needs a trustworthy mapping from 
 - `/scholar:patent-scout` needs code evidence for each candidate.
 - `/scholar:patent-disclosure` "Code traceability" section reuses `method_to_code.md`.
 
-If `code-intel-mcp` (tools: `summarize_repo`, `find_entrypoints`, `extract_config_schema`, `map_method_to_code`, `search_code`) is available, prefer it; otherwise fall back to `Glob` / `Grep` / `Read`.
+Use `Glob` / `Grep` / `Read` to walk the repo. The sibling `code-intel` skill packages the repo-summary, entrypoint-finding, config-schema-extraction, method-to-code-mapping, and code-search recipes into deterministic procedures — call it for any non-trivial lookup.
 
 ## Inputs
 

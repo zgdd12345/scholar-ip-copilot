@@ -1,6 +1,14 @@
 ---
 id: paper-lit
 title: "Literature retrieval and matrix"
+description: >
+  Build a single-pass literature matrix for an EviDraft paper project:
+  query arXiv, Semantic Scholar, and OpenAlex via the `scholar-search`
+  skill; dedup candidates; populate matrix rows with method-family
+  clusters; and append `type=paper` evidence records. For multi-pass
+  heavyweight reviews use `/scholar:deepresearch` instead. Use when
+  seeding references for a new paper, refreshing a stale matrix, or
+  right after `/scholar:brainstorming` produces a new scope.
 kind: command
 slash: /scholar:paper-lit
 phase: paper
@@ -38,7 +46,7 @@ Build a literature foundation for the paper. Online retrieval uses the host-nati
    - Look for `references.bib`, `references/*.pdf`, `papers/*.pdf`.
    - Read `.evidraft/literature/matrix.md` (may be empty).
 2. **Online retrieval (optional).** If the user supplies a topic, load the `scholar-search` skill and request up to N (default 20) candidate papers per the URL templates / rate-limit policy in `skills/scholar-search/SKILL.md` (arXiv, Semantic Scholar, OpenAlex). For each candidate produce a structured stub (title, authors, year, venue, abstract, why-relevant). All bib edits go through `skills/bib-manager/SKILL.md` for dedup + key normalisation.
-3. **Per-paper extraction.** For every paper you commit to (existing or new):
+3. **Per-paper extraction.** Use the `literature-reviewer` subagent to curate the matrix rows, then use the `evidence-auditor` subagent to spot-check each appended `type=paper` evidence row against `references.bib`. For every paper you commit to (existing or new):
    - Add a clean BibTeX entry to `.evidraft/literature/references.bib`. Citation key: `firstauthorYEARkeyword` (lowercase).
    - Add one or more rows to `.evidraft/literature/matrix.md`:
      | citation_key | Year | Venue | Problem | Method | Datasets | Key Result | Gap | Evidence ids |

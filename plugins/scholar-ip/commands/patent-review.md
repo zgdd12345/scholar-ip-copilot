@@ -1,6 +1,13 @@
 ---
 id: patent-review
 title: "Multi-role review of disclosure and claims, backed by structured audits"
+description: >
+  Run a multi-role review of the TID and draft claims by the
+  `patent-engineer`, `claim-drafter`, `novelty-critic`,
+  `methodology-reviewer`, and an examiner-style critic. Outputs a
+  structured `.evidraft/patent/patent_review_report.md` keyed by reviewer
+  role with findings + suggested edits. Use after `/scholar:patent-claims`
+  and before handing the disclosure off to a registered patent agent.
 kind: command
 slash: /scholar:patent-review
 phase: patent
@@ -38,11 +45,11 @@ If parser raises `fail`-severity warnings, the panel still runs but the report's
 
 The 5 roles share inputs but have no inter-role dependency — **dispatch them in parallel** and assemble the report at the end. Only the final aggregation is serial. Each role consumes the structured findings from the pre-pass.
 
-1. **Patent engineer** — Are the technical solution, alternatives, examples, and diagrams sufficient to teach the invention to a skilled person? Consults `invention_disclosure.md`.
-2. **Claim drafter** — Are claims clear, properly antecedent, with consistent terminology? Are dependent claims actually narrower? Any 112(b)-style indefiniteness risk? **Now consumes `claims_parsed.json`** — antecedent-chain warnings and dependency-graph issues come pre-computed from the parser; this role focuses on the LLM-only judgements (clarity, consistency, breadth-vs-defensibility tradeoffs).
-3. **Novelty critic** — For each independent claim element, what is the strongest prior-art overlap? Where is the line of distinction? **Now consumes `novelty_audit-<ts>.findings.json`** — `overlap_score`, `differentiator_hint`, and `verdict_hint` come pre-scored; this role validates the heuristic verdicts against the actual prior-art passages and flags any score the critic disagrees with.
-4. **Methodology / technical reviewer** — Does the disclosure match the code? Any mismatches against `method_to_code.md`?
-5. **Skeptical examiner** — Imagine you reject this. What is the rejection reasoning, and what amendment closes it? **Reads the per-claim `verdict_hint`** as starting point: `redraft` and `withdraw` verdicts auto-seed this role's rejection scenarios.
+1. **Patent engineer** — Use the `patent-engineer` subagent. Are the technical solution, alternatives, examples, and diagrams sufficient to teach the invention to a skilled person? Consults `invention_disclosure.md`.
+2. **Claim drafter** — Use the `claim-drafter` subagent. Are claims clear, properly antecedent, with consistent terminology? Are dependent claims actually narrower? Any 112(b)-style indefiniteness risk? **Now consumes `claims_parsed.json`** — antecedent-chain warnings and dependency-graph issues come pre-computed from the parser; this role focuses on the LLM-only judgements (clarity, consistency, breadth-vs-defensibility tradeoffs).
+3. **Novelty critic** — Use the `novelty-critic` subagent. For each independent claim element, what is the strongest prior-art overlap? Where is the line of distinction? **Now consumes `novelty_audit-<ts>.findings.json`** — `overlap_score`, `differentiator_hint`, and `verdict_hint` come pre-scored; this role validates the heuristic verdicts against the actual prior-art passages and flags any score the critic disagrees with.
+4. **Methodology / technical reviewer** — Use the `methodology-reviewer` subagent. Does the disclosure match the code? Any mismatches against `method_to_code.md`?
+5. **Skeptical examiner** — Use the `evidence-auditor` subagent to back the rejection scenarios with verified evidence ids. Imagine you reject this. What is the rejection reasoning, and what amendment closes it? **Reads the per-claim `verdict_hint`** as starting point: `redraft` and `withdraw` verdicts auto-seed this role's rejection scenarios.
 
 Plus the `consistency-checker` agent (carried over from v0.4 wiring) — applies its 9 rules to the TID + claims as cross-document consistency check (terminology drift between disclosure and claims is a common pre-filing defect).
 

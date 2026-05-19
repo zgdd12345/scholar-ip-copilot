@@ -1,6 +1,13 @@
 ---
 id: paper-experiment
 title: "Analyse experiment outputs and produce LaTeX tables"
+description: >
+  Aggregate raw experiment outputs under `experiments/` into
+  `result_analysis.md`, LaTeX tables under `.evidraft/experiments/tables/`,
+  and `type=number` evidence rows. Every number that lands in the
+  manuscript traces back through here; the `evidence-consistency` hook
+  refuses unsourced numbers. Use when new runs land, before the next draft
+  cycle, or whenever the manuscript needs a fresh number.
 kind: command
 slash: /scholar:paper-experiment
 phase: paper
@@ -31,9 +38,9 @@ Turn raw experiment outputs into a trustworthy `result_analysis.md` and LaTeX ta
    - per-run subfolders or csv/jsonl files,
    - run names, seeds, config hashes,
    - metric files (csv, json, jsonl, tensorboard summary, etc).
-2. **Load and normalise.** Build a flat table per (experiment, setting, metric, value, source_file, source_row). Store this conceptually; persist the human-readable version into `.evidraft/experiments/result_analysis.md`:
+2. **Load and normalise.** Use the `experiment-analyst` subagent to turn raw outputs into a trustworthy table. Build a flat table per (experiment, setting, metric, value, source_file, source_row). Store this conceptually; persist the human-readable version into `.evidraft/experiments/result_analysis.md`:
    | Metric | Setting | Number | Source (file:row/col) | Evidence id | Notes |
-3. **Append evidence.** For each *numerical claim* you intend to use in the paper:
+3. **Append evidence.** Use the `evidence-auditor` subagent to spot-check each appended record against its source file. For each *numerical claim* you intend to use in the paper:
    - append a record with `type=experiment`, `file_path`, `line_range` (or `row:col`), `claim` (a one-sentence number-bearing claim), `support`.
 4. **Generate LaTeX tables.** For each table the paper will need, write a `.tex` file under `.evidraft/experiments/tables/<table_id>.tex`. Use `booktabs` (`\toprule \midrule \bottomrule`). Add a comment header inside the file pointing to evidence ids and source paths.
 5. **Suggest figures.** In `result_analysis.md`, add a "Figure suggestions" section: which plot, which axes, which source files, which seed range. Do not generate the figure here.

@@ -4,11 +4,13 @@ title: "LaTeX build: latexmk invocation, structured error parsing, PDF preview"
 kind: skill
 phase: paper
 description: >
-  Host-native recipe replacing latex-build-mcp. Wraps `latexmk` via Bash,
-  parses main.log into the same error taxonomy the latex-compile hook
-  consumes (MISSING_CITE, MISSING_REF, UNDEFINED_COMMAND, UNBALANCED_BRACES,
-  PACKAGE_NOT_FOUND, OTHER), writes a structured errors.json beside the
-  log, and optionally renders a first-page PNG preview.
+  Compile an EviDraft manuscript via `latexmk`, parse `main.log` into the
+  structured error taxonomy the `latex-compile` hook consumes (`MISSING_CITE`,
+  `MISSING_REF`, `UNDEFINED_COMMAND`, `UNBALANCED_BRACES`, `PACKAGE_NOT_FOUND`,
+  `OTHER`), write `errors.json` next to the log, and optionally render a
+  first-page PNG preview. Use when compiling `manuscript/main.tex` or
+  `submissions/<venue>/main.tex`, parsing a LaTeX log, or running
+  `/scholar:paper-check` or `/scholar:paper-venue`.
 triggers:
   - "/scholar:paper-check"
   - "/scholar:paper-venue"

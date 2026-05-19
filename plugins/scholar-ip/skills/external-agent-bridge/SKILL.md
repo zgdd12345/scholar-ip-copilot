@@ -33,7 +33,6 @@ references:
   - doc: ../../commands/xreview.md
   - doc: ../../hooks/external-write-zone.md
   - doc: ../../hooks/sensitive-file-guard.md
-  - doc: ../../../../packages/mcp/external-agent-mcp/README.md
   - doc: ../../../../docs/roadmap.md
   - url: "https://github.com/openai/codex"
   - url: "https://github.com/hamelsmu/claude-review-loop"
@@ -191,7 +190,7 @@ Each agent reports cost differently. Capture what is available; record
 | Agent | How to extract |
 |---|---|
 | `codex` | `--json` stream emits a `session.summary` event at the end with `input_tokens`, `output_tokens`, and `usd_cost`. Sum into the telemetry record. |
-| `claude-bare` | `--output-format json` envelope includes a `usage` block (`input_tokens`, `output_tokens`); cost is computed from the pricing table in `packages/mcp/external-agent-mcp/README.md` (v0.2+). For v0.1, record tokens and leave `cost_usd: null`. |
+| `claude-bare` | `--output-format json` envelope includes a `usage` block (`input_tokens`, `output_tokens`). Record tokens; leave `cost_usd: null` until a pricing table lands in `packages/mcp/README.md` (v0.3+). |
 | `opencode` | `--format json` envelope shape is provider-dependent; capture `tokens` if present, otherwise `null`. Always `null` for `cost_usd` until v0.2. |
 
 Telemetry is appended to `.evidraft/reviews/.last.yaml` and (in v0.2)
@@ -210,10 +209,10 @@ without re-implementing the CLI plumbing. Two patterns are in scope:
   wrap-an-agent-as-MCP path; useful when the external agent already
   ships as a framework component.
 
-The v0.1 stub at `packages/mcp/external-agent-mcp/server.py` declares
-the three tool functions (`review_with`, `list_supported_agents`,
-`parse_review_output`) so the host wiring can be reviewed before any
-network or subprocess code lands.
+When MCP wiring lands (v0.3+, tracked in `packages/mcp/README.md`),
+three tool functions are anticipated — `review_with`,
+`list_supported_agents`, `parse_review_output` — so the host integration
+can be reviewed before any network or subprocess code is committed.
 
 Inspiration / prior art (idea-level only, not vendored):
 

@@ -1,6 +1,14 @@
 ---
 id: paper-review
 title: "Draft Related Work / survey section"
+description: >
+  Draft the related-work / survey section into
+  `manuscript/sections/related_work.tex` with every paragraph carrying a
+  citation key and every claim tied to an evidence row. Emits both the
+  planning outline at `.evidraft/literature/related_work_outline.md` and
+  the rendered LaTeX. Use when moving from a populated literature matrix
+  into prose, before `/scholar:paper-draft`, or to refresh a stale
+  related-work section.
 kind: command
 slash: /scholar:paper-review
 phase: paper
@@ -34,8 +42,8 @@ Draft a `related_work` (or `survey`) section grounded **only** in the evidence s
    - Parse `.evidraft/literature/matrix.md`.
    - Parse `.evidraft/evidence/evidence.jsonl` (filter `type=paper`).
    - Parse `.evidraft/project.yaml` for `field` and `target_venue`.
-2. **Outline first.** Write `.evidraft/literature/related_work_outline.md` with paragraph-level bullets. Each bullet must list the `citation_key`s it will cite and the `evidence_id`s it leans on.
-3. **Critique the outline.** Self-check:
+2. **Outline first.** Use the `literature-reviewer` subagent to cluster the matrix into method families before bullet-writing. Write `.evidraft/literature/related_work_outline.md` with paragraph-level bullets. Each bullet must list the `citation_key`s it will cite and the `evidence_id`s it leans on.
+3. **Critique the outline.** Use the `evidence-auditor` subagent to surface any orphan citations (cited but no evidence record) and the `consistency-checker` subagent to flag terminology / method-family drift across paragraphs. Self-check:
    - Are there at least 3 method families covered?
    - Is each family contrasted against our angle?
    - Are there orphan citations (cited but no evidence record)? Add them or drop.

@@ -27,7 +27,7 @@ hooks: [latex-compile, citation-guard, evidence-consistency]
 references:
   - doc: ../latex-writing/SKILL.md
   - doc: ../evidence-check/SKILL.md
-  - doc: ../../../../packages/mcp/latex-build-mcp/
+  - doc: ../latex-build/SKILL.md
 ---
 
 # venue-formatting
@@ -101,7 +101,7 @@ The procedure below reads these keys; any new key added to a spec file becomes a
 
 6. **Class-file handling.** Do **not** vendor `.cls` / `.sty` files. Instead, write a clear note in `MANIFEST.md` pointing to `class_files_url`, and warn the user that compile will fail until they fetch the class kit (typical Overleaf / publisher author-kit zip).
 
-7. **Compile sanity check.** Run `latexmk -pdf -interaction=nonstopmode submissions/<venue>/main.tex`. Capture errors and warnings. If `latex-build-mcp` is unavailable, mark compile `SKIPPED` and continue.
+7. **Compile sanity check.** Call the `latex-build` skill on `submissions/<venue>/main.tex` (it wraps `latexmk -pdf -interaction=nonstopmode` and writes a structured `errors.json`). If `latexmk` is not installed in this environment, mark compile `SKIPPED` and continue.
 
 8. **Page-limit check.** If `page_limit.main` is an integer, compute the rendered page count of the body (excluding references) and compare. Warn if over. Use the class's own counting if the venue mandates a particular method (some venues count references in the main budget — read `notes`).
 

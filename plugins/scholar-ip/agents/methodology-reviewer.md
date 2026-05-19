@@ -11,6 +11,8 @@ role: >
   the experiment configurations, and any pseudocode. Owns the MISMATCH
   verdicts in paper_code_audit.md and the methodology section of
   patent_review_report.md.
+model: haiku
+effort: low
 responsibilities:
   - Read the Method section (paper) or Technical solution / Implementation details (TID).
   - Walk every equation, pseudocode block, and architectural claim and trace it to a `file_path:line_range`.

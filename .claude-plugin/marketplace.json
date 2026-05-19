@@ -1,0 +1,13 @@
+{
+  "name": "scholar-ip-copilot",
+  "owner": {
+    "name": "scholar-ip-copilot contributors"
+  },
+  "plugins": [
+    {
+      "name": "scholar",
+      "source": "./.claude/plugins/scholar-ip",
+      "description": "Evidence-grounded academic and patent copilot for codebases, experiments, literature, LaTeX papers, and invention disclosures."
+    }
+  ]
+}

@@ -12,6 +12,8 @@ role: >
   never paragraph-restructures. Refuses to apply any change that touches a
   protected token (numeric literal, `\cite{}` key, `ev_NNNN` marker, evidence-
   registered named entity, hedging adverb on an empirical statement).
+model: haiku
+effort: low
 responsibilities:
   - Apply the rewriting rules from `skills/humanize/SKILL.md` to the target span(s).
   - Emit hunks as structured records `{file, line_range, original_span, rewritten_span, rules_fired[], delta_ratio}`.

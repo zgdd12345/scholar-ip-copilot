@@ -1,70 +1,110 @@
 # EviDraft -> Codex CLI adapter
 
-Status: **MVP (prompt/workflow files).**
+Status: **MVP (skills-based plugin).**
 
-Codex CLI does not have first-class sub-agent dispatch and does not natively
-ingest the "command + agent + skill + hook" tuple that the platform-neutral
-plugin uses. So this adapter **flattens** the plugin into self-contained
-prompts that a Codex session can run directly.
+Codex CLI exposes user content through **skills** (`SKILL.md` bundles under
+`.agents/skills/`, walked from cwd up to the worktree). It has no
+user-defined slash commands, no subagent dispatch, and no workflow file
+convention. This adapter therefore flattens every source artefact into a
+skill:
+
+* each source command → `skills/scholar-<command-id>/SKILL.md`
+* each source skill → `skills/scholar-skill-<skill-id>/SKILL.md` (the
+  `-skill-` infix disambiguates ids that exist as both a command and a skill,
+  e.g. `brainstorming`)
+* source subagents → inlined into the rendering command's body
+* source hooks → inlined as `## Guardrails` blocks
+* source workflows → inlined into the README's `## Workflows` section
 
 ## Output shape
 
 ```
-<out>/
-├── README.md                  # how to invoke
-├── prompts/<command-id>.md    # one prompt per slash command
-├── workflows/<name>.md        # ordered playbooks copied from plugin.yaml.workflows
-└── skills/<skill-id>.md       # flattened skill spec
+<out>/                              # plugin root
+├── .codex-plugin/
+│   └── plugin.json                 # Codex plugin manifest
+├── README.md
+└── skills/
+    ├── scholar-<command-id>/SKILL.md
+    └── scholar-skill-<source-skill-id>/SKILL.md
 ```
 
-### Per prompt
+Each `SKILL.md` has frontmatter:
 
-Each `prompts/<command-id>.md` is structured as:
+```yaml
+---
+name: scholar-<id>            # or scholar-skill-<id>
+description: <trigger text>   # what the skill is for; the model uses this
+                              # for implicit matching
+---
+```
 
-1. `# /<slash>` title + 1-line description
-2. `## Inputs` — name, type, required/optional, default, allowed values
-3. `## Outputs` — paths the command is expected to write
-4. `## Instructions` — the original markdown body, verbatim
-5. `## Guardrails` — every hook listed in frontmatter, plus the global safety
-   policy (`forbidden_paths`, `forbidden_tool_patterns`) inlined from
-   `plugin.yaml`
-6. `## Inline subagent roles` — for every id in `subagents:`, the matching
-   `agents/<id>.md` body is appended (deduped)
+Body keeps the rich Inputs/Outputs/Instructions/Guardrails sections (for
+command-skills) or the Triggers/Provides/body (for source-skills).
 
-This makes each prompt **self-contained**: you can pipe one file to Codex and
-get the same workflow the Claude Code adapter would route across files.
+## Installing into a project
 
-### Workflows
+There are two paths, and you should know about both.
 
-`workflows/paper.md` and `workflows/patent.md` are short ordered playbooks
-derived from the `workflows:` section of `plugin.yaml`. They are not Codex
-"runnables" by themselves; they tell the human (or a loop driver) which
-prompt to run next.
+### Path A — direct skill drop (works today)
 
-## Input format
-
-Reads `plugins/scholar-ip/` (or any plugin tree following
-`docs/plugin-format.md`).
-
-## CLI
+Codex auto-discovers skills under **`.agents/skills/`** (walked from cwd up
+to the worktree root). For now this is the only path that actually causes
+Codex to *load* the skills:
 
 ```bash
 python -m packages.adapters.codex_cli.generate \
     --plugin plugins/scholar-ip \
-    --out ~/your-project/.codex/prompts/scholar-ip
-
-python -m packages.adapters.codex_cli.generate \
-    --plugin plugins/scholar-ip \
-    --out /tmp/scholar-ip-codex \
-    --dry-run
+    --out /tmp/scholar-codex
+mkdir -p <your-project>/.agents/skills
+cp -R /tmp/scholar-codex/skills/* <your-project>/.agents/skills/
 ```
 
-Validation problems are printed to stderr; the render proceeds.
+Restart Codex. `/skills` will list every `scholar-*` and `scholar-skill-*`
+entry. Implicit matching also works because each `description` line is
+written as a trigger phrase.
 
-## What is intentionally missing
+### Path B — marketplace install (forward-looking)
 
-- No executable hook scripts — Codex has no hook system; guardrails are
-  prose only.
-- No agent dispatch — every subagent is inlined.
-- No tool whitelist enforcement — the model must respect the prose; Codex
-  doesn't (yet) honour a manifest-level allowlist.
+The rendered plugin under `--out` is a valid Codex plugin (`.codex-plugin/
+plugin.json` + `skills/`). You can register a local marketplace pointing at
+it:
+
+```jsonc
+// <repo-root>/.agents/plugins/marketplace.json
+{
+  "name": "scholar-ip-copilot",
+  "interface": { "displayName": "scholar-ip-copilot" },
+  "plugins": [{
+    "name": "scholar",
+    "source": { "source": "local", "path": "./.codex/plugins/scholar" },
+    "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+    "category": "Productivity"
+  }]
+}
+```
+
+Then `codex plugin marketplace add <repo-root>` and enable in
+`~/.codex/config.toml`:
+
+```toml
+[plugins."scholar@scholar-ip-copilot"]
+enabled = true
+```
+
+**Caveat (Codex 0.130.0):** local-source marketplaces are recognised by
+`codex plugin marketplace add` but Codex does not currently sync their
+plugins into the loader cache — only the curated openai-curated marketplace
+under `~/.codex/.tmp/plugins/` is walked at startup. The marketplace is
+registered for forward compatibility, but you still need Path A today.
+
+## Caveats
+
+* No slash commands: every source command becomes a skill. Users invoke
+  them through `/skills` selection or by typing `$scholar-paper-init`,
+  not by typing `/scholar:paper-init`.
+* No subagent dispatch: source subagent definitions are inlined as
+  `## Inline subagent roles` at the bottom of the corresponding command
+  body — the model reads them as a system-prompt suffix.
+* Hooks are advisory only — they appear in `## Guardrails` and rely on the
+  model honouring them. Codex's only first-class hook surface is JS
+  callbacks inside a plugin module (out of scope for this adapter).

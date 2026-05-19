@@ -1,91 +1,54 @@
-"""Render the EviDraft plugin into a Codex-CLI-flavored layout.
+"""Render the EviDraft plugin into a Codex-CLI plugin layout.
 
-Codex CLI has no first-class sub-agent concept, so every command prompt is
-self-contained: subagent definitions get inlined at the bottom, and hooks
-become a ``## Guardrails`` block.
+Codex CLI does not have user-defined slash commands, sub-agents, or workflow
+files. Everything user-visible is shipped as a **skill** (a directory with a
+``SKILL.md`` whose frontmatter declares ``name`` and ``description``). The
+platform-neutral plugin is therefore flattened so that:
 
-Output tree (rooted at ``--out``)::
+* every source command becomes a skill named ``scholar-<command-id>``;
+* every source skill becomes a skill named ``scholar-skill-<skill-id>``
+  (the ``-skill-`` infix disambiguates from same-id commands such as
+  ``brainstorming``, which exists as both a command and a skill in source);
+* source subagents are inlined into the command body (Codex has no
+  subagent dispatch);
+* source hooks are inlined as a ``## Guardrails`` block;
+* source workflows are inlined into a single ``Workflows`` section in the
+  README (Codex has no workflow file convention).
 
+Output tree (rooted at ``--out`` — the plugin root)::
+
+    .codex-plugin/plugin.json
+    skills/scholar-<command-id>/SKILL.md
+    skills/scholar-skill-<source-skill-id>/SKILL.md
     README.md
-    prompts/<command-id>.md
-    workflows/paper.md, patent.md, ...
-    skills/<skill-id>.md
+
+To make this plugin loadable, the caller also needs a Codex marketplace
+file at ``<repo-root>/.agents/plugins/marketplace.json`` that points at this
+plugin directory and is registered via ``codex plugin marketplace add <repo>``.
+This adapter only renders the plugin itself; marketplace registration is a
+separate concern.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from .._shared.loader import (
     FrontmatterDoc,
     Plugin,
+    dump_frontmatter,
     load_plugin as _load_plugin,
-    render_retention_prune_snippet,
+    render_retention_section,
     validate as _validate,
 )
 
 
-def _retention_section(meta: dict[str, Any]) -> list[str]:
-    """If ``meta`` declares ``retention:``, return the lines of a
-    ``## Pre-run cleanup`` section. Otherwise return ``[]``.
-
-    Mirrors the Claude Code adapter so the same retention contract is enforced
-    on every host that lacks first-class pre-command hooks.
-    """
-    retention = meta.get("retention") or {}
-    if not retention:
-        return []
-    keep_last = retention.get("keep_last")
-    max_age_days = retention.get("max_age_days")
-    if keep_last is None and max_age_days is None:
-        return []
-
-    outputs = meta.get("outputs") or []
-    output_dir = ".evidraft"
-    file_glob = "*"
-    for o in outputs:
-        path = o.get("path") or ""
-        if "/" in path and "<" not in path.split("/")[0]:
-            import re as _re
-
-            parent, base = path.rsplit("/", 1)
-            output_dir = parent
-            file_glob = _re.sub(r"<[^>]+>", "*", base) or "*"
-            break
-
-    cmd_id = str(meta.get("id") or "command")
-    snippet = render_retention_prune_snippet(
-        command_id=cmd_id,
-        output_dir=output_dir,
-        keep_last=keep_last,
-        max_age_days=max_age_days,
-        file_glob=file_glob,
-    )
-    if snippet is None:
-        return []
-
-    return [
-        "<!-- evidraft: retention -->",
-        "## Pre-run cleanup",
-        "",
-        (
-            "Run the following retention-prune snippet at command start. "
-            "It is idempotent and safe to re-run."
-        ),
-        "",
-        "```bash",
-        snippet,
-        "```",
-        "",
-    ]
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+CMD_PREFIX = "scholar-"
+SKILL_PREFIX = "scholar-skill-"
 
 
 def _agents_by_id(plugin: Plugin) -> dict[str, FrontmatterDoc]:
@@ -100,27 +63,22 @@ def _strip_body(body: str) -> str:
     return body.strip("\n")
 
 
-def _render_command(
+def _command_skill_body(
     doc: FrontmatterDoc,
     agents: dict[str, FrontmatterDoc],
     hooks: dict[str, FrontmatterDoc],
     safety: dict[str, Any],
 ) -> str:
+    """Build the body of the SKILL.md that represents one source command."""
     meta = doc.meta or {}
     title = meta.get("title") or doc.id
     slash = meta.get("slash") or f"/{doc.id}"
-    desc = (meta.get("description") or "").strip()
 
-    lines: list[str] = [f"# {slash}", ""]
-    lines.append(f"_{title}_")
-    if desc:
-        lines.append("")
-        lines.append(desc)
-    lines.append("")
+    lines: list[str] = [f"# {slash}", "", f"_{title}_", ""]
 
-    # Retention prune snippet (sits at the very top of the prompt body so the
-    # model runs it before any other tool call).
-    lines.extend(_retention_section(meta))
+    retention = render_retention_section(meta)
+    if retention:
+        lines.append(retention.rstrip("\n"))
 
     inputs = meta.get("inputs") or []
     if inputs:
@@ -152,7 +110,6 @@ def _render_command(
     lines.append(_strip_body(doc.body))
     lines.append("")
 
-    # Guardrails: from per-command hook ids + global safety policy.
     hook_ids = meta.get("hooks") or []
     if hook_ids or safety:
         lines.append("## Guardrails")
@@ -173,7 +130,6 @@ def _render_command(
             lines.append(f"- Never invoke: {', '.join(f'`{t}`' for t in forb_tools)}.")
         lines.append("")
 
-    # Inlined subagents (since Codex has no native subagent dispatch).
     sub_ids = meta.get("subagents") or []
     if sub_ids:
         lines.append("## Inline subagent roles")
@@ -195,20 +151,10 @@ def _render_command(
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _render_workflow(name: str, steps: Iterable[str]) -> str:
-    lines = [f"# Workflow: {name}", "", "Ordered playbook from `plugin.yaml`.", ""]
-    for i, step in enumerate(steps, 1):
-        lines.append(f"{i}. `{step}`")
-    lines.append("")
-    return "\n".join(lines)
-
-
-def _render_skill(doc: FrontmatterDoc) -> str:
+def _skill_skill_body(doc: FrontmatterDoc) -> str:
+    """Build the body of the SKILL.md that represents one source skill."""
     meta = doc.meta or {}
-    lines = [f"# Skill: {meta.get('title') or doc.id}", ""]
-    if meta.get("description"):
-        lines.append(meta["description"].strip())
-        lines.append("")
+    lines = [f"# {meta.get('title') or doc.id}", ""]
     if meta.get("triggers"):
         lines.append("**Triggers:** " + ", ".join(meta["triggers"]))
         lines.append("")
@@ -220,6 +166,20 @@ def _render_skill(doc: FrontmatterDoc) -> str:
     return "\n".join(lines)
 
 
+def _workflows_section(plugin: Plugin) -> list[str]:
+    workflows = plugin.manifest.get("workflows") or {}
+    if not workflows:
+        return []
+    lines = ["## Workflows", ""]
+    for name, steps in workflows.items():
+        lines.append(f"### {name}")
+        lines.append("")
+        for i, step in enumerate(steps or [], 1):
+            lines.append(f"{i}. `{step}`")
+        lines.append("")
+    return lines
+
+
 def _render_readme(plugin: Plugin) -> str:
     m = plugin.manifest
     lines = [
@@ -227,39 +187,59 @@ def _render_readme(plugin: Plugin) -> str:
         "",
         (m.get("description") or "").strip(),
         "",
-        "## How to invoke",
+        "## Layout",
         "",
-        "Each file under `prompts/` is a self-contained prompt that you can pipe to",
-        "Codex CLI (or paste into a Codex session) to run that command:",
+        "- `.codex-plugin/plugin.json` — Codex plugin manifest",
+        f"- `skills/scholar-<command-id>/SKILL.md` — {len(plugin.commands)} command(s) as invokable skills",
+        f"- `skills/scholar-skill-<source-skill-id>/SKILL.md` — {len(plugin.skills)} reusable how-to skill(s)",
+        "",
+        "## Installation",
+        "",
+        "From the repo root that contains `.agents/plugins/marketplace.json`:",
         "",
         "```bash",
-        "codex run --prompt prompts/scholar:paper-init.md",
+        "codex plugin marketplace add ./",
         "```",
         "",
-        "Workflows under `workflows/` are ordered playbooks; run their steps in",
-        "sequence. Skills under `skills/` describe reusable how-tos that you can",
-        "reference inside a prompt with `@skills/<id>.md`.",
+        "Skills then appear in Codex `/skills`. Restart Codex after install.",
         "",
-        "## Contents",
+        "## Caveats",
         "",
-        f"- {len(plugin.commands)} prompt(s) under `prompts/`",
-        f"- {len(plugin.skills)} skill(s) under `skills/`",
-        f"- {len(plugin.manifest.get('workflows') or {})} workflow playbook(s) under `workflows/`",
-        "",
-        "## Caveat",
-        "",
-        "Codex CLI has no first-class sub-agent dispatch, so any command that",
-        "declares `subagents:` in the source plugin has those roles **inlined**",
-        "at the bottom of the prompt instead of dispatched. Hooks are surfaced as",
-        "a `## Guardrails` section the model must obey.",
+        "Codex CLI has no first-class sub-agent dispatch, so any source command",
+        "that declares `subagents:` has those roles **inlined** at the bottom of",
+        "the rendered SKILL body. Source hooks become a `## Guardrails` block.",
         "",
     ]
+    lines.extend(_workflows_section(plugin))
     return "\n".join(lines)
 
 
-# ---------------------------------------------------------------------------
-# Renderer
-# ---------------------------------------------------------------------------
+def _build_plugin_manifest(plugin: Plugin) -> dict[str, Any]:
+    """Emit ``.codex-plugin/plugin.json`` matching the Codex plugin spec.
+
+    See ``~/.codex/skills/.system/plugin-creator/references/plugin-json-spec.md``.
+    Only ``name`` is required; the rest is metadata. ``skills: "./skills/"``
+    is the canonical path for skill discovery within the plugin.
+    """
+    m = plugin.manifest
+    out: dict[str, Any] = {
+        "name": m.get("id", "scholar"),
+        "version": m.get("version", "0.0.1"),
+        "description": (m.get("description") or "").strip(),
+        "skills": "./skills/",
+    }
+    if m.get("homepage"):
+        out["homepage"] = m["homepage"]
+    if m.get("license"):
+        out["license"] = m["license"]
+    authors = m.get("authors") or []
+    if authors:
+        first = authors[0] if isinstance(authors[0], dict) else {"name": authors[0]}
+        out["author"] = first
+    display = m.get("name")
+    if display:
+        out["interface"] = {"displayName": display}
+    return {k: v for k, v in out.items() if v is not None and v != ""}
 
 
 def render(plugin: Plugin, out_dir: Path) -> list[Path]:
@@ -271,45 +251,55 @@ def render(plugin: Plugin, out_dir: Path) -> list[Path]:
     hooks = _hooks_by_id(plugin)
     safety = plugin.manifest.get("safety") or {}
 
+    manifest_dir = out_dir / ".codex-plugin"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = manifest_dir / "plugin.json"
+    manifest_path.write_text(
+        json.dumps(_build_plugin_manifest(plugin), indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    written.append(manifest_path)
+
     readme = out_dir / "README.md"
     readme.write_text(_render_readme(plugin), encoding="utf-8")
     written.append(readme)
 
-    prompts_dir = out_dir / "prompts"
-    prompts_dir.mkdir(parents=True, exist_ok=True)
+    skills_root = out_dir / "skills"
+    skills_root.mkdir(parents=True, exist_ok=True)
+
     for d in plugin.commands:
-        target = prompts_dir / f"{d.id}.md"
-        target.write_text(
-            _render_command(d, agents, hooks, safety), encoding="utf-8"
-        )
+        name = f"{CMD_PREFIX}{d.id}"
+        desc = (d.meta or {}).get("description") or (d.meta or {}).get("title") or d.id
+        fm = {"name": name, "description": str(desc).strip()}
+        body = _command_skill_body(d, agents, hooks, safety)
+        target = skills_root / name / "SKILL.md"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(dump_frontmatter(fm, body), encoding="utf-8")
         written.append(target)
 
-    workflows = plugin.manifest.get("workflows") or {}
-    if workflows:
-        wf_dir = out_dir / "workflows"
-        wf_dir.mkdir(parents=True, exist_ok=True)
-        for name, steps in workflows.items():
-            target = wf_dir / f"{name}.md"
-            target.write_text(_render_workflow(name, steps or []), encoding="utf-8")
-            written.append(target)
-
-    if plugin.skills:
-        sk_dir = out_dir / "skills"
-        sk_dir.mkdir(parents=True, exist_ok=True)
-        for d in plugin.skills:
-            target = sk_dir / f"{d.id}.md"
-            target.write_text(_render_skill(d), encoding="utf-8")
-            written.append(target)
+    for d in plugin.skills:
+        name = f"{SKILL_PREFIX}{d.id}"
+        desc = (d.meta or {}).get("description") or (d.meta or {}).get("title") or d.id
+        fm = {"name": name, "description": str(desc).strip()}
+        body = _skill_skill_body(d)
+        target = skills_root / name / "SKILL.md"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(dump_frontmatter(fm, body), encoding="utf-8")
+        written.append(target)
 
     return written
 
 
 def _dry_run_paths(plugin: Plugin, out_dir: Path) -> list[Path]:
-    paths = [out_dir / "README.md"]
-    paths.extend(out_dir / "prompts" / f"{d.id}.md" for d in plugin.commands)
-    workflows = plugin.manifest.get("workflows") or {}
-    paths.extend(out_dir / "workflows" / f"{name}.md" for name in workflows)
-    paths.extend(out_dir / "skills" / f"{d.id}.md" for d in plugin.skills)
+    paths = [out_dir / ".codex-plugin" / "plugin.json", out_dir / "README.md"]
+    paths.extend(
+        out_dir / "skills" / f"{CMD_PREFIX}{d.id}" / "SKILL.md"
+        for d in plugin.commands
+    )
+    paths.extend(
+        out_dir / "skills" / f"{SKILL_PREFIX}{d.id}" / "SKILL.md"
+        for d in plugin.skills
+    )
     return paths
 
 
@@ -320,7 +310,7 @@ validate = _validate
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         prog="evidraft-codex-cli",
-        description="Render the EviDraft plugin into Codex CLI prompts/workflows.",
+        description="Render the EviDraft plugin into a Codex CLI plugin layout.",
     )
     ap.add_argument("--plugin", required=True, type=Path)
     ap.add_argument("--out", required=True, type=Path)

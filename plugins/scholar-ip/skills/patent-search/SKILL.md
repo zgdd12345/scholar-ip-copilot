@@ -4,12 +4,14 @@ title: "Patent search: Google Patents / USPTO PatentsView / EPO OPS via WebFetch
 kind: skill
 phase: patent
 description: >
-  Host-native recipe replacing patent-search-mcp. Retrieves prior-art
-  candidates from public patent databases using WebSearch + WebFetch,
-  extracts patent_no / title / abstract / assignee / dates / claims / CPC
-  classes, dedups, rate-limits, caches, and writes rows into
-  prior_art_map.md plus type=patent evidence records. Advisory only — not
-  a freedom-to-operate analysis.
+  Retrieve prior-art candidates from Google Patents, USPTO PatentsView, and
+  EPO OPS using `WebSearch` + `WebFetch`; extract patent_no, title, abstract,
+  assignee, dates, claims, and CPC classes; dedup, rate-limit, cache, and
+  append rows to `prior_art_map.md` plus `type=patent` evidence records. Use
+  when fetching patent metadata, resolving a patent number, building the
+  prior-art map, or running `/scholar:patent-scout` or
+  `/scholar:patent-prior-art`. Advisory only — not a freedom-to-operate
+  analysis.
 triggers:
   - "/scholar:patent-scout"
   - "/scholar:patent-prior-art"

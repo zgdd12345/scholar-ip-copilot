@@ -1,6 +1,14 @@
 ---
 id: patent-scout
 title: "Discover patentable candidates in the codebase and docs"
+description: >
+  Discover patentable candidates by walking `README*`, `DESIGN*`, papers,
+  `experiments/`, and the code itself for non-obvious technical mechanisms.
+  Emits `invention_candidates.md` with one block per candidate (problem,
+  novel mechanism, code anchors, evidence ids) plus `type=invention`
+  evidence rows. Requires a scope artefact from `/scholar:brainstorming`.
+  Use when starting a patent project from an existing code base, or to
+  scan a new feature for filing potential.
 kind: command
 slash: /scholar:patent-scout
 phase: patent
@@ -23,9 +31,9 @@ Read the code and docs to surface **candidate** inventions. Output is a structur
 
 ## Steps
 
-1. **Repo scan.** Drive via `skills/code-intel/SKILL.md`. Walk top-level modules and `README*`, `DESIGN*`, `RFC*`, `MODEL_CARD*`. Identify non-obvious technical mechanisms: novel algorithms, optimisations, data structures, system architectures, training schemes, pipelines, hardware/software co-designs. (Optionally cross-check each candidate against public patent databases via `skills/patent-search/SKILL.md` before recording the novelty hypothesis.)
+1. **Repo scan.** Drive via `skills/code-intel/SKILL.md`. Use the `codebase-analyst` subagent to walk top-level modules and `README*`, `DESIGN*`, `RFC*`, `MODEL_CARD*`. Identify non-obvious technical mechanisms: novel algorithms, optimisations, data structures, system architectures, training schemes, pipelines, hardware/software co-designs. (Optionally cross-check each candidate against public patent databases via `skills/patent-search/SKILL.md` before recording the novelty hypothesis.)
 2. **Cluster candidates.** Group related code into one candidate where appropriate. Drop trivial or library-level wrappers.
-3. **Write `.evidraft/patent/invention_candidates.md`.** One H2 section per candidate, with:
+3. **Write `.evidraft/patent/invention_candidates.md`.** Use the `patent-engineer` subagent to author each candidate block in attorney-readable language, and the `novelty-critic` subagent to challenge each `Novelty hypothesis` before it lands on disk. One H2 section per candidate, with:
    ```
    ## C-001 <short name>
    - Technical problem: ...

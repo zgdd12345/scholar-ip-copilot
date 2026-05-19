@@ -17,6 +17,10 @@ catch the regressions Module K is meant to gate:
        an MCP reference does
     E. required skills       — every ``../skills/<X>/SKILL.md`` referenced by
        a command exists in source AND is rendered by claude-code / codex-cli
+    F. subagent dispatch     — every command whose source frontmatter declares
+       a non-empty ``subagents:`` list renders with a ``## Dispatch plan``
+       section AND mentions each declared subagent's id at least once in the
+       rendered body
 
 Style and parametrisation mirror ``tests/test_schema_fixtures.py``.
 """
@@ -224,25 +228,42 @@ def test_invariant_a_file_counts(
         assert n_skill == n_src_skills, (
             f"claude_code: skills rendered={n_skill} != source={n_src_skills}"
         )
-        # plugin.json must exist at the root.
-        assert (root / "plugin.json").is_file(), (
-            "claude_code: plugin.json missing from rendered output"
+        # Plugin manifest must exist at .claude-plugin/plugin.json (the path
+        # Claude Code's plugin loader expects).
+        assert (root / ".claude-plugin" / "plugin.json").is_file(), (
+            "claude_code: .claude-plugin/plugin.json missing from rendered output"
         )
 
     elif adapter == "codex_cli":
-        n_prompt = len(_files_under(files, "prompts"))
-        n_skill = len(_files_under(files, "skills"))
-        assert n_prompt == n_src_commands, (
-            f"codex_cli: prompts rendered={n_prompt} != source commands="
-            f"{n_src_commands}"
+        # Codex has no slash commands or workflow files; every source command
+        # and source skill is flattened into a single skills/ directory, each
+        # as its own ``skills/<prefixed-name>/SKILL.md`` bundle. Commands use
+        # the ``scholar-`` prefix; source skills use ``scholar-skill-`` so
+        # ids that exist in both (e.g. ``brainstorming``) don't collide.
+        all_skill_files = _files_under(files, "skills")
+        n_cmd_skill = sum(
+            1 for p in all_skill_files
+            if p.parent.name.startswith("scholar-") and not p.parent.name.startswith("scholar-skill-")
         )
-        assert n_skill == n_src_skills, (
-            f"codex_cli: skills rendered={n_skill} != source={n_src_skills}"
+        n_src_skill = sum(
+            1 for p in all_skill_files if p.parent.name.startswith("scholar-skill-")
+        )
+        assert n_cmd_skill == n_src_commands, (
+            f"codex_cli: command-as-skill rendered={n_cmd_skill} != source "
+            f"commands={n_src_commands}"
+        )
+        assert n_src_skill == n_src_skills, (
+            f"codex_cli: source-skill-as-skill rendered={n_src_skill} != "
+            f"source skills={n_src_skills}"
         )
         # No separate agent files — they are inlined.
         assert not _files_under(files, "agents"), (
             "codex_cli: did not expect a separate agents/ dir; subagents "
-            "should be inlined into the prompts"
+            "should be inlined into the command bodies"
+        )
+        # Codex plugin manifest must be at .codex-plugin/plugin.json.
+        assert (root / ".codex-plugin" / "plugin.json").is_file(), (
+            "codex_cli: .codex-plugin/plugin.json missing from rendered output"
         )
 
 
@@ -346,25 +367,38 @@ def test_invariant_b_frontmatter_survival(
             )
 
     elif adapter == "codex_cli":
-        # Commands have no YAML frontmatter; the slash header is the first
-        # body line ("# /scholar:foo"). Verify it matches source slash.
+        # Commands are rendered as skills at skills/scholar-<id>/SKILL.md.
+        # The frontmatter carries ``name`` (=== "scholar-<id>"); the body's
+        # first heading is "# <source slash>" so users see e.g. "/scholar:foo"
+        # at the top of the SKILL.
         for cmd in plugin.commands:
-            target = root / "prompts" / f"{cmd.id}.md"
+            target = root / "skills" / f"scholar-{cmd.id}" / "SKILL.md"
             assert target.is_file(), f"codex_cli missing {target}"
-            first = target.read_text(encoding="utf-8").splitlines()[0]
+            meta, body = split_frontmatter(target.read_text(encoding="utf-8"))
+            assert meta.get("name") == f"scholar-{cmd.id}", (
+                f"codex_cli skills/scholar-{cmd.id}/SKILL.md: frontmatter "
+                f"name {meta.get('name')!r} != expected scholar-{cmd.id!r}"
+            )
             src_meta = src_cmd_by_id[cmd.id]
             src_slash = src_meta.get("slash") or f"/{cmd.id}"
+            first = body.lstrip("\n").splitlines()[0]
             assert first == f"# {src_slash}", (
-                f"codex_cli prompts/{cmd.id}.md: first line {first!r} != "
-                f"`# {src_slash}` (slash header drifted from source)"
+                f"codex_cli skills/scholar-{cmd.id}/SKILL.md: body first "
+                f"line {first!r} != `# {src_slash}` (slash header drifted)"
             )
 
-        # Skills have no YAML frontmatter; the file name itself is the id.
+        # Source skills are rendered as skills/scholar-skill-<id>/SKILL.md.
         for sk in plugin.skills:
-            target = root / "skills" / f"{sk.id}.md"
+            target = root / "skills" / f"scholar-skill-{sk.id}" / "SKILL.md"
             assert target.is_file(), (
-                f"codex_cli missing skills/{sk.id}.md (skill id drifted "
-                "or rename did not propagate)"
+                f"codex_cli missing skills/scholar-skill-{sk.id}/SKILL.md "
+                "(skill id drifted or rename did not propagate)"
+            )
+            meta, _ = split_frontmatter(target.read_text(encoding="utf-8"))
+            assert meta.get("name") == f"scholar-skill-{sk.id}", (
+                f"codex_cli skills/scholar-skill-{sk.id}/SKILL.md: "
+                f"frontmatter name {meta.get('name')!r} != expected "
+                f"scholar-skill-{sk.id!r}"
             )
 
 
@@ -391,7 +425,7 @@ def test_invariant_c_retention_preamble_symmetric(
         if adapter == "claude_code":
             target = root / "commands" / cmd.path.name
         else:  # codex_cli
-            target = root / "prompts" / f"{cmd.id}.md"
+            target = root / "skills" / f"scholar-{cmd.id}" / "SKILL.md"
         assert target.is_file(), f"{adapter}: missing rendered file {target}"
         text = target.read_text(encoding="utf-8")
         has_preamble = "## Pre-run cleanup" in text
@@ -491,11 +525,210 @@ def test_invariant_e_referenced_skills_rendered(
         if adapter == "claude_code":
             target = root / "skills" / sid / "SKILL.md"
         else:  # codex_cli
-            target = root / "skills" / f"{sid}.md"
+            target = root / "skills" / f"scholar-skill-{sid}" / "SKILL.md"
         if not target.is_file():
             missing.append(str(target.relative_to(root)))
 
     assert not missing, (
         f"{adapter}: command references skill(s) that were not rendered: "
         f"{missing}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# F. subagent-dispatch invariant (claude_code only)
+# ---------------------------------------------------------------------------
+
+
+def test_invariant_f_subagent_dispatch_present(
+    plugin: Plugin,
+    rendered: dict[str, dict[str, Any]],
+) -> None:
+    """For every command whose source frontmatter declares a non-empty
+    ``subagents:`` list, the rendered ``commands/<id>.md`` body MUST contain
+    a ``## Dispatch plan`` section AND mention each declared subagent id at
+    least once in the body.
+
+    This closes the "declare-but-never-dispatch" anti-pattern: source YAML
+    can claim a command uses subagent X, but unless the rendered body tells
+    the model to dispatch X the host never actually invokes it. We check
+    only the ``claude_code`` adapter because the codex_cli adapter inlines
+    subagent prose differently (no separate agents/ tree, agents are folded
+    into per-command SKILL bodies); the codex inlining is covered by
+    invariant A's file-count assertions.
+    """
+    adapter = "claude_code"
+    root = Path(rendered[adapter]["root"])
+
+    offenders: list[str] = []
+    declared_total = 0
+    for cmd in plugin.commands:
+        subs = (cmd.meta or {}).get("subagents") or []
+        if not isinstance(subs, list) or not subs:
+            continue
+        target = root / "commands" / cmd.path.name
+        assert target.is_file(), f"claude_code: missing rendered file {target}"
+        text = target.read_text(encoding="utf-8")
+        if "## Dispatch plan" not in text:
+            offenders.append(
+                f"{cmd.path.name}: declares subagents={subs} but rendered "
+                "body has no `## Dispatch plan` section"
+            )
+            continue
+        for sub_id in subs:
+            sid = str(sub_id)
+            declared_total += 1
+            if sid not in text:
+                offenders.append(
+                    f"{cmd.path.name}: declares subagent {sid!r} but the "
+                    "rendered body never mentions it"
+                )
+
+    assert not offenders, (
+        "subagent-dispatch invariant violated; "
+        f"{len(offenders)} issue(s):\n  - " + "\n  - ".join(offenders)
+    )
+    assert declared_total > 0, (
+        "no commands declare subagents — the fixture must be wrong or every "
+        "command silently lost its `subagents:` block"
+    )
+
+
+# ---------------------------------------------------------------------------
+# G. executable hooks invariant (Track C2: real hooks via hooks.json)
+# ---------------------------------------------------------------------------
+
+
+def test_invariant_g_executable_hooks_present(
+    rendered: dict[str, dict[str, Any]],
+) -> None:
+    """The claude_code adapter must emit a real Claude Code hooks manifest:
+
+    1. ``<root>/hooks/hooks.json`` exists and parses as JSON.
+    2. The manifest covers at least the three wired events
+       (``SessionStart``, ``PostToolUse``, ``UserPromptSubmit``).
+    3. The three companion bash scripts
+       (``citation-guard.sh``, ``scope-required.sh``, ``session-start.sh``)
+       are present in ``<root>/hooks/`` and are executable (mode bits include
+       ``0o111``).
+
+    Prior to this invariant the adapter only listed hooks in ``plugin.json``
+    as advisory text; nothing actually fired.
+    """
+    import os
+    import stat
+
+    root = Path(rendered["claude_code"]["root"])
+    hooks_dir = root / "hooks"
+    manifest_path = hooks_dir / "hooks.json"
+
+    assert manifest_path.is_file(), (
+        f"claude_code: expected hooks manifest at {manifest_path} but it is "
+        "missing — adapter did not emit hooks/hooks.json"
+    )
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert isinstance(manifest, dict), (
+        f"claude_code: hooks.json must be a JSON object keyed by event name, "
+        f"got {type(manifest).__name__}"
+    )
+
+    required_events = {"SessionStart", "PostToolUse", "UserPromptSubmit"}
+    missing_events = required_events - set(manifest.keys())
+    assert not missing_events, (
+        f"claude_code: hooks.json missing required event entries: "
+        f"{sorted(missing_events)}; got keys={sorted(manifest.keys())}"
+    )
+
+    for event, entries in manifest.items():
+        assert isinstance(entries, list) and entries, (
+            f"claude_code: hooks.json[{event!r}] must be a non-empty list"
+        )
+        for entry in entries:
+            inner = entry.get("hooks") if isinstance(entry, dict) else None
+            assert isinstance(inner, list) and inner, (
+                f"claude_code: hooks.json[{event!r}] entry missing `hooks` "
+                f"list: {entry!r}"
+            )
+            for h in inner:
+                assert h.get("type") == "command" and h.get("command"), (
+                    f"claude_code: hooks.json[{event!r}] entry has malformed "
+                    f"hook object: {h!r}"
+                )
+
+    expected_scripts = (
+        "citation-guard.sh",
+        "scope-required.sh",
+        "session-start.sh",
+    )
+    for name in expected_scripts:
+        script_path = hooks_dir / name
+        assert script_path.is_file(), (
+            f"claude_code: expected executable hook script {script_path} but "
+            "it is missing"
+        )
+        mode = os.stat(script_path).st_mode
+        executable_bits = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+        assert (mode & executable_bits) == executable_bits, (
+            f"claude_code: hook script {name} mode is {oct(mode)} but must "
+            f"include the executable bits {oct(executable_bits)}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# H. agent dispatch-hint completeness (model / effort)
+# ---------------------------------------------------------------------------
+
+
+_VALID_MODELS = {"haiku", "sonnet", "opus", "inherit"}
+_VALID_EFFORTS = {"low", "medium", "high"}
+
+
+def test_invariant_h_every_agent_declares_model(plugin: Plugin) -> None:
+    """Every source agent must declare a `model:` (one of haiku / sonnet /
+    opus / inherit). The field maps directly to Claude Code's per-subagent
+    model pin and to the equivalent dispatch hint on other hosts; leaving it
+    unset means every agent inherits the session model and the per-tier cost
+    savings vanish.
+    """
+    missing: list[str] = []
+    bad: list[tuple[str, str]] = []
+    for ag in plugin.agents:
+        model = (ag.meta or {}).get("model")
+        if not model:
+            missing.append(ag.id)
+            continue
+        if str(model) not in _VALID_MODELS:
+            bad.append((ag.id, str(model)))
+    assert not missing, (
+        f"agent(s) missing required `model:` field: {sorted(missing)}"
+    )
+    assert not bad, (
+        f"agent(s) with invalid `model:` value (must be one of "
+        f"{sorted(_VALID_MODELS)}): {bad}"
+    )
+
+
+def test_invariant_h_effort_set_when_model_pinned(plugin: Plugin) -> None:
+    """If an agent pins a concrete model (haiku/sonnet/opus, i.e. not
+    `inherit`), it must also declare an `effort:` hint. `inherit` agents are
+    allowed to omit `effort:` because the session-level effort applies.
+    """
+    missing: list[str] = []
+    bad: list[tuple[str, str]] = []
+    for ag in plugin.agents:
+        meta = ag.meta or {}
+        model = meta.get("model")
+        effort = meta.get("effort")
+        if model and model != "inherit" and not effort:
+            missing.append(ag.id)
+        if effort and str(effort) not in _VALID_EFFORTS:
+            bad.append((ag.id, str(effort)))
+    assert not missing, (
+        f"agent(s) pinned to a concrete model but missing `effort:`: "
+        f"{sorted(missing)}"
+    )
+    assert not bad, (
+        f"agent(s) with invalid `effort:` value (must be one of "
+        f"{sorted(_VALID_EFFORTS)}): {bad}"
     )

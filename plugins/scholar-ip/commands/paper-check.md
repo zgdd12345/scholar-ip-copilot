@@ -1,6 +1,14 @@
 ---
 id: paper-check
 title: "Audit the manuscript for citations, LaTeX, style, bib quality, cross-refs, claim-evidence, numbers, and consistency"
+description: >
+  Run a near-final audit on the manuscript: verify every `\cite{}` resolves
+  in `references.bib`, every `\ref{}` resolves to a `\label{}`, every
+  strong-claim verb is gated by an evidence or citation key, and the LaTeX
+  source compiles cleanly. Writes a unified report at
+  `.evidraft/manuscript/paper_check_report.md`. Use before
+  `/scholar:paper-venue`, after fixing reviewer comments, or any time the
+  draft is supposed to be submission-ready.
 kind: command
 slash: /scholar:paper-check
 phase: paper
@@ -29,7 +37,7 @@ Produce a single audit report covering everything that can break a paper before 
    - List `\cite{}` keys with no entry in `references.bib`.
    - List `references.bib` entries that are never cited.
    - Flag strong-claim verbs not within 30 chars of a `\cite{}` or `evidence_id` marker.
-2. **LaTeX compile.** Drive via `skills/latex-build/SKILL.md`:
+2. **LaTeX compile.** Drive via `skills/latex-build/SKILL.md`. Use the `latex-editor` subagent to triage any compile errors before continuing:
    - Compile with `latexmk -pdf -interaction=nonstopmode -file-line-error manuscript/main.tex`.
    - Parse `manuscript/main.log` into the six-entry error taxonomy (MISSING_CITE, MISSING_REF, UNDEFINED_COMMAND, UNBALANCED_BRACES, PACKAGE_NOT_FOUND, OTHER) and write `.evidraft/manuscript/compile-<ts>.errors.json`.
    - Report errors and warnings.
@@ -54,7 +62,7 @@ Produce a single audit report covering everything that can break a paper before 
    - Every `\includegraphics{}` and every `\input{*.tex}` table is reachable.
    - Every figure/table has a `\caption{}` and a `\label{}`.
    - Every figure/table is referenced at least once.
-7. **Claim-evidence audit.**
+7. **Claim-evidence audit.** Use the `evidence-auditor` subagent to walk the claim × evidence matrix and the `methodology-reviewer` subagent to flag any methodology-vs-result mismatches it surfaces:
    - For each section, walk the prose for numeric tokens and strong-claim verbs.
    - Cross-check each match against the section's `*.plan.md` and `evidence.jsonl`.
    - Flag any claim without an evidence id.

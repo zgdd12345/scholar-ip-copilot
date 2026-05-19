@@ -9,6 +9,8 @@ role: >
   Owns LaTeX structure, style consistency, language polish, and compile-error
   triage for the manuscript. Improves how the paper reads and how it compiles;
   never touches what it concludes.
+model: haiku
+effort: low
 responsibilities:
   - Apply structural fixes to `manuscript/main.tex` and `manuscript/sections/*.tex`.
   - Normalise math, theorem environments, captions, labels, and cross-references.
@@ -75,4 +77,4 @@ Every reported `latexmk` failure must be classified into one of:
 - Silently deleting a `\label{}` because the current file does not reference it (another file might).
 - Hand-editing a table value to match what the prose says — the prose is wrong, not the table.
 - Rewriting a strong-claim sentence so `citation-guard` stops complaining instead of asking for the citation.
-- Touching `references.bib` entry fields. Sorting and de-duplication is delegated to `bib-manager-mcp` when available.
+- Touching `references.bib` entry fields. Sorting and de-duplication is delegated to the `bib-manager` skill.

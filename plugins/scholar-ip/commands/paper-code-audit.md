@@ -1,6 +1,13 @@
 ---
 id: paper-code-audit
 title: "Audit paper claims against the source code"
+description: >
+  Audit every paper claim against the source code: produce `repo_summary.md`,
+  `method_to_code.md`, and `paper_code_audit.md` with per-claim verdicts
+  (CONFIRMED / PARTIAL / MISSING / MISMATCH / NOT_AUDITABLE) and trustworthy
+  `file:line` citations. Use when verifying that the manuscript description
+  matches the actual implementation, after any method or ablation change,
+  or before submission.
 kind: command
 slash: /scholar:paper-code-audit
 phase: paper
@@ -28,7 +35,7 @@ Verify that each claim about the method or implementation **actually exists in t
 
 ## Steps
 
-1. **Repo summary (refresh).** Drive via `skills/code-intel/SKILL.md`. Update `.evidraft/code/repo_summary.md`:
+1. **Repo summary (refresh).** Drive via `skills/code-intel/SKILL.md`. Use the `codebase-analyst` subagent to produce the grounded summary. Update `.evidraft/code/repo_summary.md`:
    - language(s), build/run commands, entry points (CLI, training script, server),
    - directory map (top-level only),
    - configs (e.g. `configs/*.yaml`),
@@ -39,7 +46,7 @@ Verify that each claim about the method or implementation **actually exists in t
    - "Method component" is a row per planned section/sub-section of the Method.
    - "Evidence" lists evidence ids of `type=code`; create new ones as needed with `file_path` + `line_range`.
    - "Gaps" describes what is described in the method but missing in code.
-3. **Audit table.** Write `.evidraft/code/paper_code_audit.md`:
+3. **Audit table.** Use the `methodology-reviewer` subagent to assign each per-claim verdict; the `evidence-auditor` subagent then verifies the `file:line` citations on every `CONFIRMED` / `PARTIAL` / `MISMATCH` row. Write `.evidraft/code/paper_code_audit.md`:
    | Paper claim | Where in paper | Code evidence (file:lines) | Verdict | Notes |
    - For each row select exactly one **Verdict** ∈ { `CONFIRMED`, `PARTIAL`, `MISSING`, `MISMATCH`, `NOT_AUDITABLE` }.
    - `CONFIRMED`: matches the code at the cited file:line.

@@ -1,6 +1,15 @@
 ---
 id: paper-draft
 title: "Draft the LaTeX manuscript from evidence"
+description: >
+  Draft `manuscript/main.tex` and per-section `*.tex` files from the
+  literature matrix, evidence store, and experiment results. Defaults to
+  the neutral arXiv style; the `style` input switches venue templates.
+  Every paragraph carries a `citation_key` or `evidence_id`; the
+  `citation-guard` hook blocks strong-claim verbs without one. Use after
+  `/scholar:paper-idea`, `/scholar:paper-code-audit`, and
+  `/scholar:paper-experiment` to move from outline + plans into a
+  compilable draft.
 kind: command
 slash: /scholar:paper-draft
 phase: paper
@@ -34,9 +43,9 @@ Write the LaTeX paper. **Outline → section plan → LaTeX**, never straight to
 1. **Sanity-check the evidence store.**
    - Refuse to draft if `evidence.jsonl` is empty.
    - Refuse to draft if no `method_to_code.md` exists when `project_type=paper`.
-2. **Outline pass.** Produce `.evidraft/manuscript/outline.md` listing every section, every subsection, and 1–3 bullet "promises" per subsection. Each promise is annotated with the evidence ids it will rely on.
-3. **Section-plan pass.** For each section file under `manuscript/sections/`, write a `<section>.plan.md` next to it (e.g. `method.plan.md`) describing equation placeholders, figure/table inserts, and claim → evidence map.
-4. **LaTeX pass.** Now write `.tex` content:
+2. **Outline pass.** Use the `evidence-auditor` subagent to verify every promise has an evidence id before drafting prose. Produce `.evidraft/manuscript/outline.md` listing every section, every subsection, and 1–3 bullet "promises" per subsection. Each promise is annotated with the evidence ids it will rely on.
+3. **Section-plan pass.** Use the `methodology-reviewer` subagent to sanity-check that the planned equations and figures match `method_to_code.md`. For each section file under `manuscript/sections/`, write a `<section>.plan.md` next to it (e.g. `method.plan.md`) describing equation placeholders, figure/table inserts, and claim → evidence map.
+4. **LaTeX pass.** Use the `latex-editor` subagent to own structure, style consistency, and compile-error triage. Now write `.tex` content:
    - `manuscript/main.tex` orchestrates with `\input{sections/...}`.
    - Each section file contains the actual prose plus `\cite{}` / `\ref{}` / `\input{<table>}`.
    - Tables `\input{../.evidraft/experiments/tables/<id>.tex}`.
@@ -45,7 +54,7 @@ Write the LaTeX paper. **Outline → section plan → LaTeX**, never straight to
    - Every `\ref{}` resolves to a `\label{}` somewhere in the manuscript.
    - Every numeric claim has an evidence id in the matching `*.plan.md`.
    - Citation-guard verbs are gated.
-6. **Optional compile.** If `latex-build-mcp` is enabled, request a compile. Otherwise just describe the command (`latexmk -pdf -interaction=nonstopmode manuscript/main.tex`).
+6. **Optional compile.** Call the `latex-build` skill on `manuscript/main.tex` (it wraps `latexmk -pdf -interaction=nonstopmode` and writes a structured `errors.json`). If `latexmk` is not installed in this environment, describe the command to the user instead.
 
 ## Constraints
 

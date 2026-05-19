@@ -24,7 +24,6 @@ hooks: [evidence-consistency]
 references:
   - doc: ../evidence-check/SKILL.md
   - doc: ../latex-writing/SKILL.md
-  - doc: ../../../../packages/mcp/experiment-mcp/
   - doc: ../../../../docs/data-model.md
 ---
 
@@ -34,7 +33,7 @@ references:
 
 Pull this skill whenever you turn raw experiment outputs (csv, jsonl, tensorboard, logs) into a number that the manuscript will quote. The output goes into `.evidraft/experiments/result_analysis.md` and `.evidraft/experiments/tables/*.tex`, and every number that lands in the paper traces back through here.
 
-If `experiment-mcp` (tools: `load_results`, `summarize_metrics`, `generate_latex_table`, `suggest_figures`, `check_number_sources`) is available, use it; otherwise read files directly with `Read` and `Glob`.
+Read raw outputs directly with `Read` and `Glob`; aggregate with small Bash one-liners or, when needed, a short Python script the user can review. Every number that lands in the paper must trace back to a file path + row identifier captured in `evidence.jsonl`.
 
 ## Inputs
 

@@ -245,3 +245,62 @@ def render_retention_prune_snippet(
         )
     parts.append("fi")
     return "\n".join(parts)
+
+
+def render_retention_section(meta: dict[str, Any]) -> str:
+    """Wrap :func:`render_retention_prune_snippet` in the canonical
+    ``## Pre-run cleanup`` markdown section.
+
+    Returns an empty string when ``meta`` has no retention block, otherwise
+    returns the full section ready to splice into a command body. Adapters
+    that need it as a line list call ``.splitlines(keepends=True)`` or
+    ``.split("\\n")`` on the result.
+    """
+    retention = meta.get("retention") or {}
+    if not retention:
+        return ""
+    keep_last = retention.get("keep_last")
+    max_age_days = retention.get("max_age_days")
+    if keep_last is None and max_age_days is None:
+        return ""
+
+    outputs = meta.get("outputs") or []
+    output_dir = ".evidraft"
+    file_glob = "*"
+    for o in outputs:
+        path = o.get("path") or ""
+        if "/" in path and "<" not in path.split("/")[0]:
+            parent, base = path.rsplit("/", 1)
+            output_dir = parent
+            file_glob = re.sub(r"<[^>]+>", "*", base) or "*"
+            break
+
+    cmd_id = str(meta.get("id") or "command")
+    snippet = render_retention_prune_snippet(
+        command_id=cmd_id,
+        output_dir=output_dir,
+        keep_last=keep_last,
+        max_age_days=max_age_days,
+        file_glob=file_glob,
+    )
+    if snippet is None:
+        return ""
+
+    return (
+        "<!-- evidraft: retention -->\n"
+        "## Pre-run cleanup\n\n"
+        "Run the following retention-prune snippet at command start. It is "
+        "idempotent and safe to re-run.\n\n"
+        "```bash\n"
+        f"{snippet}\n"
+        "```\n\n"
+    )
+
+
+def dump_frontmatter(fm: dict[str, Any], body: str) -> str:
+    """Render a frontmatter dict + body into a YAML-front-mattered markdown
+    document. The body is left-stripped of leading newlines so successive
+    renders are stable.
+    """
+    yml = yaml.safe_dump(fm, sort_keys=False, allow_unicode=True).strip()
+    return f"---\n{yml}\n---\n\n{body.lstrip(chr(10))}"

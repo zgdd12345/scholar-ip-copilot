@@ -26,8 +26,8 @@ allowed_tools: [Read, Glob, Grep, Write, Edit]
 hooks: [citation-guard, evidence-consistency]
 references:
   - doc: ../evidence-check/SKILL.md
+  - doc: ../scholar-search/SKILL.md
   - doc: ../../../../docs/data-model.md
-  - doc: ../../../../packages/mcp/scholar-search-mcp/
 ---
 
 # literature-review
@@ -36,7 +36,7 @@ references:
 
 Pull this skill whenever you are about to add a paper to `.evidraft/literature/`, write a row in `matrix.md`, append a `type=paper` evidence record, or draft a related_work / survey paragraph. It is also loaded by `/scholar:paper-idea` because the novelty matrix consumes the same matrix and citation keys.
 
-If `scholar-search-mcp` (see `packages/mcp/scholar-search-mcp/`) is available, search via that interface; otherwise operate only on user-supplied PDFs and notes.
+Search delegates to the `scholar-search` skill (which wraps the built-in `WebSearch` / `WebFetch`); operate on the user-supplied PDFs and notes when an online search is not appropriate (offline run, private corpus, narrow scope).
 
 ## Inputs
 
@@ -44,7 +44,7 @@ If `scholar-search-mcp` (see `packages/mcp/scholar-search-mcp/`) is available, s
 - `.evidraft/literature/matrix.md`
 - `.evidraft/evidence/evidence.jsonl` (filter `type=paper`)
 - user PDFs under `references/`, `papers/`, or wherever the project keeps them
-- optional `scholar-search-mcp` tools: `search_papers`, `get_paper_metadata`, `download_pdf`, `extract_references`
+- optional `scholar-search` skill for arXiv / Semantic Scholar / OpenAlex retrieval
 
 ## Outputs
 
@@ -90,7 +90,7 @@ Every entry in `references.bib` must:
 
 Forbidden:
 
-- duplicate keys (run `bib-manager-mcp:dedupe_bib` or grep manually before commit).
+- duplicate keys (run the `bib-manager` skill's dedup recipe, or grep manually before commit).
 - non-ASCII characters outside braces; prefer `{\"u}` over raw `ü` to keep latexmk happy on all systems.
 - empty fields without `TODO`.
 

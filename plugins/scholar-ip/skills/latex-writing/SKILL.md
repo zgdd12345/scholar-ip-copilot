@@ -27,7 +27,7 @@ references:
   - doc: ../evidence-check/SKILL.md
   - doc: ../venue-formatting/SKILL.md
   - doc: ../experiment-analysis/SKILL.md
-  - doc: ../../../../packages/mcp/latex-build-mcp/
+  - doc: ../latex-build/SKILL.md
 ---
 
 # latex-writing
@@ -36,7 +36,7 @@ references:
 
 Load whenever LaTeX source under `manuscript/` is being created, edited, or compiled. The skill is also the reference for `/scholar:paper-venue` (which copies a manuscript and rewrites the preamble) and `/scholar:paper-check` (which audits compile output).
 
-If `latex-build-mcp` (tools: `compile_latex`, `parse_latex_errors`, `render_pdf_preview`) is available, prefer it for compile and error parsing; otherwise call `latexmk` directly.
+Compile and error-parsing are owned by the sibling `latex-build` skill (which wraps `latexmk` and parses `main.log` into a structured error taxonomy). Call into it instead of invoking `latexmk` ad hoc — the error categories the `latex-compile` hook consumes are defined there.
 
 ## Inputs
 

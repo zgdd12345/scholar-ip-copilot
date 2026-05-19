@@ -1,6 +1,13 @@
 ---
 id: patent-init
 title: "Initialize an EviDraft patent project"
+description: >
+  Scaffold an EviDraft patent project in the current working directory:
+  write `.evidraft/project.yaml`, create the 技术交底书 / Technical
+  Invention Disclosure (TID) template, and a stub `invention_candidates.md`.
+  Defaults the jurisdiction list to US/EP/CN/JP/PCT/OTHER; switch with the
+  `jurisdiction` input. Use at the start of a new patent project, or
+  alongside an existing paper project by passing `project_type: mixed`.
 kind: command
 slash: /scholar:patent-init
 phase: patent

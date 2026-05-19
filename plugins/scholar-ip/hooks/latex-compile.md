@@ -28,8 +28,8 @@ The hook resolves the affected manuscript root:
 
 ## Rules
 
-1. If `latex-build-mcp` is registered and reachable, call `compile_latex` with the resolved main `.tex`. Otherwise attempt `latexmk -pdf -interaction=nonstopmode <main.tex>` if `latexmk` is available on PATH.
-2. If neither is available, mark the compile as `SKIPPED` and record it under `.evidraft/manuscript/paper_check_report.md` (or the venue-specific equivalent).
+1. Run `latexmk -pdf -interaction=nonstopmode <main.tex>` against the resolved main `.tex`. The `latex-build` skill packages this invocation plus the structured error parsing.
+2. If `latexmk` is not available on PATH, mark the compile as `SKIPPED` and record it under `.evidraft/manuscript/paper_check_report.md` (or the venue-specific equivalent).
 3. Parse the resulting `.log` (and `.blg`). Every error line gets classified into one of:
 
    - **MISSING_CITE** — log signature `LaTeX Warning: Citation '...' on page ... undefined`. Suggested fix: add the BibTeX entry via `literature-reviewer`; do not fabricate.
@@ -56,6 +56,6 @@ The hook resolves the affected manuscript root:
 
 ## Adapter notes
 
-- **Claude Code** — register as a `PostToolUse` hook on `Write` / `Edit` for the trigger paths. The hook shells out to `latexmk` (or `latex-build-mcp`) and emits the structured report into chat.
+- **Claude Code** — register as a `PostToolUse` hook on `Write` / `Edit` for the trigger paths. The hook shells out to `latexmk` (via the `latex-build` skill recipe) and emits the structured report into chat.
 - **Codex CLI** — Codex commands invoke the hook by ending the `/scholar:paper-draft`, `/scholar:paper-check`, and `/scholar:paper-venue` prompts with an explicit "Run latex-compile and include the report in chat output" instruction; the adapter inlines the rule.
 - **OpenCode** — planned; will register on file-save events and call the host's terminal integration.

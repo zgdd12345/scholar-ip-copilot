@@ -12,6 +12,8 @@ triggers:
   - "command:/scholar:polish"
 behaviour: "Refuse to run downstream creative commands without an approved, non-stale scope file under .evidraft/scope/."
 failure_mode: block
+executable_script: scope-required.sh
+cc_event: UserPromptSubmit
 references:
   - doc: ../skills/brainstorming/SKILL.md
   - doc: ../commands/brainstorming.md

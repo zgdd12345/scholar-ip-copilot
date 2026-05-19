@@ -1,6 +1,14 @@
 ---
 id: paper-idea
 title: "Brainstorm novelty hypotheses grounded in literature, code, and experiments"
+description: >
+  Brainstorm novelty hypotheses grounded in the literature matrix, the
+  code base, and any experiment results to date. Emits a novelty matrix
+  scoring each angle vs prior work, a risk matrix flagging the experiments
+  that could disprove it, and a concrete `experiment_to_validate.md` plan.
+  Requires a scope artefact from `/scholar:brainstorming`. Use after
+  `/scholar:paper-lit` to decide what the contribution is, or to
+  re-evaluate the angle when a strong related work shows up.
 kind: command
 slash: /scholar:paper-idea
 phase: paper
@@ -27,7 +35,7 @@ code repo, and the experiments. Output is three structured markdown tables.
 
 ## Steps
 
-1. **Gather.**
+1. **Gather.** Use the `literature-reviewer` subagent to refresh `matrix.md` if stale, and the `codebase-analyst` subagent to update `method_to_code.md` if the repo moved since the last audit.
    - `.evidraft/literature/matrix.md` (method families, gaps).
    - `.evidraft/code/method_to_code.md` (what the code actually does).
    - `.evidraft/experiments/result_analysis.md` if it exists.

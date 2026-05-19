@@ -1,6 +1,13 @@
 ---
 id: patent-claims
 title: "Draft independent and dependent claims; emit structured parsed form and claim chart"
+description: >
+  Draft an independent claim plus dependent claims for a single invention
+  candidate; emit a structured `claims_parsed.json` and a claim chart that
+  maps every claim element to source-code evidence. Advisory only — the
+  final filing text is the attorney's. Use after `/scholar:patent-disclosure`
+  to provide reviewer-facing draft claims and a claim chart, and before
+  `/scholar:patent-review`.
 kind: command
 slash: /scholar:patent-claims
 phase: patent
@@ -37,8 +44,8 @@ Draft a first set of independent and dependent claims. Output is **attorney-revi
 
 ## Steps
 
-1. **Anchor on the disclosure.** Load `invention_disclosure.md` for the candidate. Refuse to draft if the candidate lacks `Technical solution` or `Implementation details`.
-2. **Independent claim(s).** Draft 1–`independent_count` independent claims. Each:
+1. **Anchor on the disclosure.** Use the `patent-engineer` subagent to confirm the disclosure is complete enough to claim from. Load `invention_disclosure.md` for the candidate. Refuse to draft if the candidate lacks `Technical solution` or `Implementation details`.
+2. **Independent claim(s).** Use the `claim-drafter` subagent to author the independent claim(s); then use the `novelty-critic` subagent to challenge each element. Draft 1–`independent_count` independent claims. Each:
    - one preamble + one or more transition + body elements,
    - each element numbered and labelled (`[a]`, `[b]`, …),
    - language consistent with the specification (re-use the same nouns and verbs).
@@ -58,7 +65,7 @@ Draft a first set of independent and dependent claims. Output is **attorney-revi
    - Reads the just-written `claims.md` and emits `.evidraft/patent/claims_parsed.json` (canonical structured form: per-claim preamble + transition + bracketed elements + antecedent chain + dependency graph) + a paired `claim_parse-<ts>.log`.
    - Surfaces parser warnings (≥ 9 rule taxonomy: `ANTECEDENT_MISSING`, `MULTIPLE_DEPENDENCY`, `TRANSITION_UNKNOWN`, `DEPENDENT_NO_NARROW`, `MISSING_TERMINUS` `fail`, `UNNUMBERED_ELEMENT` `fail`, `FORWARD_DEPENDENCY` `fail`, `EMPTY_CLAIM` `fail`, `TERMINOLOGY_DRIFT`).
    - Any `fail` row blocks the chart-building step and surfaces to the user for revision; `warn`/`info` rows are reported but do not block.
-6. **Build claim chart.** Drive `skills/claim-chart-builder/SKILL.md`:
+6. **Build claim chart.** Use the `evidence-auditor` subagent to verify every `Spec support` and `Code support` cell traces to a real evidence id before the chart is committed. Drive `skills/claim-chart-builder/SKILL.md`:
    - Reads `claims_parsed.json` + `prior_art_map.md` (+ optional `invention_disclosure.md` for spec support, `method_to_code.md` for code support).
    - Emits `.evidraft/patent/claim_chart.md` (replaces the previous template) AND `.evidraft/patent/claim_chart-<ts>.json` (structured, carries the same `run_id`).
    - Columns: `Claim` | `Element` | `Spec support` | `Code support` | `Prior art overlap` | `Risk` | `Suggested revision`.

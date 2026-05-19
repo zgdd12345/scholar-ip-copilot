@@ -1,6 +1,12 @@
 ---
 id: paper-init
 title: "Initialize an EviDraft paper project"
+description: >
+  Scaffold an EviDraft paper project in the current working directory:
+  write `.evidraft/project.yaml`, create empty `evidence.jsonl` and
+  `references.bib`, and a `manuscript/` skeleton in neutral arXiv style.
+  Existing files are never moved or rewritten. Use at the start of a new
+  paper project, or when adopting EviDraft on an existing code repository.
 kind: command
 slash: /scholar:paper-init
 phase: paper

@@ -78,9 +78,22 @@
     "responsibilities": { "type": "array", "items": { "type": "string" }, "description": "agents only" },
     "constraints":     { "type": "array", "items": { "type": "string" }, "description": "agents only" },
     "review_checklist": { "type": "array", "items": { "type": "string" }, "description": "agents only" },
+    "model": {
+      "type": "string",
+      "enum": ["haiku", "sonnet", "opus", "inherit"],
+      "description": "agents only — pin the subagent to a specific Claude model tier (haiku/sonnet/opus) or `inherit` from the session. Maps to the Claude Code agent frontmatter `model:` field; ignored by adapters that have no equivalent."
+    },
+    "effort": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "agents only — reasoning-effort hint for the dispatched subagent. Maps to the Claude Code agent frontmatter `effort:` field; ignored by adapters that have no equivalent."
+    },
     "triggers":        { "type": "array", "items": { "type": "string" }, "description": "skills/hooks only" },
     "provides":        { "type": "array", "items": { "type": "string" }, "description": "skills only" },
     "behaviour":       { "type": "string", "description": "hooks only" },
-    "failure_mode":    { "type": "string", "enum": ["block", "warn", "audit"], "description": "hooks only" }
+    "failure_mode":    { "type": "string", "enum": ["block", "warn", "audit"], "description": "hooks only" },
+    "executable_script": { "type": "string", "pattern": "^[a-z][a-z0-9-]*\\.sh$", "description": "hooks only: filename (relative to plugins/scholar-ip/hooks/) of a bash script the claude_code adapter copies into the rendered plugin and references from hooks/hooks.json. Hooks without this field remain advisory text." },
+    "cc_event":        { "type": "string", "enum": ["SessionStart", "PostToolUse", "PreToolUse", "UserPromptSubmit", "Stop", "SubagentStop", "Notification", "PreCompact"], "description": "hooks only: explicit Claude Code event name used by the adapter to derive hooks.json. Overrides any event inferred from `triggers` (which then survives only as advisory text in the codex_cli adapter)." },
+    "cc_matcher":      { "type": "string", "minLength": 1, "description": "hooks only: optional Claude Code tool-name matcher (regex) paired with cc_event." }
   }
 }

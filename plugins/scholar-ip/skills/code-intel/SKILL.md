@@ -4,11 +4,13 @@ title: "Code intelligence: repo summary, entrypoints, method-to-code mapping, co
 kind: skill
 phase: shared
 description: >
-  Host-native recipe replacing code-intel-mcp. Uses Grep / Glob / Read (and
-  optionally `tree-sitter` when available) to produce repo_summary.md,
-  method_to_code.md rows, and trustworthy file:line citations for any claim
-  about what the code does. Sister skill of codebase-audit, which owns the
-  verdict assignment.
+  Produce `repo_summary.md`, `method_to_code.md` rows, and trustworthy
+  `file:line` citations for any claim about what the code does, using
+  `Grep` / `Glob` / `Read` (with `tree-sitter` as an optional accelerator
+  when installed). Use when mapping a method to code, summarising a repo,
+  searching code by symbol, or running `/scholar:paper-code-audit`,
+  `/scholar:patent-scout`, or `/scholar:patent-disclosure`. Sister skill
+  of `codebase-audit`, which owns the verdict assignment.
 triggers:
   - "/scholar:paper-code-audit"
   - "/scholar:patent-scout"

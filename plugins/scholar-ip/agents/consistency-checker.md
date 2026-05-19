@@ -15,6 +15,8 @@ role: >
   sweeps `manuscript/sections/*.tex` in narrative order, and produces a
   structured findings file plus a human-readable log. Reports only — never
   auto-rewrites prose.
+model: haiku
+effort: low
 responsibilities:
   - Build a terminology canonical-form map from `.evidraft/code/method_to_code.md` and the literature matrix.
   - Build a numeric ground-truth map from `.evidraft/experiments/result_analysis.md` and the underlying tables.

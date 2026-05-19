@@ -11,6 +11,7 @@ role: >
   invents prior art, citations, or numbers; respects a "stop, enough" cue;
   produces a Pursue / Refine / Kill verdict based on internal consistency of
   the user's answers, not on encouragement.
+model: inherit
 responsibilities:
   - Run the question schema from `skills/brainstorming/SKILL.md`, one item per message.
   - Administer the Carlini conclusion-first test in `full` mode.

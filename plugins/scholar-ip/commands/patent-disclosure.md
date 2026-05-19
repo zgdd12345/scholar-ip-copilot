@@ -1,6 +1,13 @@
 ---
 id: patent-disclosure
 title: "Draft the Technical Invention Disclosure (技术交底书 / TID) — primary patent deliverable"
+description: >
+  Draft the 技术交底书 / Technical Invention Disclosure (TID) for a single
+  invention candidate — the **primary** patent deliverable handed off to
+  a registered patent agent or attorney. Pulls from `invention_candidates.md`,
+  `prior_art_map.md`, the code base, and experiment evidence; every claimed
+  novelty is anchored to a `file:line` citation or evidence row. Use after
+  `/scholar:patent-prior-art` and before `/scholar:patent-claims`.
 kind: command
 slash: /scholar:patent-disclosure
 phase: patent
@@ -30,6 +37,12 @@ The TID is written so that:
 - a domain engineer can read it and understand the invention completely,
 - an attorney can read it and have no follow-up questions about the technical content,
 - the inventor questions section captures everything only the inventor can confirm.
+
+## Steps
+
+1. **Author the disclosure prose.** Use the `patent-engineer` subagent to draft each TID section in the project's `language` setting; it owns voice, structure, and the EN/ZH section headings.
+2. **Methodology review.** Use the `methodology-reviewer` subagent to cross-check that the `Technical solution` and `Implementation details` sections are internally consistent with `method_to_code.md` and any equations.
+3. **Evidence audit.** Use the `evidence-auditor` subagent to verify that every `Advantage` / `Technical effect` carries an `evidence_id` resolvable in `evidence.jsonl`, and that every `Code traceability` row has a `file_path:lines` that exists on disk.
 
 ## Required sections (per candidate) — TID structure
 

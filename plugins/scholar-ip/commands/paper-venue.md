@@ -1,6 +1,13 @@
 ---
 id: paper-venue
 title: "Convert the arXiv-style manuscript into a target venue's template"
+description: >
+  Convert the arXiv-style manuscript into a target venue's class file
+  (CVPR / NeurIPS / ICCV / ECCV / ICML / ICLR / EMNLP / ACL / AAAI / IEEE /
+  ACM-generic). Copies sections and bibliography into
+  `submissions/<venue>/`, rewrites the preamble, applies anonymisation when
+  the venue requires it, and runs a sanity compile via the `latex-build`
+  skill. Use only at submission time — the arXiv draft stays canonical.
 kind: command
 slash: /scholar:paper-venue
 phase: paper
@@ -46,12 +53,12 @@ This command is **submission-time only**. Until the venue is decided, work in `m
    - anonymous-review requirements (`anonymize` toggle),
    - figure / table caption conventions.
 2. **Copy the manuscript.** Mirror `manuscript/` into `submissions/<venue>/` without modifying the arXiv-side files.
-3. **Rewrite `main.tex`.**
+3. **Rewrite `main.tex`.** Use the `latex-editor` subagent to handle the preamble swap, package list, and compile-error triage:
    - Swap `\documentclass{...}` and preamble to the venue style.
    - Insert / remove `\usepackage{...}` entries the venue mandates.
    - Re-link `references.bib` (copy or symlink).
    - Adjust math / theorem environments if the venue dictates.
-4. **Anonymisation pass.** If `anonymize=true` (default for double-blind venues — `cvpr`, `iccv`, `eccv`, `neurips`, `icml`, `iclr`, `emnlp`, `acl`):
+4. **Anonymisation pass.** Use the `evidence-auditor` subagent to confirm every stripped self-citation or repo link is still backed by an alternative evidence id (so anonymisation does not silently invalidate a claim). If `anonymize=true` (default for double-blind venues — `cvpr`, `iccv`, `eccv`, `neurips`, `icml`, `iclr`, `emnlp`, `acl`):
    - Replace author block with `\author{Anonymous}`.
    - Strip funding / acknowledgements (move to a separate `acknowledgements.tex` excluded from `main.tex`).
    - Comment out any url, repo link, or self-citation marker that reveals identity.

@@ -13,6 +13,9 @@ triggers:
   - "write:.evidraft/patent/invention_disclosure.md::技术效果"
 behaviour: "Block strong-claim verbs without a nearby citation_key or evidence_id."
 failure_mode: block
+executable_script: citation-guard.sh
+cc_event: PostToolUse
+cc_matcher: "Write|Edit"
 references:
   - doc: ../../../docs/legal-and-ethics.md
   - doc: ../skills/evidence-check/SKILL.md
