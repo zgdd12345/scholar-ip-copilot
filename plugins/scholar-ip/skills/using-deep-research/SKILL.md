@@ -39,6 +39,8 @@ references:
 
 # Using deep-research
 
+See [references/example.md](references/example.md) for the bundle-resource demonstration pattern (propagated to every host's rendered output by the loader's skill-bundle support).
+
 You are about to drive a PRISMA-style 6-stage deep literature review for the user. Read this once, then run the right command sequence. This skill is the **single entry point** — invoking `/scholar:deepresearch` directly is also fine, but if the user hasn't done the scaffolding yet the `scope-required` hook will block them and they will not know why.
 
 ## What `/scholar:deepresearch` produces
