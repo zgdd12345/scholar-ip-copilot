@@ -6,6 +6,12 @@
 .opencode/agents/
 .opencode/skills/
 .opencode/README.md
+# OpenCode bun/npm runtime artefacts (the nested .opencode/.gitignore OpenCode
+# writes covers most of these but not package-lock.json).
+.opencode/node_modules/
+.opencode/package.json
+.opencode/package-lock.json
+.opencode/bun.lock
 .agents/skills/
 
 # Python
