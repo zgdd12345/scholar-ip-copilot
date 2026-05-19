@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scholar-ip-copilot/schemas/plugin.schema.json",
+  "title": "scholar-ip-copilot plugin manifest",
+  "description": "Validates the top-level `plugins/scholar-ip/plugin.yaml` manifest. `manifest_version` is the semver of THIS manifest format and is distinct from `version`, which is the plugin's product version.",
+  "type": "object",
+  "required": ["manifest_version", "id", "name", "version", "description"],
+  "additionalProperties": false,
+  "properties": {
+    "manifest_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semver of the manifest format itself (NOT the plugin's product version). Bumped when a breaking change lands in this schema or the on-disk plugin layout. First shipped value is '1.0.0'."
+    },
+    "id":          { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "name":        { "type": "string" },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?$",
+      "description": "Product version of the plugin (semver). Distinct from manifest_version."
+    },
+    "description": { "type": "string" },
+    "license":     { "type": "string" },
+    "homepage":    { "type": "string" },
+    "authors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": false,
+        "properties": {
+          "name":        { "type": "string" },
+          "affiliation": { "type": "string" },
+          "email":       { "type": "string", "format": "email" },
+          "url":         { "type": "string" }
+        }
+      }
+    },
+    "entrypoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "commands":  { "type": "string" },
+        "agents":    { "type": "string" },
+        "skills":    { "type": "string" },
+        "hooks":     { "type": "string" },
+        "templates": { "type": "string" }
+      }
+    },
+    "project_types": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["paper", "patent", "mixed"] }
+    },
+    "adapters": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/adapter_entry" }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "forbidden_paths":         { "type": "array", "items": { "type": "string" } },
+        "forbidden_tool_patterns": { "type": "array", "items": { "type": "string" } },
+        "default_allowed_tools":   { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "mcp_servers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/mcp_server_entry" }
+    },
+    "workflows": {
+      "type": "object",
+      "description": "Quick-reference command order, grouped by phase. Keys are free-form (meta/paper/patent/shared today); values are arrays of slash-command strings.",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    },
+    "naming": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "invocation": { "type": "string" },
+        "filename":   { "type": "string" },
+        "meta_entry": { "type": "string" },
+        "rationale":  { "type": "string" }
+      }
+    },
+    "paper_defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "draft_style":      { "type": "string" },
+        "supported_venues": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "patent_defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "primary_deliverable": { "type": "string" },
+        "jurisdictions": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["US", "EP", "CN", "JP", "PCT", "OTHER"] }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "adapter_entry": {
+      "type": "object",
+      "required": ["id", "status", "out"],
+      "additionalProperties": false,
+      "properties": {
+        "id":     { "type": "string" },
+        "status": { "type": "string", "enum": ["mvp", "planned", "stable", "experimental", "deprecated"] },
+        "out":    { "type": "string" }
+      }
+    },
+    "mcp_server_entry": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id":          { "type": "string" },
+        "status":      { "type": "string", "enum": ["mvp", "planned", "stable", "experimental", "deprecated"] },
+        "command":     { "type": "string" },
+        "args":        { "type": "array", "items": { "type": "string" } },
+        "env":         { "type": "object", "additionalProperties": { "type": "string" } },
+        "description": { "type": "string" }
+      }
+    }
+  }
+}

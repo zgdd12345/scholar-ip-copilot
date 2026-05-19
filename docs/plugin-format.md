@@ -56,6 +56,47 @@ safety:
     - Bash:latexmk*
 ```
 
+## Manifest versioning
+
+`plugin.yaml` carries two semver fields and they mean different things:
+
+| Field | What it is | Example | Who bumps it |
+|---|---|---|---|
+| `manifest_version` | Semver of the **manifest format** — i.e. this schema and the on-disk plugin layout. | `"1.0.0"` | Plugin-format maintainers, on any breaking change to a top-level field or to commands/agents/skills/hooks frontmatter. |
+| `version` | The plugin's **product version**. | `0.0.1` | The plugin author, on any user-visible release. |
+
+`manifest_version` MUST be a quoted string (`"1.0.0"`) so YAML does not coerce it to a float and so the value round-trips through every parser without surprise.
+
+### When to bump `manifest_version`
+
+- Any breaking change to a top-level field in `plugin.yaml` (rename, removal, type change).
+- Any schema-incompatible change to the frontmatter of commands / agents / skills / hooks (governed by `command.schema.json`).
+- Any change to the canonical on-disk layout under `plugins/<id>/`.
+
+Additive, optional fields do **not** require a bump.
+
+### How to migrate
+
+The migration framework lives at `packages/core/src/migrate.py` and ships with the v0 -> v1 step that adds `manifest_version` to any pre-v1 plugin:
+
+```bash
+# Inspect the plan without writing
+python -m packages.core.src.migrate \
+    --plugin plugins/scholar-ip/plugin.yaml --to 1.0.0 --dry-run
+
+# Apply in place (writes plugin.yaml and a migrate-<ts>.log next to it)
+python -m packages.core.src.migrate \
+    --plugin plugins/scholar-ip/plugin.yaml --to 1.0.0
+```
+
+A plugin that already carries `manifest_version: "1.0.0"` is a no-op; the CLI prints `no migrations needed (already at 1.0.0)` and exits 0.
+
+### Change log
+
+| `manifest_version` | Notable changes |
+|---|---|
+| `1.0.0` | First versioned manifest format. Introduces the `manifest_version` field itself (Module J / v1.0). |
+
 ## Per-command file
 
 Each file under `commands/` is a single markdown document with YAML frontmatter:

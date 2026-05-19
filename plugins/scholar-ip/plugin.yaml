@@ -1,4 +1,5 @@
 id: scholar
+manifest_version: "1.0.0"
 name: EviDraft
 version: 0.0.1
 description: >
