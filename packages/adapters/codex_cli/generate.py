@@ -33,11 +33,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import sys
 from pathlib import Path
 from typing import Any
 
+from .._shared.bundle import copy_skill_bundle
 from .._shared.loader import (
     FrontmatterDoc,
     Plugin,
@@ -150,39 +150,6 @@ def _command_skill_body(
             lines.append(_strip_body(ag.body))
             lines.append("")
     return "\n".join(lines).rstrip() + "\n"
-
-
-def _copy_skill_bundle(doc: FrontmatterDoc, dest_skill_dir: Path) -> list[Path]:
-    """Copy every file under doc.bundle_dir (except top-level SKILL.md) into
-    ``dest_skill_dir``, preserving sub-directory structure.
-
-    Returns the list of destination paths written. Returns [] when doc has no
-    bundle_dir or when the bundle contains only SKILL.md.
-
-    Trusts callers (the source tree under plugins/scholar-ip/skills/) for
-    bundle hygiene: symlinks are followed and their targets copied (not the
-    links themselves); circular symlinks within a bundle would loop. This is
-    acceptable because bundles are author-controlled, in-tree content.
-
-    Codex-specific: source skills are flattened to skills/scholar-skill-<id>/;
-    the bundle is propagated into that same flattened directory. We do NOT
-    rewrite intra-bundle links — by convention, cross-skill linkage stays at
-    SKILL.md level rather than inside references/.
-    """
-    if doc.bundle_dir is None or not doc.bundle_dir.is_dir():
-        return []
-    written: list[Path] = []
-    for src in sorted(doc.bundle_dir.rglob("*")):
-        if not src.is_file():
-            continue
-        if src.name == "SKILL.md" and src.parent == doc.bundle_dir:
-            continue
-        rel = src.relative_to(doc.bundle_dir)
-        dest = dest_skill_dir / rel
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(src, dest)
-        written.append(dest)
-    return written
 
 
 def _skill_skill_body(doc: FrontmatterDoc) -> str:
@@ -320,7 +287,12 @@ def render(plugin: Plugin, out_dir: Path) -> list[Path]:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(dump_frontmatter(fm, body), encoding="utf-8")
         written.append(target)
-        written.extend(_copy_skill_bundle(d, target.parent))
+        # Codex flattens source skills to skills/scholar-skill-<id>/.
+        # The bundle (references/, assets/, scripts/) is propagated into
+        # that same flattened directory. We do NOT rewrite intra-bundle
+        # links — by Option B convention, cross-skill linkage stays at
+        # SKILL.md level rather than inside references/.
+        written.extend(copy_skill_bundle(d, target.parent))
 
     return written
 

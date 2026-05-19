@@ -249,6 +249,9 @@ def test_invariant_a_file_counts(
         # bundle has a top-level non-SKILL.md sibling. Subdir siblings are
         # already excluded by the parent.name prefix filter, but top-level
         # ones (e.g. notes.md right next to SKILL.md) need this extra guard.
+        # Note: commands don't get bundles today, so the `p.name == "SKILL.md"`
+        # clause on n_cmd_skill is defensive parity with n_src_skill — cheap
+        # insurance against a future "commands also carry bundles" feature.
         all_skill_files = _files_under(files, "skills")
         n_cmd_skill = sum(
             1 for p in all_skill_files

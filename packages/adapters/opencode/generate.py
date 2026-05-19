@@ -32,11 +32,11 @@ Output tree (rooted at ``--out``)::
 from __future__ import annotations
 
 import argparse
-import shutil
 import sys
 from pathlib import Path
 from typing import Any
 
+from .._shared.bundle import copy_skill_bundle
 from .._shared.loader import (
     FrontmatterDoc,
     Plugin,
@@ -54,34 +54,6 @@ _CC_TO_OPENCODE_TOOL = {
     "Edit": ("edit", "allow"),
     "Write": ("write", "allow"),
 }
-
-
-def _copy_skill_bundle(doc: FrontmatterDoc, dest_skill_dir: Path) -> list[Path]:
-    """Copy every file under doc.bundle_dir (except top-level SKILL.md) into
-    ``dest_skill_dir``, preserving sub-directory structure.
-
-    Returns the list of destination paths written. Returns [] when doc has no
-    bundle_dir or when the bundle contains only SKILL.md.
-
-    Trusts callers (the source tree under plugins/scholar-ip/skills/) for
-    bundle hygiene: symlinks are followed and their targets copied (not the
-    links themselves); circular symlinks within a bundle would loop. This is
-    acceptable because bundles are author-controlled, in-tree content.
-    """
-    if doc.bundle_dir is None or not doc.bundle_dir.is_dir():
-        return []
-    written: list[Path] = []
-    for src in sorted(doc.bundle_dir.rglob("*")):
-        if not src.is_file():
-            continue
-        if src.name == "SKILL.md" and src.parent == doc.bundle_dir:
-            continue  # already written by the SKILL.md branch
-        rel = src.relative_to(doc.bundle_dir)
-        dest = dest_skill_dir / rel
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(src, dest)
-        written.append(dest)
-    return written
 
 
 def _command_frontmatter(meta: dict[str, Any]) -> dict[str, Any]:
@@ -218,7 +190,7 @@ def render(plugin: Plugin, out_dir: Path) -> list[Path]:
             target = sk_dir / "SKILL.md"
             target.write_text(dump_frontmatter(fm, d.body), encoding="utf-8")
             written.append(target)
-            written.extend(_copy_skill_bundle(d, sk_dir))
+            written.extend(copy_skill_bundle(d, sk_dir))
 
     return written
 
