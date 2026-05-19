@@ -5,10 +5,19 @@
  * at session start. No file copying, no symlinks — OpenCode reads the source
  * tree directly. Lets references/ subdirectories ride along automatically.
  *
+ * **Install scope:** project-local only. Loaded via the project's
+ * `./opencode.json` `plugin` array as `./.opencode/plugins/scholar.js`. The
+ * path math (`path.resolve(__dirname, '../..')`) anchors to the plugin file's
+ * own location, so a copy at `~/.config/opencode/plugins/scholar.js`
+ * resolves to `~/.config/plugins/scholar-ip/skills` which does not exist.
+ * Global-install support is a follow-up; for now we fail loudly (see below)
+ * rather than silently load a non-existent skills path.
+ *
  * Modeled on superpowers' .opencode/plugins/superpowers.js (135 lines).
  */
 
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -19,6 +28,14 @@ export const ScholarPlugin = async ({ client, directory }) => {
   const repoRoot = path.resolve(__dirname, '../..');
   const sourceSkillsDir = path.join(repoRoot, 'plugins', 'scholar-ip', 'skills');
   const sourceAgentsDir = path.join(repoRoot, 'plugins', 'scholar-ip', 'agents');
+
+  if (!fs.existsSync(sourceSkillsDir)) {
+    throw new Error(
+      `scholar-ip plugin: source skills directory not found at ${sourceSkillsDir}. ` +
+      `This plugin must be loaded from <repo>/.opencode/plugins/scholar.js (project-local install). ` +
+      `__dirname was: ${__dirname}.`
+    );
+  }
 
   return {
     config: async (config) => {
