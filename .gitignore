@@ -2,7 +2,10 @@
 # The .agents/plugins/marketplace.json source IS tracked; only .agents/skills/ is rendered.
 .claude
 .codex
-.opencode
+.opencode/commands/
+.opencode/agents/
+.opencode/skills/
+.opencode/README.md
 .agents/skills/
 
 # Python
