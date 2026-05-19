@@ -243,13 +243,23 @@ def test_invariant_a_file_counts(
         # as its own ``skills/<prefixed-name>/SKILL.md`` bundle. Commands use
         # the ``scholar-`` prefix; source skills use ``scholar-skill-`` so
         # ids that exist in both (e.g. ``brainstorming``) don't collide.
+        # Count only the rendered SKILL.md files in each flattened-skill dir;
+        # bundle siblings (references/, assets/, scripts/) propagated as part
+        # of the same logical skill would otherwise inflate the counts when a
+        # bundle has a top-level non-SKILL.md sibling. Subdir siblings are
+        # already excluded by the parent.name prefix filter, but top-level
+        # ones (e.g. notes.md right next to SKILL.md) need this extra guard.
         all_skill_files = _files_under(files, "skills")
         n_cmd_skill = sum(
             1 for p in all_skill_files
-            if p.parent.name.startswith("scholar-") and not p.parent.name.startswith("scholar-skill-")
+            if p.parent.name.startswith("scholar-")
+            and not p.parent.name.startswith("scholar-skill-")
+            and p.name == "SKILL.md"
         )
         n_src_skill = sum(
-            1 for p in all_skill_files if p.parent.name.startswith("scholar-skill-")
+            1 for p in all_skill_files
+            if p.parent.name.startswith("scholar-skill-")
+            and p.name == "SKILL.md"
         )
         assert n_cmd_skill == n_src_commands, (
             f"codex_cli: command-as-skill rendered={n_cmd_skill} != source "
