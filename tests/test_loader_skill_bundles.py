@@ -166,3 +166,46 @@ def test_codex_cli_propagates_bundle_files(bundle_plugin: Path, tmp_path: Path) 
     beta_dir = out_dir / "skills" / "scholar-skill-beta"
     beta_files = {p.name for p in beta_dir.iterdir() if p.is_file()}
     assert beta_files == {"SKILL.md"}
+
+
+# ---------------------------------------------------------------------------
+# Dry-run vs render symmetry: --dry-run must enumerate the same paths render()
+# actually writes (otherwise users running `make render DRY=1` would get a
+# misleading preview that omits bundle resources).
+# ---------------------------------------------------------------------------
+
+
+def _assert_dry_run_matches_render(
+    adapter_module, plugin_dir: Path, tmp_path: Path, label: str
+) -> None:
+    plugin = adapter_module.load_plugin(plugin_dir)
+    out_dry = tmp_path / f"{label}-dry"
+    out_render = tmp_path / f"{label}-render"
+    out_dry.mkdir()  # render mkdirs but dry-run doesn't; equalise for relative_to
+
+    dry = {p.relative_to(out_dry) for p in adapter_module._dry_run_paths(plugin, out_dry)}
+    rendered = {p.relative_to(out_render) for p in adapter_module.render(plugin, out_render)}
+
+    assert dry == rendered, (
+        f"{label} dry-run != render\n"
+        f"  dry-only:    {sorted(dry - rendered)}\n"
+        f"  render-only: {sorted(rendered - dry)}"
+    )
+
+
+def test_opencode_dry_run_matches_render(bundle_plugin: Path, tmp_path: Path) -> None:
+    from packages.adapters.opencode import generate as oc
+
+    _assert_dry_run_matches_render(oc, bundle_plugin, tmp_path, "opencode")
+
+
+def test_claude_code_dry_run_matches_render(bundle_plugin: Path, tmp_path: Path) -> None:
+    from packages.adapters.claude_code import generate as cc
+
+    _assert_dry_run_matches_render(cc, bundle_plugin, tmp_path, "claude_code")
+
+
+def test_codex_cli_dry_run_matches_render(bundle_plugin: Path, tmp_path: Path) -> None:
+    from packages.adapters.codex_cli import generate as cx
+
+    _assert_dry_run_matches_render(cx, bundle_plugin, tmp_path, "codex_cli")

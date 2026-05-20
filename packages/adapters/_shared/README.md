@@ -24,7 +24,12 @@ Key exports:
 
 ### `bundle.py`
 
-`copy_skill_bundle(doc, dest_skill_dir) -> list[Path]` is the per-skill bundle propagator. Every adapter calls it after writing its `SKILL.md`:
+Two complementary public functions sharing the same iterator `_bundle_files(doc)`:
+
+- `copy_skill_bundle(doc, dest_skill_dir) -> list[Path]` — the per-skill bundle propagator (writes to disk).
+- `bundle_dest_paths(doc, dest_skill_dir) -> list[Path]` — pure enumeration of the same destinations, no filesystem mutation. Used by each adapter's `_dry_run_paths()` so `--dry-run` lists the bundle files `render()` actually writes. Symmetry is asserted by `test_*_dry_run_matches_render`.
+
+Every adapter calls `copy_skill_bundle` after writing its `SKILL.md`:
 
 ```python
 target = sk_dir / "SKILL.md"

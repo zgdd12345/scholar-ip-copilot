@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from .._shared.bundle import copy_skill_bundle
+from .._shared.bundle import bundle_dest_paths, copy_skill_bundle
 from .._shared.loader import (
     Plugin,
     dump_frontmatter,
@@ -419,7 +419,10 @@ def _dry_run_paths(plugin: Plugin, out_dir: Path) -> list[Path]:
     paths = [out_dir / ".claude-plugin" / "plugin.json"]
     paths.extend(out_dir / "commands" / d.path.name for d in plugin.commands)
     paths.extend(out_dir / "agents" / d.path.name for d in plugin.agents)
-    paths.extend(out_dir / "skills" / d.id / "SKILL.md" for d in plugin.skills)
+    for d in plugin.skills:
+        sk_dir = out_dir / "skills" / d.id
+        paths.append(sk_dir / "SKILL.md")
+        paths.extend(bundle_dest_paths(d, sk_dir))
     return paths
 
 

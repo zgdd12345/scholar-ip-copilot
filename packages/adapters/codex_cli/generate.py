@@ -37,7 +37,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from .._shared.bundle import copy_skill_bundle
+from .._shared.bundle import bundle_dest_paths, copy_skill_bundle
 from .._shared.loader import (
     FrontmatterDoc,
     Plugin,
@@ -303,10 +303,10 @@ def _dry_run_paths(plugin: Plugin, out_dir: Path) -> list[Path]:
         out_dir / "skills" / f"{CMD_PREFIX}{d.id}" / "SKILL.md"
         for d in plugin.commands
     )
-    paths.extend(
-        out_dir / "skills" / f"{SKILL_PREFIX}{d.id}" / "SKILL.md"
-        for d in plugin.skills
-    )
+    for d in plugin.skills:
+        sk_dir = out_dir / "skills" / f"{SKILL_PREFIX}{d.id}"
+        paths.append(sk_dir / "SKILL.md")
+        paths.extend(bundle_dest_paths(d, sk_dir))
     return paths
 
 
