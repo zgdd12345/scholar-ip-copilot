@@ -36,8 +36,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .._shared.bundle import copy_skill_bundle
 from .._shared.loader import (
-    FrontmatterDoc,
     Plugin,
     dump_frontmatter,
     load_plugin as _load_plugin,
@@ -189,6 +189,7 @@ def render(plugin: Plugin, out_dir: Path) -> list[Path]:
             target = sk_dir / "SKILL.md"
             target.write_text(dump_frontmatter(fm, d.body), encoding="utf-8")
             written.append(target)
+            written.extend(copy_skill_bundle(d, sk_dir))
 
     return written
 

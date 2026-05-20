@@ -37,6 +37,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .._shared.bundle import copy_skill_bundle
 from .._shared.loader import (
     FrontmatterDoc,
     Plugin,
@@ -286,6 +287,12 @@ def render(plugin: Plugin, out_dir: Path) -> list[Path]:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(dump_frontmatter(fm, body), encoding="utf-8")
         written.append(target)
+        # Codex flattens source skills to skills/scholar-skill-<id>/.
+        # The bundle (references/, assets/, scripts/) is propagated into
+        # that same flattened directory. We do NOT rewrite intra-bundle
+        # links — by Option B convention, cross-skill linkage stays at
+        # SKILL.md level rather than inside references/.
+        written.extend(copy_skill_bundle(d, target.parent))
 
     return written
 

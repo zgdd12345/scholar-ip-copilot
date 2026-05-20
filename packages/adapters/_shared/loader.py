@@ -36,6 +36,7 @@ class FrontmatterDoc:
     path: Path
     meta: dict[str, Any]
     body: str
+    bundle_dir: Path | None = None
 
     @property
     def id(self) -> str:
@@ -101,6 +102,33 @@ def _load_md_dir(dirpath: Path) -> list[FrontmatterDoc]:
     return docs
 
 
+def _load_skill_dir(skills_dir: Path) -> list[FrontmatterDoc]:
+    """Load skills as directory bundles: each <skills_dir>/<id>/SKILL.md is a skill.
+
+    Each skill's parent directory becomes the bundle_dir on the FrontmatterDoc
+    so adapters can propagate sibling files (references/, assets/, scripts/)
+    into rendered output. Files under references/ etc. are NEVER treated as
+    additional skills, even when they happen to be markdown.
+    """
+    if not skills_dir.exists():
+        return []
+    docs: list[FrontmatterDoc] = []
+    for skill_dir in sorted(p for p in skills_dir.iterdir() if p.is_dir()):
+        skill_md = skill_dir / "SKILL.md"
+        if not skill_md.is_file():
+            continue
+        text = skill_md.read_text(encoding="utf-8")
+        try:
+            meta, body = split_frontmatter(text)
+        except (yaml.YAMLError, ValueError) as exc:
+            meta = {"_parse_error": str(exc), "id": skill_md.parent.name}
+            body = text
+        docs.append(
+            FrontmatterDoc(path=skill_md, meta=meta, body=body, bundle_dir=skill_dir)
+        )
+    return docs
+
+
 def load_plugin(plugin_dir: Path) -> Plugin:
     """Parse ``plugin.yaml`` plus all command/agent/skill/hook frontmatter."""
     plugin_dir = plugin_dir.resolve()
@@ -119,7 +147,7 @@ def load_plugin(plugin_dir: Path) -> Plugin:
         manifest=manifest,
         commands=_load_md_dir(_sub("commands", "commands/")),
         agents=_load_md_dir(_sub("agents", "agents/")),
-        skills=_load_md_dir(_sub("skills", "skills/")),
+        skills=_load_skill_dir(_sub("skills", "skills/")),
         hooks=_load_md_dir(_sub("hooks", "hooks/")),
     )
 

@@ -218,7 +218,10 @@ def test_invariant_a_file_counts(
     if adapter == "claude_code":
         n_cmd = len(_files_under(files, "commands"))
         n_agent = len(_files_under(files, "agents"))
-        n_skill = len(_files_under(files, "skills"))
+        # Count rendered SKILL.md files only (one per source skill); bundle
+        # siblings (references/, assets/, scripts/) are propagated as part of
+        # the same logical skill and would inflate a naive file-count.
+        n_skill = sum(1 for p in _files_under(files, "skills") if p.name == "SKILL.md")
         assert n_cmd == n_src_commands, (
             f"claude_code: commands rendered={n_cmd} != source={n_src_commands}"
         )
@@ -240,13 +243,26 @@ def test_invariant_a_file_counts(
         # as its own ``skills/<prefixed-name>/SKILL.md`` bundle. Commands use
         # the ``scholar-`` prefix; source skills use ``scholar-skill-`` so
         # ids that exist in both (e.g. ``brainstorming``) don't collide.
+        # Count only the rendered SKILL.md files in each flattened-skill dir;
+        # bundle siblings (references/, assets/, scripts/) propagated as part
+        # of the same logical skill would otherwise inflate the counts when a
+        # bundle has a top-level non-SKILL.md sibling. Subdir siblings are
+        # already excluded by the parent.name prefix filter, but top-level
+        # ones (e.g. notes.md right next to SKILL.md) need this extra guard.
+        # Note: commands don't get bundles today, so the `p.name == "SKILL.md"`
+        # clause on n_cmd_skill is defensive parity with n_src_skill — cheap
+        # insurance against a future "commands also carry bundles" feature.
         all_skill_files = _files_under(files, "skills")
         n_cmd_skill = sum(
             1 for p in all_skill_files
-            if p.parent.name.startswith("scholar-") and not p.parent.name.startswith("scholar-skill-")
+            if p.parent.name.startswith("scholar-")
+            and not p.parent.name.startswith("scholar-skill-")
+            and p.name == "SKILL.md"
         )
         n_src_skill = sum(
-            1 for p in all_skill_files if p.parent.name.startswith("scholar-skill-")
+            1 for p in all_skill_files
+            if p.parent.name.startswith("scholar-skill-")
+            and p.name == "SKILL.md"
         )
         assert n_cmd_skill == n_src_commands, (
             f"codex_cli: command-as-skill rendered={n_cmd_skill} != source "
@@ -734,3 +750,52 @@ def test_invariant_h_effort_set_when_model_pinned(plugin: Plugin) -> None:
         f"agent(s) with invalid `effort:` value (must be one of "
         f"{sorted(_VALID_EFFORTS)}): {bad}"
     )
+
+
+# ---------------------------------------------------------------------------
+# I. skill-bundle propagation invariant
+# ---------------------------------------------------------------------------
+
+
+def test_invariant_i_bundle_resources_propagated(
+    plugin: Plugin,
+    rendered: dict[str, dict[str, Any]],
+) -> None:
+    """For every source skill that has a bundle (any non-SKILL.md file under
+    its directory), each writing adapter must render those files into the
+    skill's rendered directory, preserving sub-paths.
+
+    When no source skill has a bundle (current master baseline) this test is
+    vacuously true — it asserts only what is present, never that bundles must
+    exist."""
+    skills_with_bundle = [
+        d for d in plugin.skills
+        if d.bundle_dir is not None
+        and any(
+            p.is_file() and not (p.name == "SKILL.md" and p.parent == d.bundle_dir)
+            for p in d.bundle_dir.rglob("*")
+        )
+    ]
+
+    for d in skills_with_bundle:
+        bundle_rel_paths = sorted(
+            str(p.relative_to(d.bundle_dir))
+            for p in d.bundle_dir.rglob("*")
+            if p.is_file() and not (p.name == "SKILL.md" and p.parent == d.bundle_dir)
+        )
+
+        # Claude Code: skills/<id>/<rel-path>
+        cc_root = rendered["claude_code"]["root"]
+        for rel in bundle_rel_paths:
+            target = cc_root / "skills" / d.id / rel
+            assert target.is_file(), (
+                f"claude_code: missing bundle file skills/{d.id}/{rel}"
+            )
+
+        # Codex CLI: skills/scholar-skill-<id>/<rel-path>
+        cx_root = rendered["codex_cli"]["root"]
+        for rel in bundle_rel_paths:
+            target = cx_root / "skills" / f"scholar-skill-{d.id}" / rel
+            assert target.is_file(), (
+                f"codex_cli: missing bundle file skills/scholar-skill-{d.id}/{rel}"
+            )
