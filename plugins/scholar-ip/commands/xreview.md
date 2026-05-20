@@ -73,6 +73,12 @@ This command does **not** invent a new reviewer voice — it reuses the
 persona bodies that already ship with the plugin. The external agent is
 treated as a sandboxed second opinion, never as a privileged actor.
 
+**Spec home.** `../skills/external-agent-bridge/SKILL.md` owns the CLI
+invocation matrix, the prompt-rendering recipe, the security checklist,
+the retry/timeout protocol, and the cost-telemetry capture. This file
+is the **executable contract** — orchestration, artefact layout, chat
+output — that consumes that spec.
+
 ## Inputs
 
 | Name | Type | Required | Notes |
@@ -91,17 +97,13 @@ treated as a sandboxed second opinion, never as a privileged actor.
 4. `plugins/scholar-ip/agents/<persona>.md` exists.
 5. The required env var for `agent` is set (see "Auth" below). The user supplies their own keys; **no key ever appears in argv**.
 
-## Auth (env vars only — never on the command line)
+## Auth
 
-| Agent | Required env vars |
-|---|---|
-| `codex` | `CODEX_API_KEY` (or `OPENAI_API_KEY`, depending on the Codex CLI build the user has installed). |
-| `claude-bare` | `ANTHROPIC_API_KEY`. |
-| `opencode` | One of the OpenCode-supported provider keys (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`); see OpenCode docs. |
-
-The plugin **reads no key** and **echoes no key**. If the required env var
-is unset, abort with a one-line message and instruct the user to set it
-in their shell.
+Per-agent env-var requirements are documented in
+`../skills/external-agent-bridge/SKILL.md` §CLI invocation matrix (one
+`Env:` line per agent). The plugin **reads no key** and **echoes no
+key**. If the required env var is unset, abort with a one-line message
+and instruct the user to set it in their shell.
 
 ## Steps
 
@@ -112,52 +114,18 @@ in their shell.
    - `PROMPT_FILE=".evidraft/reviews/.tmp/${agent}-${persona}-${TS}.prompt"`.
    - Create `.evidraft/reviews/` and `.evidraft/reviews/.tmp/` if missing.
 
-2. **Render the prompt.** Write `PROMPT_FILE` as the concatenation of:
-   - a fixed header:
-     ```
-     You are reviewing the file: <target>
-     Persona: <persona>
-     Output: respond ONLY with a JSON object matching the schema below
-     (or, if no schema is attached, a JSON object with keys
-     {"findings": string[], "top3": string[], "verdict": string,
-      "tokens": int|null, "cost_usd": number|null}).
-     Do not write to the filesystem. Do not run shell commands.
-     ```
-   - the body of `plugins/scholar-ip/agents/<persona>.md` **after** its
-     YAML frontmatter (strip the frontmatter; keep the markdown body),
-   - if `schema` is provided: a fenced ```json block containing its
-     contents,
-   - if `extra_context` is provided: a `## Extra context` section with
-     that string verbatim,
-   - a `## Target file` section containing the full UTF-8 contents of
-     `target` inside a fenced code block whose language matches the
-     file extension (default `text`).
+2. **Render the prompt.** Follow `../skills/external-agent-bridge/SKILL.md`
+   §Prompt-rendering recipe (header → persona body → optional schema →
+   optional extra context → target file). Write the result to
+   `$PROMPT_FILE`.
 
-   Never interpolate `target` contents into a shell command. The prompt
-   is always passed to the external agent via stdin or
-   `"$(cat $PROMPT_FILE)"`.
-
-3. **Invoke the external agent.** Use **exactly one** of the three
-   invocations below. Each is parameterised on `$WORKDIR`, `$OUT_FILE`,
-   `$PROMPT_FILE`, and `$TARGET_FILE=target`.
-
-   - **Codex (safest — hard-locked read-only):**
-     ```
-     codex exec --sandbox read-only --json -C $WORKDIR --output-last-message $OUT_FILE - < $PROMPT_FILE
-     ```
-   - **Claude bare:**
-     ```
-     claude --bare -p "$(cat $PROMPT_FILE)" --permission-mode dontAsk --allowedTools "Read" --output-format json > $OUT_FILE
-     ```
-   - **OpenCode (no native read-only — run against a copy / worktree):**
-     ```
-     opencode run --format json --dir $WORKDIR -f $TARGET_FILE "$(cat $PROMPT_FILE)" > $OUT_FILE
-     ```
-
-   For `opencode`, before invocation copy the project to a throwaway
-   worktree (`git worktree add` or `cp -R` to a tmp dir) and set
-   `$WORKDIR` to that worktree path; treat the original tree as
-   read-only. See `external-agent-bridge/SKILL.md` for the recipe.
+3. **Invoke the external agent.** Use the verbatim CLI signature for
+   the chosen `agent` from `../skills/external-agent-bridge/SKILL.md`
+   §CLI invocation matrix. The three signatures (Codex / Claude bare /
+   OpenCode) are parameterised on `$WORKDIR`, `$OUT_FILE`,
+   `$PROMPT_FILE`, and `$TARGET_FILE=target`. For `opencode`, follow
+   the worktree-copy mitigation in the skill (OpenCode has no native
+   read-only sandbox) before invocation.
 
 4. **Enforce the write zone.** The `external-write-zone` hook fires on
    the `Bash:codex*` / `Bash:claude*` / `Bash:opencode*` tool call.
@@ -196,7 +164,7 @@ in their shell.
 
 ## Security checklist
 
-Source of truth: `skills/external-agent-bridge/SKILL.md` §Security checklist. The invocation MUST satisfy every item there (no key in argv; stdin-only prompts; sensitive-file-guard on target; write zone locked to `.evidraft/reviews/`; per-agent read-only flags; 600 s hard timeout with SIGTERM→SIGKILL escalation; no nested invocation).
+Source of truth: `../skills/external-agent-bridge/SKILL.md` §Security checklist. The invocation MUST satisfy every item there (no key in argv; stdin-only prompts; sensitive-file-guard on target; write zone locked to `.evidraft/reviews/`; per-agent read-only flags; 600 s hard timeout with SIGTERM→SIGKILL escalation; no nested invocation).
 
 ## Chat output (what the user sees at the end)
 
@@ -224,9 +192,10 @@ If the parse failed, replace the "Top 3" block with:
 - Missing env var → abort with a one-line message; do not invoke.
 - `target` blocked by `sensitive-file-guard` → abort; surface the hook
   message.
-- External agent non-zero exit → keep `$OUT_FILE` (it may contain a
-  partial response), set `tokens`/`cost_usd` to `null` in `.last.yaml`,
-  and surface the exit code in the chat output.
+- External agent non-zero exit, parse failure, or timeout → handle per
+  `../skills/external-agent-bridge/SKILL.md` §Retry / timeout protocol.
+  Record `tokens`/`cost_usd` as available; surface exit code / timeout
+  reason in the chat output.
 - `external-write-zone` violation → block; delete any file the external
   agent created outside `.evidraft/reviews/`; abort.
 
