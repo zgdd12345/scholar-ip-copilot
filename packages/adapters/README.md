@@ -8,9 +8,9 @@ host-specific layout. Author once, render many.
 
 | Adapter | Module | Status | Output target | CLI |
 |---|---|---|---|---|
-| Claude Code | `packages.adapters.claude_code.generate` | MVP, first-class | `.claude/plugins/scholar-ip/` | `python -m packages.adapters.claude_code.generate --plugin plugins/scholar-ip --out <dest>` |
-| Codex CLI | `packages.adapters.codex_cli.generate` | MVP, flattened prompts | `.codex/prompts/scholar-ip/` | `python -m packages.adapters.codex_cli.generate --plugin plugins/scholar-ip --out <dest>` |
-| OpenCode | `packages.adapters.opencode.generate` | Planned (lint-only stub) | `.opencode/plugins/scholar-ip/` | `python -m packages.adapters.opencode.generate --plugin plugins/scholar-ip --out <dest>` |
+| Claude Code | `packages.adapters.claude_code.generate` | First-class | `.claude/plugins/scholar-ip/` | `python -m packages.adapters.claude_code.generate --plugin plugins/scholar-ip --out <dest>` |
+| Codex CLI | `packages.adapters.codex_cli.generate` | First-class (flattened, commands + skills land under `skills/`) | `.codex/plugins/scholar/` | `python -m packages.adapters.codex_cli.generate --plugin plugins/scholar-ip --out <dest>` |
+| OpenCode | `packages.adapters.opencode.generate` | First-class (commands renamed `scholar-<id>` since OpenCode has no slash-namespacing) | `.opencode/{commands,agents,skills}/` | `python -m packages.adapters.opencode.generate --plugin plugins/scholar-ip --out <dest>` |
 
 ## Common API
 
@@ -23,7 +23,9 @@ Each `generate.py` exposes the same four entry points:
 | `render(plugin, out_dir)` | Write the host-specific tree. Returns the list of paths written. |
 | `main()` | CLI entry: `--plugin <path>` `--out <path>` `[--dry-run]`. |
 
-Shared YAML/frontmatter loading lives in `_shared/loader.py`.
+Shared modules under `_shared/`:
+- `loader.py` — YAML/frontmatter parser; one-skill-per-directory discovery via `_load_skill_dir` (records `bundle_dir` on each `FrontmatterDoc`).
+- `bundle.py` — `copy_skill_bundle(doc, dest_skill_dir)` propagates every non-`SKILL.md` sibling (e.g. `references/`, `assets/`, `scripts/`) from the source bundle into each adapter's rendered skill directory, preserving sub-paths. All three adapters call this after writing their `SKILL.md`.
 
 ## CLI options (all adapters)
 
@@ -48,15 +50,18 @@ python -m packages.adapters.claude_code.generate \
     --plugin plugins/scholar-ip \
     --out ~/your-project/.claude/plugins/scholar-ip
 
-# 3. render Codex CLI prompts into your project
+# 3. render Codex CLI plugin into your project
 python -m packages.adapters.codex_cli.generate \
     --plugin plugins/scholar-ip \
-    --out ~/your-project/.codex/prompts/scholar-ip
+    --out ~/your-project/.codex/plugins/scholar
 
-# 4. lint against the OpenCode target (no files written yet)
+# 4. render OpenCode plugin (auto-discovered from .opencode/{commands,agents,skills}/)
 python -m packages.adapters.opencode.generate \
     --plugin plugins/scholar-ip \
-    --out /tmp/scholar-ip-opencode
+    --out ~/your-project/.opencode
+
+# Or render all three at once:
+make render
 ```
 
 ## Dependencies

@@ -95,6 +95,7 @@ Authoring rules:
 1. Every command file is self-contained: a host (CC, Codex) can hand it to an LLM as a single prompt and the workflow runs.
 2. Every command references its **inputs / outputs / allowed_tools / hooks**.
 3. Strong-claim verbs (SOTA, first, significant, outperform) are forbidden unless a citation/evidence id is supplied — see `hooks/citation-guard.md`.
+4. Skills follow a **bundle pattern**: each `skills/<id>/` directory is treated as a unit. `SKILL.md` is the entry; sibling files (`references/*.md`, `assets/*`, `scripts/*`) propagate to every rendered host output via `packages/adapters/_shared/bundle.py`. The heavy-weight `skills/deep-literature-review/` skill uses this to host 12 on-demand `references/` files (one per pipeline stage + 6 cross-cutting) so the agent's working context loads only the stage it is running.
 
 ---
 

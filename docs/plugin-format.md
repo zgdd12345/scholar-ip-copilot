@@ -139,9 +139,17 @@ Frontmatter is the **contract**. The prose is the prompt. Adapters render both.
 
 Same frontmatter, plus a `role`, `responsibilities`, `inputs`, `outputs`, `constraints`, and `review_checklist`. See `plugins/scholar-ip/agents/*.md`.
 
-## Per-skill folder
+## Per-skill folder (skill bundles)
 
-`SKILL.md` plus optional `reference.md` and `examples/`. The skill's frontmatter declares `triggers` (when the orchestrator should pull it in) and `provides` (what it produces).
+`SKILL.md` is the entry point; the parent directory is the **skill bundle**. Any sibling files or sub-directories under the skill folder propagate to every adapter output by `packages/adapters/_shared/bundle.py`. The canonical bundle subdirs:
+
+- `references/` — markdown deep-dives loaded on demand (per-stage spec, schemas, failure-mode catalog, etc.). Used heavily by `skills/deep-literature-review/` which ships 12 references files (one per pipeline stage + 6 cross-cutting).
+- `assets/` — templates, fixtures, sample data shipped alongside the skill.
+- `scripts/` — executable helpers (not loaded into the prompt by the adapters; available on disk for the agent to invoke).
+
+Other sibling files (e.g. `skills/evidence-check/examples/evidence.jsonl.snippet`, `skills/venue-formatting/venues/*.yaml`) propagate too — the bundle copier walks every non-`SKILL.md` file under the bundle and preserves the relative path on render.
+
+The skill's frontmatter declares `triggers` (when the orchestrator should pull it in) and `provides` (what it produces). Files inside `references/` etc. are **not** treated as separate skills — only `<skill-id>/SKILL.md` is the discovery anchor (see `packages/adapters/_shared/loader.py:_load_skill_dir`).
 
 ## Per-hook file
 
