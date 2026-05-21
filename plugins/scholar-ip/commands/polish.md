@@ -53,18 +53,18 @@ references:
 
 Williams-style prose polish for a draft that has already passed `/scholar:paper-check`. Reduces AI-flavour without changing meaning, preserves every claim-bearing token, and always ships a diff log so a human can review what changed and why.
 
-This is **not** a detector-evasion tool. Invocation framings like `--evade-detector` are refused. The skill defines the full refusal-flag list and regex in `skills/humanize/SKILL.md` §3 — that is the source of truth; the example here exists only so the LLM has an anchor before the skill is loaded.
+This is **not** a detector-evasion tool. Invocation framings like `--evade-detector` are refused. The skill defines the full refusal-flag list and regex in `skills/humanize/references/ethics-and-refusal.md` — that is the source of truth; the example here exists only so the LLM has an anchor before the skill is loaded.
 
 ## Steps
 
 1. **Pre-flight.**
-   - Refuse if the invocation matches any refusal flag / regex from `skills/humanize/SKILL.md` §3. Print the ethics block (from the skill) and exit non-zero.
+   - Refuse if the invocation matches any refusal flag / regex from `skills/humanize/references/ethics-and-refusal.md`. Print the ethics block (from the skill) and exit non-zero.
    - Refuse if `.evidraft/evidence/evidence.jsonl` does not exist or is empty — no evidence to protect means no draft worth polishing; route the user back to `/scholar:paper-lit` and `/scholar:paper-draft`.
    - Refuse if `target` resolves to a path under `.evidraft/`. We polish manuscripts (`manuscript/...`), not the evidence store.
    - Refuse if `scope-required` is unsatisfied (Phase 2 projects that require an `approved` scope file).
    - Resolve `target`: if a directory, glob `*.tex` / `*.md` non-recursively; if a file, use it directly. If `section` is set, slice to the `\section{<section>}` block (inclusive of its `\subsection{}`s, exclusive of the next `\section{}`).
 
-2. **Lint pass.** Before rewriting, scan the resolved target(s) for banned phrases and AI-tells (the list lives in `skills/humanize/SKILL.md`). Report counts per phrase to chat and into the report under "Banned-phrase counts (before)". Lint pass never mutates the file.
+2. **Lint pass.** Before rewriting, scan the resolved target(s) for banned phrases and AI-tells (the list lives in `skills/humanize/references/banned-phrases.md`). Report counts per phrase to chat and into the report under "Banned-phrase counts (before)". Lint pass never mutates the file.
 
 3. **Rewrite pass.** Invoke the `prose-polisher` subagent with the resolved target(s), the rule list from the skill, and `max_delta_ratio`. Model routing:
    - Read `.evidraft/project.yaml` `style.humanize.model` (default: in-host LLM, i.e. the agent's own model).
