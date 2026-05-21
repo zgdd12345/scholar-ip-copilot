@@ -43,6 +43,9 @@ references:
   - doc: ../evidence-check/SKILL.md
   - doc: ../../commands/patent-scout.md
   - doc: ../../commands/patent-prior-art.md
+  - doc: references/provider-matrix.md
+  - doc: references/procedure.md
+  - doc: references/anti-patterns.md
   - url: "https://patents.google.com/"
   - url: "https://search.patentsview.org/docs/"
   - url: "https://developers.epo.org/ops-v3-2"
@@ -79,7 +82,7 @@ Mirror this disclaimer at the top of every `prior_art_map.md` section the skill 
 
 ## Outputs
 
-- rows appended to `.evidraft/patent/prior_art_map.md` (one H2 / H3 per candidate)
+- rows appended to `.evidraft/patent/prior_art_map.md` (one H2 / H3 per candidate — section template in [procedure.md](references/procedure.md) §6)
 - `type=patent` records appended to `.evidraft/evidence/evidence.jsonl`:
 
   ```json
@@ -90,140 +93,15 @@ Mirror this disclaimer at the top of every `prior_art_map.md` section the skill 
    "run_id":"..."}
   ```
 
-## URL templates (verbatim)
+## How to navigate this skill
 
-These are the only URLs this skill issues via `WebFetch` / `WebSearch`.
+Load only the reference for the layer you are in:
 
-### Google Patents (no public API — HTML scraping politely)
-
-- Search:
-  ```
-  https://patents.google.com/?q=<query>&num=<top_k>
-  ```
-- Per-patent detail:
-  ```
-  https://patents.google.com/patent/<patent_no>
-  ```
-- Response is HTML. Extract per result card: patent number, title, assignee, filing/publication date, snippet. Detail page exposes the full abstract, claims, CPC classes, and figure list.
-- Polite use: identify the user-agent (the host adapter handles this); 1 req/sec; never scrape > 50 result pages in a single run.
-
-### USPTO PatentsView (JSON API, no auth required)
-
-- Search:
-  ```
-  https://search.patentsview.org/api/v1/patent/?q=<json_query>
-  ```
-- The `q` value is a URL-encoded JSON object. Minimal DSL:
-  - `{"_text_any":{"patent_abstract":"<query>"}}` — full-text "any of these words"
-  - `{"_and":[{"_gte":{"patent_date":"2020-01-01"}},{"_text_any":{"patent_title":"<term>"}}]}` — date filter + title term
-  - `{"_eq":{"assignee_organization":"<name>"}}` — exact assignee
-- Append a `f` (fields) parameter to select returned columns; default fields are sparse.
-- Response is JSON. Extract per `patents[i]`: `patent_number`, `patent_title`, `patent_abstract`, `patent_date`, `assignees[*].assignee_organization`, `cpcs[*].cpc_subgroup_id`.
-
-### EPO OPS (OAuth — v0.3+ optional)
-
-- Search:
-  ```
-  https://ops.epo.org/3.2/rest-services/published-data/search?Range=1-<top_k>&CQL=<query>
-  ```
-- OAuth client credentials required: `EPO_OPS_KEY` and `EPO_OPS_SECRET` (env). Token endpoint: `https://ops.epo.org/3.2/auth/accesstoken`.
-- Flag as **v0.3+ optional**: when `EPO_OPS_KEY` is unset, log "EPO OPS skipped (no key)" and continue with Google Patents + PatentsView only. Never inline the key — read from env.
-- Response is XML (Atom-like). Per `<ops:biblio-search><ops:search-result><ops:publication-reference>`: extract `<document-id>` (patent_no), `<invention-title>`, `<applicants><applicant>` (assignee), `<publication-reference><document-id><date>` (publication date), `<classifications-cpc>` (CPC classes), `<abstract>` when present.
-
-## Provider routing
-
-| Input form | Primary | Fallback |
+| Layer | Reference | Owns |
 |---|---|---|
-| `<patent_no>` (US/USA*) | Google Patents detail | PatentsView by `patent_number` |
-| `<patent_no>` (EP*) | Google Patents detail | EPO OPS (if `EPO_OPS_KEY`) |
-| free-text invention | Google Patents search **and** PatentsView search (union, dedup); EPO OPS if key present | n/a |
-| `cpc:<class>` | PatentsView (`_eq` on `cpc_subgroup_id`) | Google Patents (`?q=CPC:<class>`) |
-| `assignee:<name>` | PatentsView (`_eq` on `assignee_organization`) | Google Patents (`?q=assignee:<name>`) |
-
-## Rate-limit policy
-
-| Provider | Limit | Hard rule |
-|---|---|---|
-| Google Patents | ~1 req/sec polite (no public quota) | Serialise; sleep 1 s between calls. Cap at 50 result pages per run. User-agent identifies the caller. |
-| PatentsView | community rate (~45 req/min when fair) | Sleep 1.5 s between calls; max 3 retries on 429. |
-| EPO OPS | 4 req/sec authenticated | Sleep 300 ms; respect `X-RateLimit-Remaining` header. |
-
-On HTTP 429:
-
-1. Sleep `min(60, 2 ** attempt)` seconds.
-2. Retry up to 3 times.
-3. After three failures, record the row with `confidence="low"`, `verify_note="rate-limited by <provider>"`, and continue.
-
-Never run two providers in parallel within one sub-query.
-
-## Procedure
-
-### 1. Build the URL
-
-Pick the provider per the routing table. URL-encode the query. For PatentsView, JSON-encode the `q` argument and then URL-encode the whole.
-
-### 2. Check the cache
-
-Same recipe as `scholar-search`: `sha1` of the canonical URL; look up `.evidraft/literature/.cache/<provider>/<sha1>.json`; delete if older than 14 days.
-
-### 3. Fetch
-
-Call `WebFetch`. For Google Patents (HTML), the prompt asks the host to extract the relevant blocks (result list with patent number + title + assignee + date for search pages; abstract + claims + CPC for detail pages). For PatentsView (JSON) and EPO OPS (XML), capture the body and parse.
-
-Respect the per-provider sleep budget.
-
-### 4. Parse the response shape
-
-Per provider, extract exactly:
-
-| Field | Google Patents | PatentsView | EPO OPS |
-|---|---|---|---|
-| `patent_no` | header (`<h1>` on detail; result card on search) | `patent_number` | `<document-id>` |
-| `title` | `<h1>` / search snippet | `patent_title` | `<invention-title>` |
-| `abstract` | `<section itemprop="abstract">` | `patent_abstract` | `<abstract>` |
-| `assignee` | `<dd itemprop="assigneeOriginal">` | `assignees[*].assignee_organization` | `<applicants><applicant>` |
-| `filing_date` | `<dd itemprop="filingDate">` | `patent_date` (publication date — filing is a separate field) | `<application-reference><date>` |
-| `publication_date` | `<dd itemprop="publicationDate">` | `patent_date` | `<publication-reference><date>` |
-| `claims` (detail) | `<section itemprop="claims">` | `_claims` query needed (separate endpoint) | `<claims>` (separate endpoint) |
-| `cpc_classes` | `<span itemprop="Code">` | `cpcs[*].cpc_subgroup_id` | `<classifications-cpc>` |
-
-### 5. Dedup recipe
-
-After all providers respond:
-
-1. **By normalised patent number** — group rows sharing the same `<jurisdiction>-<number>-<kind>` after stripping spaces / dashes (`US 1,234,567 B2` -> `US1234567B2`).
-2. **By (normalised title, first-assignee, filing year)** for rows without a normalisable number.
-3. Keep the row from the primary provider per the routing table; demote others to `aliases` (the row schema mirrors `scholar-search`'s alias convention).
-4. Never merge field values across providers — record one provider's view as the row.
-
-### 6. Write the prior-art map
-
-Append a section to `.evidraft/patent/prior_art_map.md` per candidate invention. Always lead with the ethics disclaimer (copy from the block above). Then:
-
-```
-## C-001 <candidate name>
-
-> Advisory prior-art search; not an FTO analysis. Absence of hits = "not
-> found by this query", not "does not exist". Confirm with counsel.
-
-### Patent prior art
-- <patent_no> (<assignee>, <filing_date>) — relevance: <high|med|low>
-  - summary: <one sentence>
-  - what overlaps: <one sentence>
-  - why-different: <one sentence>
-  - evidence_id: <ev_NNNN>
-  - source: <google-patents|patentsview|epo-ops>
-
-### Academic prior art (from scholar-search)
-- ...
-
-### Notes / gaps
-- ...
-```
-
-### 7. Append evidence records
-
-For each prior-art row, append a `type=patent` record to `.evidraft/evidence/evidence.jsonl`. The `support` field cites the paragraph / claim number / figure of the patent (e.g., `"para. [0034] of US1234567B2"`), never a bare patent number alone.
+| Provider details (URLs / routing / rate limits) | [provider-matrix.md](references/provider-matrix.md) | per-provider URL templates (Google Patents / PatentsView / EPO OPS), input → primary-provider routing table, polite-use / rate-limit policy, 429 retry/backoff rules |
+| Retrieval procedure (7 steps) | [procedure.md](references/procedure.md) | build URL → cache check → fetch → parse field-by-provider → dedup → write `prior_art_map.md` section template → append evidence |
+| Anti-patterns | [anti-patterns.md](references/anti-patterns.md) | what NOT to do |
 
 ## Quality checklist
 
@@ -235,14 +113,3 @@ For each prior-art row, append a `type=patent` record to `.evidraft/evidence/evi
 - [ ] `EPO_OPS_KEY` read from env if set; never inlined; skipped cleanly if unset.
 - [ ] Patent numbers normalised (uppercase, no spaces / dashes).
 - [ ] Every evidence record's `support` cites a paragraph / claim / figure.
-
-## Anti-patterns
-
-- Claiming novelty because the search returned zero hits — that means "not found", not "does not exist". Always include the ethics disclaimer.
-- Declaring a candidate "patentable" or "non-infringing". This skill writes prior art; the attorney writes verdicts.
-- Hammering Google Patents faster than 1 req/sec or scraping > 50 result pages — both risk a polite-block from the host.
-- Inlining `EPO_OPS_KEY` in a URL or shell argument; always read from env.
-- Merging two providers' field values into one row (use `aliases`).
-- Treating a 429 as "no results" — that is a transient failure; retry per the policy above.
-- Skipping the cache check (re-fetching the same patent number across runs wastes the polite-pool budget).
-- Reading a patent PDF behind a paywall — public patent databases already publish the metadata; use them, not the paywall.
