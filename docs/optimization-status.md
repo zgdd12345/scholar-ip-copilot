@@ -100,6 +100,14 @@ environment-fragile) into a stable pytest invariant.
 
 ---
 
+## ✅ DONE — D3 ("Authoring a new skill" how-to)
+
+New file [`docs/authoring-a-skill.md`](authoring-a-skill.md) (129 lines). Hands-on walkthrough for contributors adding a skill: directory layout, SKILL.md body conventions, the references/ split decision (with the rule-of-thumb codified from twelve splits), conformance-suite registration, verification commands, and a "common pitfalls" section listing every real-world authoring bug we hit during the Path B refactor + the two audit rounds (slash-command syntax in paths, off-by-one `..` chains, code-span false positives, stale anchor refs, YAML doc: ref drift). Walked example points at `deep-literature-review`'s 12-file bundle as the canonical heavy case.
+
+Cross-references the existing reference docs (`plugin-format.md`, `architecture.md`, `optimization-status.md`, `tests/README.md`) rather than duplicating their material.
+
+---
+
 ## ✅ DONE — D2 (README "Progressive disclosure" section)
 
 Added a top-level section between "What you get" and "Repository layout" that explains the pattern to GitHub visitors: thin SKILL.md + on-demand `references/`, the current metric table (12 splits → -59%, 57 references), the per-session loading semantics, and pointers to the authoring rule (`docs/architecture.md` rule 4) and the living tracker (this file). Conformance invariants I + J are cited as the CI gates that keep the propagation honest.
@@ -213,7 +221,6 @@ _Medium-priority items are exhausted._ C-list ⏳ candidates are all split (rows
 | Item | Effort | Notes |
 |---|---|---|
 | **D1. OpenCode 1.3.0 → 1.15.5 upgrade** | User-driven | The spike found 1.3.0 ignored `config.skills.paths` and our source frontmatter shape. A newer OpenCode *might* fix one or both. Until verified empirically on the newer release, do not rely on it. |
-| **D3. "Authoring a new skill" guide** | ~50 lines docs | The bundle pattern is now in place but undocumented in a user-facing how-to. Write when external contributors arrive. |
 | **D4. Codex rsync-only mode re-evaluation** | Larger; ~100 lines bash | superpowers ships to Codex via `rsync` to an external marketplace fork. Could simplify our codex_cli adapter if the gain outweighs the new bash-script complexity. Defer to when Codex output diverges meaningfully from claude_code / opencode in ways the current Python adapter handles poorly. |
 
 ### C-list inventory (large SKILL.md candidates, sorted by size as of master HEAD)

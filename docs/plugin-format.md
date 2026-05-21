@@ -141,6 +141,8 @@ Same frontmatter, plus a `role`, `responsibilities`, `inputs`, `outputs`, `const
 
 ## Per-skill folder (skill bundles)
 
+> Adding a new skill? Start with the hands-on walkthrough in [`docs/authoring-a-skill.md`](authoring-a-skill.md). This section is the reference spec.
+
 `SKILL.md` is the entry point; the parent directory is the **skill bundle**. Any sibling files or sub-directories under the skill folder propagate to every adapter output by `packages/adapters/_shared/bundle.py`. The canonical bundle subdirs:
 
 - `references/` — markdown deep-dives loaded on demand (per-stage spec, schemas, failure-mode catalog, etc.). Used heavily by `skills/deep-literature-review/` which ships 12 references files (one per pipeline stage + 6 cross-cutting).
