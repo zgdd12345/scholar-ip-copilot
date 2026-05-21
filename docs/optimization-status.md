@@ -121,9 +121,11 @@ The audit dispatched 4 parallel Explore subagents covering: `examples/` fixtures
 
 ---
 
-## ✅ DONE — A1 + A2 smoke tests (3-host runtime bundle probes)
+## ✅ DONE — A1 + A2 + A3 smoke tests (3-host runtime bundle probes)
 
-Two rounds of bounded automated runtime tests against the host CLIs, in non-interactive mode (`claude -p`, `codex exec`, `opencode run`). Each round picks a refactored skill (or set of skills), asks the agent to (a) enumerate the `references/` directory and (b) read one specific reference and report its first heading. Verifies the bundle pattern functions at the **runtime-agent level**, not just at the file-propagation level that invariant I already asserts.
+Three rounds of bounded automated runtime tests against the host CLIs, in non-interactive mode (`claude -p`, `codex exec`, `opencode run`). Each round picks a refactored skill (or set of skills), asks the agent to (a) enumerate the `references/` directory and (b) read one specific reference and report its first heading. Verifies the bundle pattern functions at the **runtime-agent level**, not just at the file-propagation level that invariant I already asserts.
+
+**Coverage: all 11 refactored skills with their own `references/` bundles** tested across all 3 hosts (33 distinct runtime bundle-load operations, all passing). The 2 refactored commands (`commands/deepresearch.md`, `commands/xreview.md`) have no own bundle; their cross-skill links into other skills' references are verified by invariant K (static) and Codex's A1 traversal of `.agents/skills/scholar-skill-deep-literature-review/references/` (runtime).
 
 ### A1 — `deep-literature-review` (12 references)
 
@@ -143,9 +145,19 @@ Two rounds of bounded automated runtime tests against the host CLIs, in non-inte
 
 Notable: OpenCode used the **rendered** `.opencode/skills/<id>/references/` path for A2 (a different mechanism than A1, where it used source-tree Glob). This confirms `.opencode/skills/` discovery works when the skill is rendered there.
 
+### A3 — `brainstorming` + `latex-style-audit` + `patent-search` + `xref-audit` + `humanize` + `using-deep-research` (24 references combined)
+
+| Host | brainstorming (6) | latex-style-audit (4) | patent-search (3) | xref-audit (4) | humanize (6) | using-deep-research (1) | Cost |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|---:|
+| Claude Code | ✅ + `# Scope file template` | ✅ + `# Rule taxonomy — 28 LaTeX style rules` | ✅ + `# Provider matrix — URLs, routing, rate limits` | ✅ + `# Rule taxonomy — 14 cross-reference rules` | ✅ + `# Ethics block and refusal triggers` | ✅ + `# Example bundle reference` | ~$0.05 |
+| Codex CLI | ✅ same | ✅ same | ✅ same | ✅ same | ✅ same | ✅ same (36,117 tok) | ~$0.05 |
+| OpenCode | ✅ same | ✅ same | ✅ same | ✅ same | ✅ same | ✅ same | ~$0.05 |
+
+24 files × 3 hosts = 72 distinct filename assertions, plus 18 heading reads — all pass.
+
 ### What the smoke tests prove
 
-The bundle propagation that invariant I asserts at file-level also functions at the **runtime-agent level** on all three hosts. Cross-host parity isn't just structural; agents actually navigate to the references when prompted. Five skills × 3 hosts = 15 distinct bundle-load operations, all returning verifiable ground-truth.
+The bundle propagation that invariant I asserts at file-level also functions at the **runtime-agent level** on all three hosts. Cross-host parity isn't just structural; agents actually navigate to the references when prompted. 11 skills × 3 hosts = **33 distinct bundle-load operations**, all returning verifiable ground-truth, covering **all refactored skills with their own `references/` bundles**.
 
 ### What the smoke tests do NOT prove
 
@@ -156,7 +168,7 @@ Those need real interactive sessions with target projects and cost $5-20+ per ho
 
 ### Combined cost + pollution
 
-Two rounds × 3 hosts = 6 invocations. Total spend ~$0.20. **Zero `.evidraft/` writes** produced by any test (prompts were explicit "do not start any workflow, do not write any files"). Working tree clean after each round.
+Three rounds × 3 hosts = 9 invocations. Total spend ~$0.35. **Zero `.evidraft/` writes** produced by any test (prompts were explicit "do not start any workflow, do not write any files"). Working tree clean after each round.
 
 Test prompts and per-host transcripts archived in `/tmp/a1-dogfood/` for the current session; not checked into the repo.
 
