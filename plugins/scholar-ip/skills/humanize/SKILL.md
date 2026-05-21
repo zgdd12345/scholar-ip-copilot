@@ -5,7 +5,7 @@ kind: skill
 phase: paper
 description: >
   Loaded by /scholar:polish. Ships ~12 concrete rewriting rules (Williams /
-  Pinker / Strunk lineage), a banned-phrase lint list (≥15 AI-tell n-grams),
+  Pinker / Strunk lineage), a banned-phrase lint list (~20 AI-tell n-grams),
   the verbatim academic-integrity ethics block, the external-model routing
   config under .evidraft/project.yaml.style.humanize.*, and the unified-diff
   log specification. Not a detector-evasion tool.

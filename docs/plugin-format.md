@@ -29,10 +29,10 @@ adapters:
     out:    .claude/plugins/scholar-ip/
   - id: codex-cli
     status: mvp
-    out:    .codex/prompts/scholar-ip/
+    out:    .codex/prompts/scholar-ip/   # + sync into .agents/skills/scholar-skill-<id>/
   - id: opencode
-    status: planned
-    out:    .opencode/plugins/scholar-ip/
+    status: mvp                          # commands / agents / skills shipped; hooks not rendered
+    out:    .opencode/{commands,agents,skills}/
 
 # Default tool / file safety policy. Adapters apply these where the host supports it.
 safety:
@@ -184,6 +184,8 @@ generate.py
 └── main()                        # CLI: --plugin ... --out ...
 ```
 
-The Claude Code adapter emits the `.claude/` layout. The Codex CLI adapter emits flat prompt files (and inlines any subagent it cannot represent). The OpenCode adapter is documented but stubbed.
+The Claude Code adapter emits the `.claude/` layout (commands, agents, skill bundles, executable hook scripts via `plugin.json`). The Codex CLI adapter emits flat prompt files under `.codex/prompts/scholar-ip/`, inlines any subagent it cannot represent, and syncs each skill bundle to `.agents/skills/scholar-skill-<id>/` (Codex's actual skill-discovery root); cross-skill markdown links into `references/` are rewritten by `_command_skill_body` so the flattened layout still resolves (conformance invariant K). The OpenCode adapter emits commands, agents, and full skill bundles under `.opencode/{commands,agents,skills}/`; hooks are intentionally not rendered (they would need to be JS modules under `.opencode/plugins/`, which is on the roadmap).
+
+Conformance invariants A–L (see `tests/README.md`) gate every render: I asserts bundle propagation, J asserts source-tree relative-link integrity, K asserts rendered-output relative-link integrity (the regression catcher for adapter path-flattening), L asserts YAML `references[].doc:` resolution.
 
 See `packages/adapters/<host>/README.md` for the exact mapping.

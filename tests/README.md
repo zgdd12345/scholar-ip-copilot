@@ -1,12 +1,12 @@
 # tests/
 
-Executable pytest suite. **52 tests** across **5 test files**; `make verify` re-renders + runs everything in under a second.
+Executable pytest suite. **53 tests** across **5 test files**; `make verify` re-renders + runs everything in under a second.
 
 ## Run
 
 ```bash
 source .venv/bin/activate
-python -m pytest tests/        # 52 passed
+python -m pytest tests/        # 53 passed
 ```
 
 ## Layout

@@ -2,6 +2,8 @@
 
 > The projects below shaped EviDraft's command set, agent roster, and data model. We borrow architecture and command design. We do **not** copy code unless the license permits and provenance is preserved. Every recommendation here is an *idea-level* reference, not a code import.
 
+_Last refreshed: 2026-05-22. Original snapshot 2026-05-18; refreshed for the 9→15 agent expansion and the v0.2 host-native skill landing pattern._
+
 Format: each entry has **What stands out**, **What EviDraft adopts**, **What we skip (for now)**, **Risks**.
 
 ---
@@ -96,10 +98,10 @@ Multi-agent academic writing review.
 - **What stands out**
   - A clean roster: consistency-checker, logic-reviewer, technical-reviewer, writing-reviewer, latex-layout-auditor, bibliography-auditor, research-analyst, brainstormer, paper-crawler, prose-polisher, section-drafter, latex-figure-specialist.
 - **What EviDraft adopts**
-  - Agent roster is the basis for our 9 agents: `literature-reviewer`, `codebase-analyst`, `experiment-analyst`, `novelty-critic`, `methodology-reviewer`, `latex-editor`, `patent-engineer`, `claim-drafter`, `evidence-auditor`.
+  - Agent roster is the basis for our 15 agents: the original 9 (`literature-reviewer`, `codebase-analyst`, `experiment-analyst`, `novelty-critic`, `methodology-reviewer`, `latex-editor`, `patent-engineer`, `claim-drafter`, `evidence-auditor`) plus 6 added since: `brainstormer`, `consistency-checker`, `deep-research-orchestrator`, `paper-critic`, `prose-polisher`, `screener`.
   - "Multiple specialised reviewers > one generalist" pattern.
 - **What we skip**
-  - We collapse `prose-polisher` and `writing-reviewer` into `latex-editor` for MVP; they can split out later.
+  - n/a — the prose-polisher / writing-reviewer collapse mentioned in the MVP plan was reversed: `prose-polisher` is now a first-class agent owning humanize output, distinct from `latex-editor`.
 
 ---
 
@@ -158,7 +160,7 @@ Codebase indexing and semantic search.
   - Repo wiki + architecture summary.
   - Method-to-code mapping.
 - **What EviDraft adopts**
-  - `code-intel` skill (formerly planned as `code-intel-mcp`; v0.2 lives as a skill that uses Glob/Grep/Read + optional `Bash:tree-sitter*`).
+  - `code-intel` skill (formerly planned as `code-intel-mcp`; v0.2 ships as a host-native skill using `Glob`/`Grep`/`Read` — `tree-sitter` is documented as an optional accelerator but is not bundled).
   - `codebase-analyst` agent and the `code/method_to_code.md` artefact.
 - **What we skip**
   - Real vector index — stubbed in MVP, listed under v0.5.
@@ -175,7 +177,7 @@ Codebase indexing and semantic search.
 | Patent disclosure from code | cc-skill-patent-disclosure | Bound to evidence store + multi-role review out of the box |
 | Paper vs code audit | open-paper-machine | First-class command + 5-state verdict (CONFIRMED / PARTIAL / MISSING / MISMATCH / NOT_AUDITABLE) |
 | Evidence discipline | simple-auto-research-skill | Promoted to a global hook, not an optional check |
-| Multi-agent review | academic-writing-agents | Consolidated 9 agents covering both paper and patent |
+| Multi-agent review | academic-writing-agents | 15 specialised agents covering both paper and patent (9 original + 6 added: brainstormer, consistency-checker, deep-research-orchestrator, paper-critic, prose-polisher, screener) |
 | Code understanding | reporecall / claude-context | MCP interface decoupled from any one indexing impl |
 
 ---

@@ -28,7 +28,10 @@
 ┌────────────────┐   ┌──────────────────┐   ┌───────────────┐   ┌───────────┐
 │ Claude Code    │   │ Codex CLI        │   │ OpenCode      │   │  Future   │
 │ adapter        │   │ adapter          │   │ adapter       │   │  hosts    │
-│ (.claude/...)  │   │ (.codex/prompts/)│   │ (planned)     │   │           │
+│ (.claude/...)  │   │ (.codex/prompts/ │   │ (.opencode/   │   │           │
+│                │   │  + .agents/      │   │  commands/    │   │           │
+│                │   │  skills/)        │   │  agents/      │   │           │
+│                │   │                  │   │  skills/)     │   │           │
 └────────────────┘   └──────────────────┘   └───────────────┘   └───────────┘
 
 ┌──────────────────────────────────────────────────────────────────────────┐
@@ -46,7 +49,8 @@ The contract of the system. Anything authored downstream must conform.
 
 | Schema | Purpose |
 |---|---|
-| `project.schema.json` | `.evidraft/project.yaml` — project type, status, artefact paths, evidence rules |
+| `plugin.schema.json` | top-level `plugin.yaml` — id / manifest_version / adapters / safety policy |
+| `project.schema.json` | `.evidraft/project.yaml` — project type, status, artefact paths, evidence rules, scope/style/reviewers/lit_deep |
 | `evidence.schema.json` | each line of `.evidraft/evidence/evidence.jsonl` |
 | `paper.schema.json` | manuscript metadata (sections, target venue, authors) |
 | `patent.schema.json` | invention disclosure + claim chart metadata |
@@ -84,10 +88,10 @@ The user-facing surface. Files are authored to be readable both by humans and by
 
 | Folder | Contents |
 |---|---|
-| `commands/` | `/scholar:using`, `/scholar:paper-*`, `/scholar:patent-*` — agent instructions, one per slash command |
-| `agents/` | Specialist subagents (literature-reviewer, codebase-analyst, novelty-critic, …) |
-| `skills/` | Reusable how-tos that any command/agent can pull in (literature-review, evidence-check, latex-writing, …) |
-| `hooks/` | Guardrails (citation-guard, evidence-consistency, latex-compile, sensitive-file-guard) |
+| `commands/` | 21 files: `/scholar:using`, `/scholar:paper-*`, `/scholar:patent-*` — agent instructions, one per slash command |
+| `agents/` | 15 specialist subagents (literature-reviewer, codebase-analyst, novelty-critic, brainstormer, consistency-checker, deep-research-orchestrator, paper-critic, prose-polisher, screener, …) |
+| `skills/` | 25 reusable how-tos that any command/agent can pull in (literature-review, evidence-check, latex-writing, …) |
+| `hooks/` | 7 guardrail specs (citation-guard, evidence-consistency, external-write-zone, humanize-evidence-preserve, latex-compile, scope-required, sensitive-file-guard) plus 3 executable `.sh` scripts (citation-guard, scope-required, session-start) and the `_lib.sh` helper |
 | `templates/` | `paper-project/` and `patent-project/` — scaffolded on `/scholar:paper-init` and `/scholar:patent-init` |
 
 Authoring rules:
@@ -109,9 +113,9 @@ Adapters are small generators. Each one:
 
 | Adapter | Output |
 |---|---|
-| `claude-code/` | `<dest>/commands/*.md`, `<dest>/agents/*.md`, `<dest>/skills/*/SKILL.md`, plus Claude Code `hooks` declared in plugin.json |
-| `codex-cli/` | Codex prompt/workflow files. If Codex does not support a feature (e.g. sub-agents), the adapter inlines that role into the parent prompt. |
-| `opencode/` | Planned — docs first, generator later. |
+| `claude_code/` | `<dest>/commands/*.md`, `<dest>/agents/*.md`, `<dest>/skills/*/SKILL.md`, plus Claude Code `hooks` declared in plugin.json (3 executable hooks ship: citation-guard, scope-required, session-start). |
+| `codex_cli/` | Codex prompt/workflow files under `.codex/prompts/` + `.codex/plugins/`, plus a sync of skill bundles into `.agents/skills/scholar-skill-<id>/` (Codex's actual skill-discovery directory). Subagents Codex cannot represent are inlined into the parent prompt; cross-skill links into `references/` are rewritten by `_command_skill_body` (invariant K). |
+| `opencode/` | `.opencode/commands/*.md`, `.opencode/agents/*.md`, `.opencode/skills/<id>/...` with bundle propagation. Hooks are **not** rendered — they would need to be JS modules under `.opencode/plugins/`. |
 
 This keeps platform churn out of the plugin author's life.
 
@@ -228,10 +232,13 @@ Hooks enforce the principles in `README.md`. They live in `plugins/scholar-ip/ho
 
 | Hook | Trigger | Behaviour |
 |---|---|---|
-| `citation-guard` | writing related_work / intro / abstract / draft | Reject strong claim verbs (SOTA, novel, first, significant, outperform, state-of-the-art) without a `citation_key` or `evidence_id`. |
-| `evidence-consistency` | writing paper / patent draft | Every literature claim must trace to `evidence.jsonl`; every number must trace to `experiments/`; every code claim must trace to `code/method_to_code.md`. |
-| `latex-compile` | `.tex` modified | Run `latexmk` (or stubbed interface). Parse errors, suggest fixes. |
-| `sensitive-file-guard` | read of `.env`, `secrets/`, `credentials.json`, `*.pem`, `*.key` | Deny by default; require explicit user confirmation. |
+| `citation-guard` | writing related_work / intro / abstract / draft | Reject strong claim verbs (SOTA, novel, first, significant, outperform, state-of-the-art) without a `citation_key` or `evidence_id`. Executable `.sh` shipped to Claude Code. |
+| `evidence-consistency` | writing paper / patent draft | Every literature claim must trace to `evidence.jsonl`; every number must trace to `experiments/`; every code claim must trace to `code/method_to_code.md`. Advisory spec. |
+| `external-write-zone` | `/scholar:xreview` subagent writes | Lock external-agent output to `.evidraft/reviews/`; reject writes outside the zone. Advisory spec. |
+| `humanize-evidence-preserve` | `/scholar:polish` rewrites | Block any hunk that touches a numeric literal, `\cite{}` key, `ev_NNNN` marker, registered named entity, or empirical hedging adverb. Advisory spec. |
+| `latex-compile` | `.tex` modified | Run `latexmk` (or stubbed interface). Parse errors, suggest fixes. Advisory spec. |
+| `scope-required` | gated `/scholar:*` invocations | Refuse `/scholar:paper-idea`, `/scholar:patent-scout`, `/scholar:paper-draft`, `/scholar:patent-claims`, `/scholar:deepresearch`, `/scholar:polish` if no fresh `.evidraft/scope/<date>-<slug>.md` exists. Executable `.sh` shipped to Claude Code. |
+| `sensitive-file-guard` | read of `.env`, `secrets/`, `credentials.json`, `*.pem`, `*.key` | Deny by default; require explicit user confirmation. Advisory spec. |
 
 Hooks are advisory in MVP — they are described in the plugin and adapters wire them into host hook systems where available.
 
@@ -241,6 +248,6 @@ Hooks are advisory in MVP — they are described in the plugin and adapters wire
 
 See [`roadmap.md`](roadmap.md). Short version:
 
-**MVP does**: workflow skeleton, prompts, schemas, adapters for Claude Code + Codex CLI, two templates, three examples.
+**MVP does**: workflow skeleton, prompts, schemas, adapters for Claude Code + Codex CLI + OpenCode, two templates, three examples, 12 conformance invariants (A–L) gating the renderer.
 
 **MVP doesn't**: semantic code index, web UI, offline / deterministic backends. Online retrieval, PDF fetch, and LaTeX compilation are delivered through v0.2 host-native skills (`WebSearch` / `WebFetch` / `Bash:latexmk*`); MCP backends for those same skills are reserved for v0.3+.

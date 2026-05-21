@@ -6,7 +6,7 @@ Everything EviDraft produces lives on disk under the project's `.evidraft/` dire
 <your-project>/
 ├── .evidraft/
 │   ├── project.yaml           project type, status, rules, hooks, scope/style/reviewers/lit_deep
-│   ├── scope/                 /scholar:brainstorming output (dated, gated by scope-required hook)
+│   ├── scope/                 /scholar:brainstorming output (dated, gated by scope-required hook); created on-demand
 │   │   └── YYYY-MM-DD-<slug>.md
 │   ├── evidence/evidence.jsonl
 │   ├── literature/
@@ -14,7 +14,7 @@ Everything EviDraft produces lives on disk under the project's `.evidraft/` dire
 │   │   ├── matrix.md
 │   │   └── (deepresearch artefacts: plan.yaml, candidates.jsonl,
 │   │        screening_log.csv, clusters.yaml, critique/, citation_audit.json,
-│   │        related_work.draft.md)
+│   │        evidence_map.json, related_work.draft.md)
 │   ├── ideas/
 │   │   ├── novelty_matrix.md
 │   │   ├── risk_matrix.md
@@ -26,10 +26,10 @@ Everything EviDraft produces lives on disk under the project's `.evidraft/` dire
 │   ├── experiments/
 │   │   ├── result_analysis.md
 │   │   └── tables/
-│   ├── style/                 /scholar:polish humanize output
+│   ├── style/                 /scholar:polish humanize output; created on-demand
 │   │   ├── humanize-<ts>.log
 │   │   └── humanize-<ts>.report.md
-│   ├── reviews/               /scholar:xreview external-agent reviews (write zone locked here)
+│   ├── reviews/               /scholar:xreview external-agent reviews (write zone locked here); created on-demand
 │   │   ├── <agent>-<persona>-<ts>.md
 │   │   └── .last.yaml
 │   └── patent/                # only if project_type ∈ patent, mixed
@@ -104,15 +104,19 @@ Field meanings:
 | Field | Required | Notes |
 |---|---|---|
 | `id` | yes | `ev_` + 4-digit zero-padded counter |
-| `type` | yes | `paper` / `experiment` / `code` / `patent` / `note` |
+| `type` | yes | `paper` / `experiment` / `code` / `patent` / `note` / `invention` / `number` |
 | `source` | yes | URI-ish: `arxiv:…`, `doi:…`, file path, patent number, URL |
 | `claim` | yes | one sentence, no hedging |
 | `support` | yes | where in the source the claim is backed up |
 | `citation_key` | conditional | required if `type=paper`; BibTeX key in `references.bib` |
-| `file_path` | conditional | required if `type=code` or numeric experiment row |
-| `line_range` | conditional | `"start:end"` (inclusive) when applicable |
+| `file_path` | conditional | required if `type=code`, or if the record points at a specific row in a numeric/csv source (`type=experiment` / `type=number`) |
+| `line_range` | conditional | `"start:end"` (inclusive); required whenever `file_path` points at a specific row/range |
 | `confidence` | yes | `high` / `medium` / `low` |
 | `verified` | yes | boolean; auditor sets this after manual check |
+| `supersedes` | optional | `ev_NNNN` id of a prior record this one corrects (append-only history) |
+| `tags` | optional | string array; free-form labels (e.g. `[entity]`, `[v0.2]`) |
+| `added_by` | optional | who or what added the row (`/scholar:paper-lit`, `evidence-auditor`, …) |
+| `added_at` | optional | ISO-8601 timestamp |
 
 Validated by [`packages/core/schemas/evidence.schema.json`](../packages/core/schemas/evidence.schema.json).
 
@@ -173,7 +177,7 @@ A long-form markdown with the sections required by an attorney intake. See `plug
 - Relative paths are relative to the project root.
 - `line_range` is 1-indexed and inclusive on both ends.
 - All file paths use forward slashes; Windows users still see forward slashes in artefacts.
-- `evidence.jsonl` is append-mostly. Old entries are kept; new entries get new ids; updates re-emit with a new id and a `supersedes` pointer if needed (planned in v0.2).
+- `evidence.jsonl` is append-only. Old entries are kept; corrections re-emit with a new id and a `supersedes` pointer at the prior id.
 
 ---
 

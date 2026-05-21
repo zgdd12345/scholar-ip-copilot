@@ -248,7 +248,6 @@ Decisions deliberately deferred or rejected, with the reasoning so they don't ne
 | `shutil.copy2` (preserve mtime + mode bits) | No source bundle currently ships executable scripts. When the first `+x` `scripts/*.sh` lands, switch to `copy2` then. One-line change. |
 | Schemas as separate `.yaml` / `.json` files instead of MD-fenced blocks | Tools today don't consume schemas directly; LLM reads them from the markdown. Switch when a real `jsonschema validate` step appears. |
 | Render output goes to an external marketplace repo (superpowers Codex pattern) | We render in-tree to `.codex/plugins/scholar/`; sufficient until a third-party marketplace requirement appears. |
-| Codex intra-bundle link rewriting (Option A) | Convention (Option B): no cross-skill links from inside `references/*.md`. Cross-skill linkage stays at SKILL.md level where Codex's `scholar-skill-<id>` prefix is consistent. |
 | `_dry_run_paths` includes only Path A bundle siblings, not future runtime artefacts | Bundle propagation is the only render-time side effect today. Add to `_dry_run_paths` if/when a new side effect appears. |
 
 ---

@@ -2,7 +2,7 @@
 
 **Evidence-grounded academic and patent copilot for codebases, experiments, literature, LaTeX papers, and invention disclosures.**
 
-`scholar-ip-copilot` (product name: **EviDraft**, plugin id: `scholar-ip`) is a cross-agent plugin library that turns an existing **code repository + experiment data + literature** into:
+`scholar-ip-copilot` (product name: **EviDraft**, plugin id: `scholar`) is a cross-agent plugin library that turns an existing **code repository + experiment data + literature** into:
 
 - a method-to-code map and a repo summary,
 - a literature matrix, an evidence store, and a related-work draft,
@@ -44,9 +44,9 @@ The plugin is authored once as a platform-neutral manifest (`plugin.yaml` + `com
 
 | Host | Status | Adapter path |
 |---|---|---|
-| Claude Code | MVP (first-class) | `packages/adapters/claude-code/` |
-| Codex CLI | MVP (prompt/workflow files) | `packages/adapters/codex-cli/` |
-| OpenCode | Planned (docs only) | `packages/adapters/opencode/` |
+| Claude Code | MVP (first-class) | `packages/adapters/claude_code/` |
+| Codex CLI | MVP (prompt/workflow files + `.agents/skills/` sync) | `packages/adapters/codex_cli/` |
+| OpenCode | MVP (commands / agents / skills auto-discovery; hooks not rendered) | `packages/adapters/opencode/` |
 | Other coding agents | Future | follow `packages/core/schemas/command.schema.json` |
 
 ---
@@ -247,8 +247,9 @@ cp -R .opencode/agents   ~/.config/opencode/agents
 cp -R .opencode/skills   ~/.config/opencode/skills
 ```
 
-Note: 7 source hooks are **not** rendered for OpenCode (hooks must be JS
-modules under `.opencode/plugins/`). See
+Note: hook specs (7 source files; 3 of them ship as executable shell scripts
+to Claude Code) are **not** rendered for OpenCode (hooks must be JS modules
+under `.opencode/plugins/`). See
 [`packages/adapters/opencode/README.md`](packages/adapters/opencode/README.md)
 for the gap.
 
