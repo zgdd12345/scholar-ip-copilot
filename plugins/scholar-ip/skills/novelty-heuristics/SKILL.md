@@ -35,7 +35,7 @@ references:
   - doc: ../claim-parser/SKILL.md
   - doc: ../claim-chart-builder/SKILL.md
   - doc: ../../agents/novelty-critic.md
-  - doc: ../../../docs/legal-and-ethics.md
+  - doc: ../../../../docs/legal-and-ethics.md
 ---
 
 # novelty-heuristics

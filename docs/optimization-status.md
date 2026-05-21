@@ -34,7 +34,7 @@ Plus 57+ on-demand `references/*.md` files that ship to every host via bundle pr
 | Conformance dry-run symmetry tests | `5305875` | Three tests, one per adapter: `set(dry_run_paths) == set(render(...))`. |
 | `_shared/README.md` documenting loader + bundle contracts | `b40572f` | New file; covers symlink trust model and `shutil.copyfile` permission caveat. |
 
-**Test totals after Path A**: 49 passing across 5 test files; conformance suite = 18 parametrised tests across 9 invariants (A through I). After B2 below: 19 tests across 10 invariants (A through J). After B3 below: 21 tests across 11 invariants (A through K); full `pytest tests/` reports 52 passing.
+**Test totals after Path A**: 49 passing across 5 test files; conformance suite = 18 parametrised tests across 9 invariants (A through I). After B2 below: 19 tests across 10 invariants (A through J). After B3 below: 21 tests across 11 invariants (A through K); 52 passing. After the 2026-05-21 audit pass (invariant L + 5 YAML doc-ref fixes + README/tests-README drift cleanup): **22 tests across 12 invariants (A through L); full `pytest tests/` reports 53 passing**.
 
 ---
 
@@ -103,6 +103,21 @@ environment-fragile) into a stable pytest invariant.
 ## ✅ DONE — D2 (README "Progressive disclosure" section)
 
 Added a top-level section between "What you get" and "Repository layout" that explains the pattern to GitHub visitors: thin SKILL.md + on-demand `references/`, the current metric table (12 splits → -59%, 57 references), the per-session loading semantics, and pointers to the authoring rule (`docs/architecture.md` rule 4) and the living tracker (this file). Conformance invariants I + J are cited as the CI gates that keep the propagation honest.
+
+---
+
+## ✅ DONE — Second-round audit (2026-05-21)
+
+A second-round audit pass found four classes of issue that the existing invariants A-K did not gate:
+
+| Issue | Severity | Resolution |
+|---|---|---|
+| 5 broken YAML `references[].doc:` paths in source | minor — doc only, never rendered as runtime link, but stale pointers mislead the model | Fixed in source (2× `../../plugin.yaml` → `../plugin.yaml`; 1× `../../../docs/...` → `../../../../docs/...`; 2× `../scholar:X/SKILL.md` → `../X/SKILL.md`) |
+| README skill/command counts off (24 vs 25 / 20 vs 21 / 44 vs 46) — drift accumulated since 2026-05 when `using-deep-research` + `xref-audit` landed without README updates | minor | Fixed 4 lines in `README.md` plus a stale test count claim ("17 conformance invariants + 39 unit tests" → "21 conformance tests + 31 unit tests = 52 total") |
+| `tests/README.md` claimed pytest harness "planned for v0.2"; actual: full pytest suite + 12 conformance invariants exist | wrong reader-facing claim | Rewrote `tests/README.md` to document the current 5-file / 53-test layout with the per-invariant A-L table |
+| New invariant L (`test_invariant_l_frontmatter_doc_refs_resolve`) gates the YAML-doc-ref class | structural — same shape as J but for YAML frontmatter pointers | Implemented; accepts files OR directories (templates/ refs are intentional dir pointers); failed against the broken state, passed after the 5 fixes |
+
+The audit dispatched 4 parallel Explore subagents covering: `examples/` fixtures, YAML refs, docs-vs-reality drift, and hooks/agent cross-refs. The fourth subagent's "5 broken hooks" claim turned out to be a misread (the hooks are advisory-only spec files inlined into command bodies, not executable scripts) — disregarded.
 
 ---
 

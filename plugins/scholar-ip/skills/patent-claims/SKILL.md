@@ -26,7 +26,7 @@ allowed_tools: [Read, Glob, Grep, Write, Edit]
 hooks: [citation-guard, evidence-consistency]
 references:
   - doc: ../../../../docs/legal-and-ethics.md
-  - doc: ../scholar:patent-disclosure/SKILL.md
+  - doc: ../patent-disclosure/SKILL.md
   - doc: ../evidence-check/SKILL.md
 ---
 

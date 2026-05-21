@@ -181,7 +181,7 @@ make install
 | Path | Purpose |
 |---|---|
 | `.claude/plugins/scholar-ip/` | Claude Code plugin (with `.claude-plugin/plugin.json` + `hooks/hooks.json` + 3 executable hooks) |
-| `.codex/plugins/scholar/` | Codex plugin (with `.codex-plugin/plugin.json` + 44 skills) |
+| `.codex/plugins/scholar/` | Codex plugin (with `.codex-plugin/plugin.json` + 46 skills) |
 | `.opencode/{commands,agents,skills}/` | OpenCode auto-discovery layout |
 | `.agents/skills/scholar-*` | Codex's actual skill-discovery directory (synced from `.codex/plugins/scholar/skills/`) |
 
@@ -204,9 +204,9 @@ claude plugin validate .claude/plugins/scholar-ip
 ```
 
 In the new session you get:
-- 20 `/scholar:*` slash commands (each with a `## Dispatch plan` if it declares subagents)
+- 21 `/scholar:*` slash commands (each with a `## Dispatch plan` if it declares subagents)
 - 15 subagents listed in `/agents` (per-agent `model:` + `effort:` hints)
-- 24 skills (`/skills` lists them and the model implicit-matches against the rich descriptions)
+- 25 skills (`/skills` lists them and the model implicit-matches against the rich descriptions)
 - 3 real hooks firing on session start / `Write|Edit` / gated `/scholar:*` prompts
 
 #### Codex CLI
@@ -222,8 +222,8 @@ Then add this once to `~/.codex/config.toml` (alongside any other `[plugins."...
 enabled = true
 ```
 
-Restart Codex. `/skills` now lists **44** entries — 20 commands rendered as
-`scholar-<id>` plus 24 source skills as `scholar-skill-<id>`. Skills are
+Restart Codex. `/skills` now lists **46** entries — 21 commands rendered as
+`scholar-<id>` plus 25 source skills as `scholar-skill-<id>`. Skills are
 auto-discovered from `<repo>/.agents/skills/` (walked from cwd up to the
 worktree root). The marketplace + config block are forward-looking; until
 Codex 0.131+ syncs local marketplaces the `.agents/skills/` path is what
@@ -235,7 +235,7 @@ Just stay inside the repo — OpenCode walks `cwd` for
 `.opencode/{commands,agents,skills}/`. No registration needed:
 
 ```bash
-opencode    # in the repo root → 20 commands + 15 agents + 24 skills
+opencode    # in the repo root → 21 commands + 15 agents + 25 skills
 ```
 
 For **global** access (anywhere on the machine), copy or symlink:
@@ -258,7 +258,7 @@ for the gap.
 make verify
 ```
 
-This re-renders, runs the 17 conformance invariants + 39 unit tests, and
+This re-renders, runs the 21 conformance tests (across 12 invariants A–L) + 31 unit tests (52 total), and
 prints which CLIs are detected. Use it as a smoke test after `git pull`
 or before reporting a host-specific issue.
 

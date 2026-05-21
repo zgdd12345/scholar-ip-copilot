@@ -916,3 +916,41 @@ def test_invariant_k_rendered_links_resolve(
         "rendered output; adapter likely failed to rewrite a flattened "
         "cross-skill path:\n  " + "\n  ".join(offenders)
     )
+
+
+# ---------------------------------------------------------------------------
+# L. frontmatter `references[*].doc` resolution (source-tree)
+# ---------------------------------------------------------------------------
+
+
+def test_invariant_l_frontmatter_doc_refs_resolve(plugin: Plugin) -> None:
+    """For every source markdown with a frontmatter ``references:`` block,
+    every ``doc:`` entry must resolve to a real path on disk (file *or*
+    directory — template references point at directories intentionally).
+
+    This is the YAML-frontmatter counterpart to invariant J's markdown-link
+    check. Invariant J only scans ``[text](path)`` syntax in the body; it
+    cannot see frontmatter pointers. A real audit caught five stale
+    ``doc:`` paths post-Path-B (two ``../../plugin.yaml`` instead of
+    ``../plugin.yaml``; one ``../../../docs/...`` off-by-one;
+    two ``../scholar:X/`` typos using slash-command syntax in a path).
+    This invariant gates regression on the same class of authoring slip.
+    """
+    offenders: list[str] = []
+    for d in plugin.commands + plugin.agents + plugin.skills + plugin.hooks:
+        refs = (d.meta or {}).get("references") or []
+        for r in refs:
+            doc = r.get("doc") if isinstance(r, dict) else None
+            if not doc:
+                continue
+            resolved = (d.path.parent / doc).resolve()
+            if not resolved.exists():
+                rel = d.path.relative_to(REPO_ROOT)
+                offenders.append(
+                    f"{rel}: references[].doc: {doc} -> {resolved} (missing)"
+                )
+
+    assert not offenders, (
+        f"{len(offenders)} unresolvable frontmatter doc: ref(s); fix the "
+        "path or update the caller:\n  " + "\n  ".join(offenders)
+    )

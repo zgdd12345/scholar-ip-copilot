@@ -17,7 +17,7 @@ behaviour: "Deny reads of secrets, credentials, and key material by default; req
 failure_mode: block
 references:
   - doc: ../../../docs/legal-and-ethics.md
-  - doc: ../../plugin.yaml
+  - doc: ../plugin.yaml
 ---
 
 # sensitive-file-guard

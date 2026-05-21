@@ -13,7 +13,7 @@ references:
   - doc: ../skills/external-agent-bridge/SKILL.md
   - doc: ../commands/xreview.md
   - doc: ../../../docs/legal-and-ethics.md
-  - doc: ../../plugin.yaml
+  - doc: ../plugin.yaml
 ---
 
 # external-write-zone

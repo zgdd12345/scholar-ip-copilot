@@ -28,7 +28,7 @@ references:
   - doc: ../../../../docs/legal-and-ethics.md
   - doc: ../evidence-check/SKILL.md
   - doc: ../codebase-audit/SKILL.md
-  - doc: ../scholar:patent-claims/SKILL.md
+  - doc: ../patent-claims/SKILL.md
 ---
 
 # patent-disclosure
