@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -51,6 +52,14 @@ from .._shared.loader import (
 CMD_PREFIX = "scholar-"
 SKILL_PREFIX = "scholar-skill-"
 
+# Source commands at `plugins/scholar-ip/commands/<cmd>.md` reach a sibling
+# skill via `../skills/<X>/...`. Codex flattens both commands and skills
+# under a single `skills/` dir, so the same link from the rendered
+# `skills/scholar-<cmd>/SKILL.md` must read `../scholar-skill-<X>/...` to
+# resolve. Source-level invariant J accepts the source path; rendered-output
+# invariant K asserts this rewrite happened.
+_CROSS_SKILL_LINK_RE = re.compile(r"\]\(\.\./skills/([^/)\s]+)/")
+
 
 def _agents_by_id(plugin: Plugin) -> dict[str, FrontmatterDoc]:
     return {d.id: d for d in plugin.agents}
@@ -62,6 +71,10 @@ def _hooks_by_id(plugin: Plugin) -> dict[str, FrontmatterDoc]:
 
 def _strip_body(body: str) -> str:
     return body.strip("\n")
+
+
+def _rewrite_cross_skill_links(text: str) -> str:
+    return _CROSS_SKILL_LINK_RE.sub(rf"](../{SKILL_PREFIX}\1/", text)
 
 
 def _command_skill_body(
@@ -149,7 +162,7 @@ def _command_skill_body(
             lines.append("")
             lines.append(_strip_body(ag.body))
             lines.append("")
-    return "\n".join(lines).rstrip() + "\n"
+    return _rewrite_cross_skill_links("\n".join(lines).rstrip() + "\n")
 
 
 def _skill_skill_body(doc: FrontmatterDoc) -> str:

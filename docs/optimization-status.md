@@ -34,7 +34,7 @@ Plus 57+ on-demand `references/*.md` files that ship to every host via bundle pr
 | Conformance dry-run symmetry tests | `5305875` | Three tests, one per adapter: `set(dry_run_paths) == set(render(...))`. |
 | `_shared/README.md` documenting loader + bundle contracts | `b40572f` | New file; covers symlink trust model and `shutil.copyfile` permission caveat. |
 
-**Test totals after Path A**: 49 passing across 5 test files; conformance suite = 18 parametrised tests across 9 invariants (A through I). After B2 below: 19 tests across 10 invariants (A through J).
+**Test totals after Path A**: 49 passing across 5 test files; conformance suite = 18 parametrised tests across 9 invariants (A through I). After B2 below: 19 tests across 10 invariants (A through J). After B3 below: 21 tests across 11 invariants (A through K); full `pytest tests/` reports 52 passing.
 
 ---
 
@@ -106,6 +106,20 @@ Added a top-level section between "What you get" and "Repository layout" that ex
 
 ---
 
+## ✅ DONE — B3 (Codex Option A — cross-skill link rewriting)
+
+Originally deferred under the assumption that cross-skill links only happen at SKILL.md ↔ SKILL.md level (where the consistent `scholar-skill-` prefix is enough). A post-Path-B audit of `make install` output found **11 broken links** in the rendered `.codex/plugins/scholar/skills/scholar-deepresearch/SKILL.md` — the deepresearch command body links into another skill's *references*, deeper than SKILL.md, which Option B doesn't cover.
+
+| Piece | Notes |
+|---|---|
+| `packages/adapters/codex_cli/generate.py` rewrite | `_CROSS_SKILL_LINK_RE` matches `](../skills/<X>/` and rewrites to `](../scholar-skill-<X>/` as the last step of `_command_skill_body`. Covers the command body AND the inlined-subagent prose. ~10 LOC. |
+| Conformance invariant K — `test_invariant_k_rendered_links_resolve` | Parametrised over `(claude_code, codex_cli)`; renders each adapter into a temp dir then runs the same link-resolution scan as J against the rendered tree. **Catches the regression class source-level J cannot see** — adapter path-flattening that breaks links in the rendered output even when they're sound at source level. Two test cases; CC passes naturally (its layout preserves source paths). |
+| Verification | Re-rendered all three host trees via `make install`; broken-link count across `.codex/`, `.agents/skills/`, `.claude/`, `.opencode/skills/`, `.opencode/commands/` is now **0**. Spot-checked rendered `scholar-deepresearch/SKILL.md`: 12 links now read `../scholar-skill-deep-literature-review/references/...` (correctly resolving) instead of `../skills/deep-literature-review/references/...` (broken). |
+
+The decision-log entry "Codex link policy: Option B (no rewriting)" is **superseded** — see the updated entry at the bottom of this document.
+
+---
+
 ## 🚧 IN FLIGHT
 
 (nothing currently in flight)
@@ -131,7 +145,6 @@ _Medium-priority items are exhausted._ C-list ⏳ candidates are all split (rows
 
 | Item | Effort | Notes |
 |---|---|---|
-| **B3. Codex Option A — intra-bundle link rewriting** | ~30 lines Python + 1 test | Defaulted to Option B (convention: no cross-skill links inside `references/*.md`). Revisit only if an author actually wants to link cross-skill from inside a reference. |
 | **D1. OpenCode 1.3.0 → 1.15.5 upgrade** | User-driven | The spike found 1.3.0 ignored `config.skills.paths` and our source frontmatter shape. A newer OpenCode *might* fix one or both. Until verified empirically on the newer release, do not rely on it. |
 | **D3. "Authoring a new skill" guide** | ~50 lines docs | The bundle pattern is now in place but undocumented in a user-facing how-to. Write when external contributors arrive. |
 | **D4. Codex rsync-only mode re-evaluation** | Larger; ~100 lines bash | superpowers ships to Codex via `rsync` to an external marketplace fork. Could simplify our codex_cli adapter if the gain outweighs the new bash-script complexity. Defer to when Codex output diverges meaningfully from claude_code / opencode in ways the current Python adapter handles poorly. |
@@ -174,7 +187,7 @@ Important choices made along the way, with one-line "why":
 - **Skills are bundles, commands are not.** Skills are reusable units with multi-faceted content; commands are thin executable contracts that should point at skills. Asymmetry is deliberate.
 - **One-skill-per-directory discovery (not `rglob`).** Eliminates the misclassification class where `references/foo.md` got loaded as a separate skill.
 - **`_shared/bundle.py` extracted at 3 byte-identical copies.** YAGNI at 1-2; do it the moment the third copy lands. Extraction confirmed via AST diff before the refactor commit.
-- **Codex link policy: Option B (no rewriting).** Convention is enforceable by code review; auto-rewriting adds adapter-specific code paths we can avoid.
+- **Codex link policy: Option A (rewrite at render time).** ~~Originally Option B (convention: no rewriting).~~ A post-Path-B audit of rendered `.codex/` output found 11 broken links in `scholar-deepresearch/SKILL.md` — the deepresearch command body links into another skill's `references/` (deeper than SKILL.md), which Option B does not cover. The rewrite (`](../skills/<X>/` → `](../scholar-skill-<X>/`) is now done at render time in `_command_skill_body`; rendered-output invariant K (`test_invariant_k_rendered_links_resolve`) is the regression gate.
 - **Symlinks: follow, copy targets, do not handle cycles.** Author-controlled in-tree content; security model is "we trust the source tree".
 - **`shutil.copyfile` not `copy2`.** Permission preservation deferred until first executable lands in a bundle.
 - **Codex invariant A tightened with `p.name == "SKILL.md"` filter.** Defensively guards against top-level non-SKILL.md siblings inflating the skill count. Dead filter on commands today; symmetry insurance.

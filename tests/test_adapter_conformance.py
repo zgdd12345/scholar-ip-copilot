@@ -869,3 +869,50 @@ def test_invariant_j_relative_links_resolve() -> None:
         f"{PLUGIN_DIR.relative_to(REPO_ROOT)}; fix the path or update the "
         "caller:\n  " + "\n  ".join(offenders)
     )
+
+
+# ---------------------------------------------------------------------------
+# K. relative-link integrity invariant (rendered-output)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("adapter", WRITING_ADAPTERS)
+def test_invariant_k_rendered_links_resolve(
+    adapter: str,
+    rendered: dict[str, dict[str, Any]],
+) -> None:
+    """Same as J but on the **rendered** tree. Catches adapter-specific path
+    flattening bugs that source-level J cannot see.
+
+    Concrete case: source `commands/<cmd>.md` links to `../skills/<X>/...`.
+    Source J resolves it (commands/ and skills/ are siblings under the
+    plugin root). Claude Code preserves that layout; OpenCode preserves it.
+    Codex flattens both kinds into a single `skills/` dir with
+    `scholar-<id>` and `scholar-skill-<id>` prefixes, so the adapter must
+    rewrite `../skills/<X>/` to `../scholar-skill-<X>/` before writing the
+    rendered SKILL body — otherwise the link in the rendered file points
+    at a non-existent `skills/skills/...` path.
+
+    This invariant is the regression gate for that rewrite (and any future
+    flat-layout host that needs the same).
+    """
+    root = Path(rendered[adapter]["root"])
+    md_files = sorted(p for p in root.rglob("*.md") if p.is_file())
+    assert md_files, f"no markdown files found under rendered {adapter} tree"
+
+    offenders: list[str] = []
+    for md in md_files:
+        for raw in _extract_relative_md_links(md):
+            path_part = raw.split("#", 1)[0]
+            if not path_part:
+                continue
+            resolved = (md.parent / path_part).resolve()
+            if not resolved.is_file():
+                rel = md.relative_to(root)
+                offenders.append(f"{rel}: [...]({raw}) -> {resolved} (missing)")
+
+    assert not offenders, (
+        f"{adapter}: {len(offenders)} broken relative markdown link(s) in "
+        "rendered output; adapter likely failed to rewrite a flattened "
+        "cross-skill path:\n  " + "\n  ".join(offenders)
+    )
