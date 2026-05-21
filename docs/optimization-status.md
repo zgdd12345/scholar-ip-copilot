@@ -100,6 +100,12 @@ environment-fragile) into a stable pytest invariant.
 
 ---
 
+## ✅ DONE — D2 (README "Progressive disclosure" section)
+
+Added a top-level section between "What you get" and "Repository layout" that explains the pattern to GitHub visitors: thin SKILL.md + on-demand `references/`, the current metric table (12 splits → -59%, 57 references), the per-session loading semantics, and pointers to the authoring rule (`docs/architecture.md` rule 4) and the living tracker (this file). Conformance invariants I + J are cited as the CI gates that keep the propagation honest.
+
+---
+
 ## 🚧 IN FLIGHT
 
 (nothing currently in flight)
@@ -119,8 +125,7 @@ environment-fragile) into a stable pytest invariant.
 
 | Item | Effort | Notes |
 |---|---|---|
-| **C. Remaining mid-size skills** | ~30-60 min each | All currently 230-267 lines — under Anthropic's recommended <300-line ceiling but still candidates if they have clear sub-section structure. ROI declining vs. the original ≥290-line splits. Listed below: see "C-list inventory". |
-| **D2. Top-level README "Progressive disclosure" section** | ~15 min | Explains the pattern to GitHub visitors; currently README mentions deepresearch only by name. |
+_Medium-priority items are exhausted._ C-list ⏳ candidates are all split (rows 8-12 in the Path B table); D2 is the README section above.
 
 ### Low priority / speculative
 

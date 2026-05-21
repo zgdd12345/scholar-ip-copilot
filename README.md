@@ -106,6 +106,26 @@ All outputs land in `.evidraft/` so the workspace stays inspectable and diffable
 
 ---
 
+## Progressive disclosure
+
+Each `skills/<id>/SKILL.md` is a **thin entry**: load-before-every-call rules + a navigation map. On-demand details (rule taxonomies, output schemas, multi-step procedures, anti-patterns) live as siblings under `skills/<id>/references/*.md` and are only loaded when the agent actually needs them. Every reference file ships to every host through the adapter pipeline — the propagation is asserted by conformance invariant **I**, and every relative link is asserted by invariant **J**.
+
+Current state, master branch:
+
+| Splits | Source lines before | After (entries only) | Reduction | On-demand references shipped |
+|---:|---:|---:|---:|---:|
+| **12** | 3245 | **1323** | **-59%** | **57** |
+
+What this means for a session:
+
+- A typical `/scholar:*` invocation loads the **entry** SKILL.md (~80–130 lines) instead of the historical 230–377-line monolith.
+- The on-demand reference is fetched only for the phase the agent is in — e.g. `deep-literature-review` runs six stage references but each stage agent only loads its own.
+- Cross-host parity is enforced by the same render pipeline; if a reference ships under Claude Code's `skills/<id>/references/<f>.md`, it ships under Codex's `skills/scholar-skill-<id>/references/<f>.md` too.
+
+Authoring details: [`docs/architecture.md`](docs/architecture.md) (authoring rule 4) and the living tracker [`docs/optimization-status.md`](docs/optimization-status.md) (per-split metrics + the C-list rule-of-thumb refined across 12 data points).
+
+---
+
 ## Repository layout
 
 ```
