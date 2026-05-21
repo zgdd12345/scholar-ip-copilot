@@ -11,13 +11,13 @@ The work organised under "progressive disclosure" has four threads:
 3. **Path B** — use Path A to split monolithic SKILL.md / command files into thin entries plus on-demand `references/`. Repeated across 7 files.
 4. **Documentation** — keep `docs/` and adapter READMEs in sync with the new pattern.
 
-Outcome metric (persistent context drop across the seven splits):
+Outcome metric (persistent context drop across the eight splits):
 
 | Source files refactored | Before | After | Reduction |
 |---|---:|---:|---:|
-| `commands/deepresearch.md` + 6 SKILL.md files | 2003 | 849 | **-58%** |
+| `commands/deepresearch.md` + 7 SKILL.md files | 2270 | 932 | **-59%** |
 
-Plus 34+ on-demand `references/*.md` files that ship to every host via bundle propagation.
+Plus 40+ on-demand `references/*.md` files that ship to every host via bundle propagation.
 
 ---
 
@@ -40,7 +40,7 @@ Plus 34+ on-demand `references/*.md` files that ship to every host via bundle pr
 
 ## ✅ DONE — Path B (content splits)
 
-7 source files refactored to thin entry + `references/` bundle:
+8 source files refactored to thin entry + `references/` bundle:
 
 | # | File | Before | After | Δ | Commit | References created |
 |---|---|---:|---:|---:|---|---:|
@@ -51,7 +51,8 @@ Plus 34+ on-demand `references/*.md` files that ship to every host via bundle pr
 | 5 | `skills/novelty-heuristics/SKILL.md` | 290 | **110** | -62% | `f487f98` | 4 (analysis-procedure + rule-taxonomy + output-schema + anti-patterns) |
 | 6 | `skills/claim-parser/SKILL.md` | 278 | **87** | -69% | `3e3229f` | 4 (procedure + warning-taxonomy + schema + anti-patterns) |
 | 7 | `skills/scholar-search/SKILL.md` | 271 | **127** | -53%† | `4f14079` | 3 (provider-matrix + procedure + anti-patterns) |
-| | **TOTAL** | **2003** | **849** | **-58%** | | **34** new references files (plus 6 for `using-deep-research` — `eefef20`) |
+| 8 | `skills/brainstorming/SKILL.md` | 267 | **83** | -69% | _this commit_ | 6 (question-schemas + carlini-and-approaches + verdict-matrix + scope-file-template + staleness-rule + anti-patterns) |
+| | **TOTAL** | **2270** | **932** | **-59%** | | **40** new references files (plus 6 for `using-deep-research` — `eefef20`) |
 
 \* xreview is a **dedup** against `skills/external-agent-bridge/SKILL.md` (the spec home it already had), not a true split — three byte-identical CLI invocations and ~30 lines of duplicate spec collapsed to pointers. Smaller % win but eliminates drift risk between command and skill.
 
@@ -129,7 +130,6 @@ environment-fragile) into a stable pytest invariant.
 ### C-list inventory (large SKILL.md candidates, sorted by size as of master HEAD)
 
 ```
-267 brainstorming/SKILL.md           ⏳ split candidate (rule sets + Carlini test recipe)
 263 latex-style-audit/SKILL.md       ⏳ split candidate (28 style rules → references/rules/)
 248 patent-search/SKILL.md           ⏳ split candidate (matching scholar-search shape — provider matrix + procedure)
 232 xref-audit/SKILL.md              ⏳ split candidate (14 rules)
@@ -141,7 +141,7 @@ environment-fragile) into a stable pytest invariant.
 210 bib-audit/SKILL.md               ❄️
 ```
 
-Rule of thumb established by the seven done splits: **≥ 270 lines is split-worth; 230-270 is judgement call; ≤ 220 is fine as a single file** under Anthropic's recommended 300-line bound.
+Rule of thumb established by the eight done splits: **≥ 263 lines is split-worth (brainstorming 267→83 confirms); 230-260 is judgement call; ≤ 220 is fine as a single file** under Anthropic's recommended 300-line bound.
 
 ---
 

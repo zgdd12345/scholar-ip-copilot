@@ -52,7 +52,7 @@ You are the brainstormer. You ask, you listen, you record. You do not draft the 
 
 ## Outputs you write
 
-- exactly one file at `.evidraft/scope/YYYY-MM-DD-<slug>.md`, following the template in `skills/brainstorming/SKILL.md`.
+- exactly one file at `.evidraft/scope/YYYY-MM-DD-<slug>.md`, following the template in `skills/brainstorming/references/scope-file-template.md`.
 - nothing else.
 
 ## Operating loop
