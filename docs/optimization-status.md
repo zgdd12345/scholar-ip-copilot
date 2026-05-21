@@ -34,7 +34,7 @@ Plus 34+ on-demand `references/*.md` files that ship to every host via bundle pr
 | Conformance dry-run symmetry tests | `5305875` | Three tests, one per adapter: `set(dry_run_paths) == set(render(...))`. |
 | `_shared/README.md` documenting loader + bundle contracts | `b40572f` | New file; covers symlink trust model and `shutil.copyfile` permission caveat. |
 
-**Test totals after Path A**: 49 passing across 5 test files; conformance suite = 18 parametrised tests across 9 invariants (A through I).
+**Test totals after Path A**: 49 passing across 5 test files; conformance suite = 18 parametrised tests across 9 invariants (A through I). After B2 below: 19 tests across 10 invariants (A through J).
 
 ---
 
@@ -83,6 +83,18 @@ This is **why** Path A exists — the cheaper alternative was empirically falsif
 
 ---
 
+## ✅ DONE — B2 (link-check CI invariant)
+
+Hardened the Path-B-split shell one-liner (flagged in review as
+environment-fragile) into a stable pytest invariant.
+
+| Piece | Notes |
+|---|---|
+| Conformance invariant J — `test_invariant_j_relative_links_resolve` | Walks every `*.md` under `plugins/scholar-ip/` and asserts every relative `[text](path)` resolves to a file on disk. Strips fenced code blocks + inline code spans first so backticked regex examples (e.g. the `]([^`']+\.sty)` snippet in `latex-build/SKILL.md`) do not false-positive. Out of scope: `http(s)://`, `mailto:`, `ftp://`, `data:`, and anchor-only `#section` links. |
+| Verification | Injected `[missing.md](references/this-file-does-not-exist.md)` into `scholar-search/SKILL.md`, confirmed test failed with file + target + resolved-path message, reverted. Suite green on master. |
+
+---
+
 ## 🚧 IN FLIGHT
 
 (nothing currently in flight)
@@ -102,7 +114,6 @@ This is **why** Path A exists — the cheaper alternative was empirically falsif
 
 | Item | Effort | Notes |
 |---|---|---|
-| **B2. Link-check CI invariant** | ~50 lines Python + test | Task-5 of every Path B split runs a one-liner zsh broken-link scan. Reviewer flagged the one-liner as shell-environment-fragile. Hardening into a stable pytest invariant ("for every md under `plugins/scholar-ip/skills/*/`, every relative-link target exists") catches authoring slips automatically. |
 | **C. Remaining mid-size skills** | ~30-60 min each | All currently 230-267 lines — under Anthropic's recommended <300-line ceiling but still candidates if they have clear sub-section structure. ROI declining vs. the original ≥290-line splits. Listed below: see "C-list inventory". |
 | **D2. Top-level README "Progressive disclosure" section** | ~15 min | Explains the pattern to GitHub visitors; currently README mentions deepresearch only by name. |
 

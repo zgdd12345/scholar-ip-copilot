@@ -799,3 +799,73 @@ def test_invariant_i_bundle_resources_propagated(
             assert target.is_file(), (
                 f"codex_cli: missing bundle file skills/scholar-skill-{d.id}/{rel}"
             )
+
+
+# ---------------------------------------------------------------------------
+# J. relative-link integrity invariant (source-tree)
+# ---------------------------------------------------------------------------
+
+# `[label](target)` — captures target up to the first whitespace or `)`. The
+# optional `"title"` suffix is matched and discarded.
+_MD_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
+# Fenced code blocks must be removed before link-matching so example regex /
+# shell snippets inside ```...``` don't get parsed as links. Inline `...`
+# spans likewise: the latex-style-audit and latex-build tables contain
+# backticked regex like `]([^`']+\.sty)` that would otherwise false-positive.
+_FENCED_RE = re.compile(r"```.*?```", re.DOTALL)
+_INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
+_ABS_SCHEMES = ("http://", "https://", "mailto:", "ftp://", "data:")
+
+
+def _extract_relative_md_links(file_path: Path) -> list[str]:
+    """Return every `[...](target)` whose target is a relative path.
+
+    Strips fenced code blocks and inline code spans first, then filters out
+    absolute URLs (http/https/mailto/...) and anchor-only fragments.
+    """
+    text = file_path.read_text(encoding="utf-8")
+    text = _FENCED_RE.sub("", text)
+    text = _INLINE_CODE_RE.sub("", text)
+    out: list[str] = []
+    for target in _MD_LINK_RE.findall(text):
+        target = target.strip()
+        if not target or target.startswith(_ABS_SCHEMES) or target.startswith("#"):
+            continue
+        out.append(target)
+    return out
+
+
+def test_invariant_j_relative_links_resolve() -> None:
+    """For every source markdown file under ``plugins/scholar-ip/``, every
+    relative ``[text](path)`` link must resolve to a file that exists.
+
+    Replaces the shell one-liner used during the Path B refactor splits
+    (flagged by review as environment-fragile). Catches the class of
+    authoring slip where a reference is renamed or moved without updating
+    its callers — e.g. ``references/procedure.md`` → ``references/procedure-walk.md``
+    leaving SKILL.md still pointing at the old name.
+
+    Out of scope: absolute URLs (http/https/mailto/ftp/data), pure anchor
+    fragments (``#section``). Fenced code blocks and inline code spans are
+    stripped before link extraction so example regex / shell snippets do
+    not generate false positives.
+    """
+    md_files = sorted(p for p in PLUGIN_DIR.rglob("*.md") if p.is_file())
+    assert md_files, f"no markdown files found under {PLUGIN_DIR}"
+
+    offenders: list[str] = []
+    for md in md_files:
+        for raw in _extract_relative_md_links(md):
+            path_part = raw.split("#", 1)[0]
+            if not path_part:
+                continue
+            resolved = (md.parent / path_part).resolve()
+            if not resolved.is_file():
+                rel = md.relative_to(REPO_ROOT)
+                offenders.append(f"{rel}: [...]({raw}) -> {resolved} (missing)")
+
+    assert not offenders, (
+        f"{len(offenders)} broken relative markdown link(s) under "
+        f"{PLUGIN_DIR.relative_to(REPO_ROOT)}; fix the path or update the "
+        "caller:\n  " + "\n  ".join(offenders)
+    )
