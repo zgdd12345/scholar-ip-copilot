@@ -121,9 +121,11 @@ The audit dispatched 4 parallel Explore subagents covering: `examples/` fixtures
 
 ---
 
-## ✅ DONE — A1 smoke test (3-host runtime bundle probe)
+## ✅ DONE — A1 + A2 smoke tests (3-host runtime bundle probes)
 
-A bounded automated test of A1: invoked **all three host CLIs in non-interactive mode** against the refactored `deep-literature-review` bundle and verified each agent can (a) enumerate the 12-file `references/` directory and (b) read a specific reference at runtime.
+Two rounds of bounded automated runtime tests against the host CLIs, in non-interactive mode (`claude -p`, `codex exec`, `opencode run`). Each round picks a refactored skill (or set of skills), asks the agent to (a) enumerate the `references/` directory and (b) read one specific reference and report its first heading. Verifies the bundle pattern functions at the **runtime-agent level**, not just at the file-propagation level that invariant I already asserts.
+
+### A1 — `deep-literature-review` (12 references)
 
 | Host | Invocation | Result | Cost |
 |---|---|---|---|
@@ -131,13 +133,32 @@ A bounded automated test of A1: invoked **all three host CLIs in non-interactive
 | Codex CLI | `codex exec "<prompt>"` — agent traversed `.agents/skills/scholar-skill-deep-literature-review/references/` (the Codex flattened path) | ✅ same answer; 7,979 tokens | ~$0.02 |
 | OpenCode | `opencode run "<prompt>"` — agent used Glob to find the bundle in the source tree; GLM-5.1 model | ✅ same answer | ~$0.01 |
 
-**What this proves:** the bundle propagation tested by invariant I at file-level also functions at the **runtime-agent level** on all three hosts. The cross-host parity isn't just structural; the agents actually navigate to the references.
+### A2 — `claim-chart-builder` + `claim-parser` + `novelty-heuristics` + `scholar-search` (18 references combined)
 
-**What this does NOT prove:** that a full 6-stage `/scholar:deepresearch` run progresses correctly stage-by-stage, that subagents dispatch as declared, or that the agent picks the *right* reference for each phase. Those need a real interactive session with a target project and would cost $5-20 per host. The smoke test is the responsible automated version of A1; the full E2E run remains user-driven if stronger evidence is needed.
+| Host | claim-chart-builder | claim-parser | novelty-heuristics | scholar-search | Cost |
+|---|:---:|:---:|:---:|:---:|---:|
+| Claude Code | ✅ 7 files + `# Output schemas` | ✅ 4 files + `# Warning taxonomy` | ✅ 4 files + `# Rule taxonomy` | ✅ 3 files + `# Provider matrix — ...` | ~$0.05 |
+| Codex CLI | ✅ same | ✅ same | ✅ same | ✅ same (26,811 tok) | ~$0.05 |
+| OpenCode | ✅ same | ✅ same | ✅ same | ✅ same | ~$0.05 |
 
-**Pollution check:** zero `.evidraft/` writes produced by any of the three test runs (prompt was explicit "do not start any workflow, do not write any files"). Working tree was clean after.
+Notable: OpenCode used the **rendered** `.opencode/skills/<id>/references/` path for A2 (a different mechanism than A1, where it used source-tree Glob). This confirms `.opencode/skills/` discovery works when the skill is rendered there.
 
-Test prompt and per-host transcripts archived in `/tmp/a1-dogfood/` for the current session; not checked into the repo.
+### What the smoke tests prove
+
+The bundle propagation that invariant I asserts at file-level also functions at the **runtime-agent level** on all three hosts. Cross-host parity isn't just structural; agents actually navigate to the references when prompted. Five skills × 3 hosts = 15 distinct bundle-load operations, all returning verifiable ground-truth.
+
+### What the smoke tests do NOT prove
+
+- Full multi-stage workflow runs (`/scholar:deepresearch` 6-stage, `/scholar:patent-prior-art` 5-stage, etc.) — stage-by-stage reference loading, subagent dispatch correctness, the agent picking the *right* reference for each phase.
+- Hooks firing correctly during a real session.
+
+Those need real interactive sessions with target projects and cost $5-20+ per host per workflow. The smoke tests are the responsible automated version; full E2E remains user-driven if stronger evidence is needed.
+
+### Combined cost + pollution
+
+Two rounds × 3 hosts = 6 invocations. Total spend ~$0.20. **Zero `.evidraft/` writes** produced by any test (prompts were explicit "do not start any workflow, do not write any files"). Working tree clean after each round.
+
+Test prompts and per-host transcripts archived in `/tmp/a1-dogfood/` for the current session; not checked into the repo.
 
 ---
 
@@ -167,8 +188,7 @@ The decision-log entry "Codex link policy: Option B (no rewriting)" is **superse
 
 | Item | Effort | Notes |
 |---|---|---|
-| **A1.full. Full `/scholar:deepresearch` 6-stage E2E run** | User-driven, ~30 min, $5-20 | *A1 smoke test is DONE — see "DONE — A1 smoke test" section above.* This row tracks the stronger evidence: actually running the 6-stage pipeline to verify per-stage reference loading, subagent dispatch, and stage progression. Needs a target project (manuscript/, candidates) and is interactive (Stage 1 Frame asks for the user's scope before Stage 2 retrieves). |
-| **A2. Dogfood other refactored skills** | Spot-check, ~10 min each | `/scholar:patent-prior-art` (touches claim-chart-builder + claim-parser + novelty-heuristics) and `/scholar:paper-lit` (touches scholar-search) are the highest-value targets. The A1 smoke test confirms the bundle-loading mechanism works across all 3 hosts; A2 verifies the same for these other refactored skills (smoke-test-equivalent could be automated cheaply by extending the A1 probe to the other bundles, but the mechanism is shared so risk of host-specific failure is low). |
+| **A1.full / A2.full. Full multi-stage E2E runs** | User-driven, ~30 min, $5-20 per host per workflow | *A1.smoke + A2.smoke are DONE — see "DONE — A1 + A2 smoke tests" section above.* This row tracks the stronger evidence: actually running `/scholar:deepresearch` (6-stage), `/scholar:patent-prior-art` (5-stage), and `/scholar:paper-lit` end-to-end against target projects to verify per-stage reference loading, subagent dispatch, stage progression, and hook firing. Each workflow is interactive (Stage 1 Frame asks for the user's scope before Stage 2 retrieves) and needs a real target project (manuscript/, candidates, etc.). |
 
 ### Medium priority
 
