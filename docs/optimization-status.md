@@ -121,6 +121,26 @@ The audit dispatched 4 parallel Explore subagents covering: `examples/` fixtures
 
 ---
 
+## ✅ DONE — A1 smoke test (3-host runtime bundle probe)
+
+A bounded automated test of A1: invoked **all three host CLIs in non-interactive mode** against the refactored `deep-literature-review` bundle and verified each agent can (a) enumerate the 12-file `references/` directory and (b) read a specific reference at runtime.
+
+| Host | Invocation | Result | Cost |
+|---|---|---|---|
+| Claude Code | `claude -p --max-budget-usd 1.00 --model claude-haiku-4-5-20251001 -p "<prompt>"` | ✅ 12 files listed alphabetically; `stage-1-frame.md` first heading `# Stage 1 — Frame` exact match | ~$0.05 |
+| Codex CLI | `codex exec "<prompt>"` — agent traversed `.agents/skills/scholar-skill-deep-literature-review/references/` (the Codex flattened path) | ✅ same answer; 7,979 tokens | ~$0.02 |
+| OpenCode | `opencode run "<prompt>"` — agent used Glob to find the bundle in the source tree; GLM-5.1 model | ✅ same answer | ~$0.01 |
+
+**What this proves:** the bundle propagation tested by invariant I at file-level also functions at the **runtime-agent level** on all three hosts. The cross-host parity isn't just structural; the agents actually navigate to the references.
+
+**What this does NOT prove:** that a full 6-stage `/scholar:deepresearch` run progresses correctly stage-by-stage, that subagents dispatch as declared, or that the agent picks the *right* reference for each phase. Those need a real interactive session with a target project and would cost $5-20 per host. The smoke test is the responsible automated version of A1; the full E2E run remains user-driven if stronger evidence is needed.
+
+**Pollution check:** zero `.evidraft/` writes produced by any of the three test runs (prompt was explicit "do not start any workflow, do not write any files"). Working tree was clean after.
+
+Test prompt and per-host transcripts archived in `/tmp/a1-dogfood/` for the current session; not checked into the repo.
+
+---
+
 ## ✅ DONE — B3 (Codex Option A — cross-skill link rewriting)
 
 Originally deferred under the assumption that cross-skill links only happen at SKILL.md ↔ SKILL.md level (where the consistent `scholar-skill-` prefix is enough). A post-Path-B audit of `make install` output found **11 broken links** in the rendered `.codex/plugins/scholar/skills/scholar-deepresearch/SKILL.md` — the deepresearch command body links into another skill's *references*, deeper than SKILL.md, which Option B doesn't cover.
@@ -147,8 +167,8 @@ The decision-log entry "Codex link policy: Option B (no rewriting)" is **superse
 
 | Item | Effort | Notes |
 |---|---|---|
-| **A1. Dogfood `/scholar:deepresearch`** | User-driven, ~30 min | Has not yet been run end-to-end on the refactored skill. Without this we don't have runtime evidence that 12-file `references/` actually works for the agent during a real 6-stage run. *Path B Task 5 verified file propagation; this verifies runtime behaviour.* |
-| **A2. Dogfood other refactored skills** | Spot-check, ~10 min each | `/scholar:patent-prior-art` (touches claim-chart-builder + claim-parser + novelty-heuristics) and `/scholar:paper-lit` (touches scholar-search) are the highest-value targets. |
+| **A1.full. Full `/scholar:deepresearch` 6-stage E2E run** | User-driven, ~30 min, $5-20 | *A1 smoke test is DONE — see "DONE — A1 smoke test" section above.* This row tracks the stronger evidence: actually running the 6-stage pipeline to verify per-stage reference loading, subagent dispatch, and stage progression. Needs a target project (manuscript/, candidates) and is interactive (Stage 1 Frame asks for the user's scope before Stage 2 retrieves). |
+| **A2. Dogfood other refactored skills** | Spot-check, ~10 min each | `/scholar:patent-prior-art` (touches claim-chart-builder + claim-parser + novelty-heuristics) and `/scholar:paper-lit` (touches scholar-search) are the highest-value targets. The A1 smoke test confirms the bundle-loading mechanism works across all 3 hosts; A2 verifies the same for these other refactored skills (smoke-test-equivalent could be automated cheaply by extending the A1 probe to the other bundles, but the mechanism is shared so risk of host-specific failure is low). |
 
 ### Medium priority
 
