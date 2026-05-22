@@ -153,6 +153,7 @@ The orchestrator validates that all earlier stages' artefacts exist + parse clea
 ## When NOT to use deepresearch
 
 - For a **one-pass quick refresh**: use `/scholar:paper-lit` instead (cheaper, single stage).
+- For **"write me a quick survey"** without PRISMA discipline: use `/scholar:paper-lit "<topic>" --draft-outline` — same single-pass matrix plus a method-family outline written to `.evidraft/literature/related_work_outline.md`. Cheaper than deepresearch, less rigorous; not a substitute when claims need PRISMA backing.
 - For **1-3 specific paper lookups**: just call the `scholar-search` skill directly via `@agent-scholar:scholar-search "<query>"`.
 - For **BibTeX cleanup only**: use the `bib-manager` skill.
 
@@ -162,6 +163,10 @@ The orchestrator validates that all earlier stages' artefacts exist + parse clea
 User wants lit review:
   ├─ "comprehensive" / "PRISMA" / "for a paper" / >5 papers expected
   │     → recommend full path: paper-init + brainstorming + deepresearch
+  │
+  ├─ "write me a quick survey / outline" / "I want a draft to skim"
+  │     → /scholar:paper-lit "<topic>" --draft-outline
+  │       (single-pass matrix + outline; NOT PRISMA, NOT deepresearch Stage 6)
   │
   ├─ "quick" / "ad-hoc" / <10 papers expected
   │     → either /scholar:paper-lit, or offer the scope-stub fast-path

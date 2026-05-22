@@ -52,21 +52,54 @@ The hook passes only if **all three** conditions hold:
 
 ## Failure mode
 
-`block` by default — the downstream command is refused with:
+`block` by default — the downstream command is refused with a structured block whose `suggestion` field branches on the failure mode so the user gets a copy-pasteable next step. The four branches are:
+
+**1. project not initialised** (`.evidraft/project.yaml` missing) — emitted regardless of `reason`:
 
 ```
 scope-required: BLOCKED
   command: <slash>
-  reason: <missing | draft-only | stale>
-  detail:
-    scope_dir: .evidraft/scope/
-    latest_file: <path or "(none)">
-    status: <draft | approved | (missing)>
-    approved_date: <YYYY-MM-DD or "(unset)">
-    staleness_until: <YYYY-MM-DD or "(unset)">
-    today: <YYYY-MM-DD>
-  suggestion: run /scholar:brainstorming to (re)establish scope before retrying
+  reason: missing
+  detail: { ... }
+  suggestion: |
+    project not initialised — first run:
+      /scholar:paper-init
+    then either:
+      /scholar:brainstorming "<topic>"          # full path (~5 min)
+      /scholar:using-deep-research "<topic>"    # fast path: scope-stub
 ```
+
+**2. `reason: missing`** (project initialised, no scope file):
+
+```
+  suggestion: |
+    Full path (recommended):
+      /scholar:brainstorming "<topic>"
+
+    Fast path (ad-hoc scope-stub):
+      /scholar:using-deep-research "<topic>"
+```
+
+**3. `reason: draft-only`** (latest scope file is `status: draft`):
+
+```
+  suggestion: |
+    the latest scope file is status: draft. Approve it:
+      $EDITOR <latest_file>
+    set status: approved and approved_date: <today> in its frontmatter.
+```
+
+**4. `reason: stale`** (`today > approved_date + staleness_days`, or `approved` without `approved_date`):
+
+```
+  suggestion: |
+    the latest scope file is stale (approved <date>, expires <until>, today <today>). Either:
+      /scholar:brainstorming "<topic>"          # re-scope
+    or refresh approved_date to <today> in:
+      <latest_file>
+```
+
+`detail` is always present and carries `scope_dir`, `latest_file`, `status`, `approved_date`, `staleness_until`, and `today` so the user can audit the decision.
 
 ### Downgrade path
 
