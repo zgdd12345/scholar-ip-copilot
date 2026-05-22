@@ -147,7 +147,7 @@ Re-cluster when a new paper would create a 7th family — that is a signal that 
 
 ### 5. Related-work outline pattern
 
-Before writing prose in `related_work.tex`, produce `.evidraft/literature/related_work_outline.md`:
+Before writing the final prose (LaTeX `manuscript/sections/related_work.tex` from `/scholar:paper-review` default, or Pandoc-markdown `.evidraft/literature/related_work.md` from `--format=md`), produce `.evidraft/literature/related_work_outline.md`:
 
 ```
 ## Paragraph 1: <family A>

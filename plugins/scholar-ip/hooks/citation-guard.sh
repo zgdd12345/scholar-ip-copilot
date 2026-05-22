@@ -37,8 +37,11 @@ OFFENDER=""
 while IFS= read -r hit; do
   lineno="${hit%%:*}"
   text="${hit#*:}"
-  # Within the same line (proxy for ~120 chars), require a \cite{...} or ev_NNNN.
-  if ! printf '%s' "$text" | grep -Eq '\\cite[a-z]*\{[^}]+\}|ev_[0-9]{4}'; then
+  # Within the same line (proxy for ~120 chars), require a citation marker.
+  # Accepts LaTeX `\cite{...}`, our `ev_NNNN` evidence-id, or Pandoc-markdown
+  # `[@key]` / `[@key1; @key2]` — the last is for /scholar:paper-review
+  # --format=md output under .evidraft/literature/related_work.md.
+  if ! printf '%s' "$text" | grep -Eq '\\cite[a-z]*\{[^}]+\}|ev_[0-9]{4}|\[@[a-zA-Z][a-zA-Z0-9_:.-]*'; then
     OFFENDER="line $lineno: $text"
     break
   fi

@@ -119,6 +119,16 @@ This is a strict superset of P0: P0 introduces the new command surface, P1 unifi
 
 When `--format=tex`, also auto-run the bib sync from P2.
 
+### Status — shipped with default flip (2026-05-22)
+
+Implemented in this PR series. `format` is an enum input on `/scholar:paper-review` (`tex` / `md`); `format=md` writes `.evidraft/literature/<target_section>.md` with Pandoc-style `[@key]` inline citations.
+
+**Deviation from this plan.** Default is **`tex`**, not `md`. Rationale: `paper-review` is a paper-mode command (`phase: paper`) — running it presupposes `/scholar:paper-init` has scaffolded the manuscript tree, so by construction its audience already wants LaTeX. Flipping the default would silently change the output filename and extension for every paper user; mirrors the same "don't break heavy-user muscle memory" principle that kept `/scholar:paper-lit`'s default in paper mode (Codex review point #3, 2026-05-22). The lite path remains `--format=md` as an explicit opt-in.
+
+**Bib sync auto-run.** Not added. The bib symlink that P2 ships at `paper-init` time already keeps `manuscript/references.bib` in sync with the canonical `.evidraft/literature/references.bib`, so `format=tex` does not need an additional sync step. If the symlink is missing (Windows fallback path), `paper-lit` step 6 already re-syncs on every run.
+
+**citation-guard extension.** `hooks/citation-guard.sh` regex now accepts `[@key]` (Pandoc) in addition to `\cite{}` and `ev_NNNN`, so the hook fires identically on the new `.md` output. No bypass.
+
 ## Order of execution
 
 P0 first (reading-list + intent detection): one PR. Unblocks the user's primary use case.

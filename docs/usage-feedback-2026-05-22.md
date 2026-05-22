@@ -102,7 +102,7 @@ tiers:
 |---|---|---|
 | `related_work_outline.md` | `/scholar:paper-lit --draft-outline=true` | None beyond `citation-guard`; lightweight survey aid. |
 | `related_work.draft.md` | `/scholar:deepresearch` Stage 6 | PRISMA screening + cluster critique + final citation audit (`citation_audit.json`). |
-| `related_work.md` (markdown mid-tier) | `/scholar:paper-review --format=md` (planned P3 in `docs/lite-mode-plan-2026-05-22.md:118`) | Citation-keyed; no PRISMA. |
+| `related_work.md` (markdown mid-tier) | `/scholar:paper-review --format=md` (shipped 2026-05-22, see `docs/lite-mode-plan-2026-05-22.md` §P3 status block) | Pandoc `[@key]` citations; no PRISMA; default is still `--format=tex`. |
 | `manuscript/sections/related_work.tex` | `/scholar:paper-review` (default) | Full audit chain at `/scholar:paper-check` time. |
 
 Emitting `related_work.draft.md` from `paper-lit` would re-blur the lite/heavy

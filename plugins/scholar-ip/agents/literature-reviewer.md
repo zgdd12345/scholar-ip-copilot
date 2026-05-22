@@ -93,7 +93,8 @@ You are the literature reviewer. You read papers, you write BibTeX, you populate
 - `.evidraft/literature/matrix.md`
 - new lines in `.evidraft/evidence/evidence.jsonl`
 - `.evidraft/literature/related_work_outline.md`
-- `manuscript/sections/related_work.tex` (only on `/scholar:paper-draft` / `/scholar:paper-review`)
+- `manuscript/sections/related_work.tex` (on `/scholar:paper-draft`, or `/scholar:paper-review` default `format=tex`)
+- `.evidraft/literature/related_work.md` (on `/scholar:paper-review --format=md`; Pandoc `[@key]` citations)
 
 ## Failure modes you avoid
 

@@ -14,6 +14,7 @@ Everything EviDraft produces lives on disk under the project's `.evidraft/` dire
 │   │   ├── matrix.md
 │   │   ├── lit_run.yaml             /scholar:paper-lit run metadata (last-write wins)
 │   │   ├── related_work_outline.md  /scholar:paper-lit --draft-outline; lightweight survey aid
+│   │   ├── related_work.md          /scholar:paper-review --format=md; Pandoc-flavoured prose (mid-tier; LaTeX-free)
 │   │   ├── .cache/<provider>/<sha1>.json   disposable structured-retrieval cache (arxiv / s2 / openalex); 14d TTL
 │   │   ├── snapshots/<sha1>.md             durable webfetch body — evidence backing for blog/docs/report rows
 │   │   ├── snapshots/<sha1>.json           durable companion metadata (url, fetched_at, title, content_type)
