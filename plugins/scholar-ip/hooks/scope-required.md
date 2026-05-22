@@ -52,7 +52,14 @@ The hook passes only if **all three** conditions hold:
 
 ## Failure mode
 
-`block` by default — the downstream command is refused with a structured block whose `suggestion` field branches on the failure mode so the user gets a copy-pasteable next step. The four branches are:
+The built-in default is split by command type, so analysis commands no longer hard-block on a missing scope (lite-mode plan §P2 — narrow scope-required):
+
+| Default | Commands | Rationale |
+|---|---|---|
+| `block` | `/scholar:paper-draft`, `/scholar:patent-claims`, `/scholar:polish` | Writes publishable material under `manuscript/`; an unscoped run can corrupt material that ends up in a submission. |
+| `warn`  | `/scholar:paper-idea`, `/scholar:patent-scout`, `/scholar:deepresearch` | Writes only scratch under `.evidraft/`; missing scope is informational, not corrupting. The user is told but the command proceeds. |
+
+`block` mode refuses with a structured block whose `suggestion` field branches on the failure mode so the user gets a copy-pasteable next step. The four branches are:
 
 **1. project not initialised** (`.evidraft/project.yaml` missing) — emitted regardless of `reason`:
 
@@ -101,20 +108,20 @@ scope-required: BLOCKED
 
 `detail` is always present and carries `scope_dir`, `latest_file`, `status`, `approved_date`, `staleness_until`, and `today` so the user can audit the decision.
 
-### Downgrade path
+### Per-project override
 
-Users may downgrade this hook in `.evidraft/project.yaml`:
+Users may override the built-in per-command defaults via `.evidraft/project.yaml`:
 
 ```yaml
 # .evidraft/project.yaml
 hooks:
-  scope_required: warn      # one of: block (default) | warn | disabled
+  scope_required: warn      # one of: block | warn | disabled — applies to all gated commands
 ```
 
 - `warn` — the downstream command proceeds, but a bypass entry is appended to the relevant check report (`paper_check_report.md` for paper-side commands, `patent_review_report.md` for patent-side commands) under "scope-required downgraded bypass", recording the command, the reason (`missing | draft-only | stale`), and the timestamp.
 - `disabled` — the hook does not run; the same bypass entry is still appended to the relevant check report so the audit trail survives.
 
-Downgrade is per-project, not per-command. There is no per-command override.
+The override is per-project: setting `scope_required: block` lifts the analysis-command default back up to `block`; setting `scope_required: warn` lowers the writer-command default down to `warn`. There is no syntax for setting different modes per command — choose one project-wide policy or accept the built-in split above.
 
 ## Adapter notes
 

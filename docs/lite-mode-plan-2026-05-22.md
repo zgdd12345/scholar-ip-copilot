@@ -101,6 +101,32 @@ Plus an opening `## Method families` section that clusters the entries (≤6 fam
 
 This is a strict superset of P0: P0 introduces the new command surface, P1 unifies the existing `paper-lit` to use the same machinery and gives publish-track users an explicit flag.
 
+### Decision — 2026-05-22 (P1 WITHDRAWN)
+
+After the dogfood1-driven Codex review (point #3, 2026-05-22) the
+`--mode` flag was withdrawn rather than shipped. Three reasons:
+
+1. **Don't break heavy-user muscle memory.** A `default: notes` flip
+   would silently change what `/scholar:paper-lit topic` does — no
+   more bib, no more evidence, no more audit chain — for every
+   existing paper user. Equivalent breakage to /scholar:paper-review
+   defaulting to `--format=md` (also rejected; see P3 status block).
+2. **One lite entry is enough.** P0 already ships
+   `/scholar:reading-list` as the lite entry. Adding a second lite
+   entry under `paper-lit` would create the "which one do I use?"
+   confusion this PR series was supposed to remove.
+3. **The unification gain is theoretical.** P1's framing
+   ("a strict superset of P0") presupposed a future where
+   `paper-init` / `paper-draft` / `paper-review` would dispatch
+   through `paper-lit --mode=paper`. None of those currently invoke
+   `paper-lit` programmatically — they all run as separate
+   user-driven commands — so there is no machinery to unify.
+
+P1 stays in this plan as a historical record of the original
+intention. The lite/heavy boundary that P1 wanted to express now
+lives in the command split itself: `/scholar:reading-list` for lite,
+`/scholar:paper-lit` for heavy. No flag.
+
 ## P2 — Auto-sync `manuscript/references.bib`
 
 **Change.** Make `manuscript/references.bib` a symlink to `.evidraft/literature/references.bib` at `paper-init` time. Document the symlink in `project.yaml` comments.
@@ -112,6 +138,26 @@ This is a strict superset of P0: P0 introduces the new command surface, P1 unifi
 **Change.** Current default `block` on 6 commands (`paper-idea`, `patent-scout`, `paper-draft`, `patent-claims`, `deepresearch`, `polish`). Narrow `block` to commands that **actually write to `manuscript/`** (`paper-draft`, `patent-claims`, `polish`). Other gated commands (`paper-idea`, `patent-scout`, `deepresearch`) become `warn` by default.
 
 **Rationale.** The hook exists to prevent unscoped writes from polluting publishable material. Analysis and retrieval commands don't write publishable material; warning is sufficient.
+
+### Status — 2026-05-22 (P2 narrow-scope CLOSED)
+
+Shipped in this PR series:
+
+- `plugins/scholar-ip/hooks/scope-required.sh` computes a per-command
+  default via a `case` on `$CMD` right after parsing the prompt:
+  writers (`paper-draft` / `patent-claims` / `polish`) default `block`;
+  analysers (`paper-idea` / `patent-scout` / `deepresearch`) default
+  `warn`; any future gated command falls through to a safe `block`.
+  `project.yaml.hooks.scope_required` still overrides everything
+  project-wide.
+- `plugins/scholar-ip/hooks/scope-required.md` carries a per-command
+  table under `## Failure mode` and reframes the override section as
+  "Per-project override" (no per-command override; one project-wide
+  policy or accept the built-in split).
+- `tests/test_adapter_conformance.py` invariant N exercises all four
+  branches end-to-end via a bash subprocess against the rendered hook:
+  per-command default split, YAML uplift (warn → block), YAML
+  downgrade (block → warn), and `disabled` (all pass).
 
 ## P3 — `paper-review --format={md,tex}`
 

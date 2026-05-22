@@ -25,8 +25,21 @@ TODAY="$(date +%Y-%m-%d)"
 PROJECT_YAML="$PROJECT_DIR/.evidraft/project.yaml"
 SCOPE_DIR="$PROJECT_DIR/.evidraft/scope"
 
-# --- Read downgrade + staleness_days from .evidraft/project.yaml (best-effort).
-DOWNGRADE="block"
+# --- Per-command default failure mode (overridden by project.yaml below).
+# Writers (paper-draft / patent-claims / polish) emit publishable artefacts
+# under manuscript/, so an unscoped run can corrupt material that ends up
+# in a submission — default `block`. Analysis / retrieval commands
+# (paper-idea / patent-scout / deepresearch) only write scratch under
+# .evidraft/, so a missing scope is informational, not corrupting — default
+# `warn`. The user can still flip either via project.yaml.hooks.scope_required.
+case "$CMD" in
+  /scholar:paper-draft|/scholar:patent-claims|/scholar:polish)
+    DOWNGRADE="block" ;;
+  /scholar:paper-idea|/scholar:patent-scout|/scholar:deepresearch)
+    DOWNGRADE="warn" ;;
+  *)
+    DOWNGRADE="block" ;;  # safe default for any future gated command
+esac
 STALENESS_DAYS=14
 if [ -f "$PROJECT_YAML" ]; then
   v="$(awk '

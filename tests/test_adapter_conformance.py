@@ -1228,3 +1228,123 @@ def test_invariant_m_codex_guardrails_projection(
         "declarations; the lite-mode opt-out is silently broken on Codex if "
         "this fails:\n  " + "\n  ".join(offenders)
     )
+
+
+# ---------------------------------------------------------------------------
+# N. scope-required per-command default failure mode (runtime smoke)
+# ---------------------------------------------------------------------------
+
+
+def test_invariant_n_scope_required_per_command_default(
+    rendered: dict[str, dict[str, Any]], tmp_path: Path
+) -> None:
+    """Behavioural smoke for the per-command default split in
+    ``hooks/scope-required.sh`` (lite-mode plan §P2 — narrow scope-required).
+
+    The built-in default is per-command: writers (``paper-draft``,
+    ``patent-claims``, ``polish``) default ``block`` because they write
+    publishable material under ``manuscript/``; analysis / retrieval
+    commands (``paper-idea``, ``patent-scout``, ``deepresearch``) default
+    ``warn`` because they only write scratch under ``.evidraft/`` and a
+    missing scope is informational, not corrupting. The user can still
+    override globally via ``project.yaml.hooks.scope_required``.
+
+    Asserts:
+
+    - Without an approved scope, the three writer commands BLOCK (exit 2).
+    - Without an approved scope, the three analysis commands WARN (exit 0,
+      stderr non-empty).
+    - Non-gated commands (``paper-init``, ``reading-list``) PASS silently.
+    - ``scope_required: block`` in project.yaml uplifts an analysis command
+      back to BLOCK (override wins).
+    - ``scope_required: warn`` downgrades a writer to WARN (override wins).
+    - ``scope_required: disabled`` makes everything PASS silently.
+
+    Requires bash. Skips otherwise.
+    """
+    import os
+    import shutil
+    import subprocess
+
+    if not shutil.which("bash"):
+        pytest.skip("bash required for the scope-required.sh smoke")
+
+    root = Path(rendered["claude_code"]["root"])
+    script = root / "hooks" / "scope-required.sh"
+    assert script.is_file(), (
+        f"claude_code: hooks/scope-required.sh must be rendered at {script}"
+    )
+
+    project_dir = tmp_path / "proj"
+    (project_dir / ".evidraft" / "scope").mkdir(parents=True)
+
+    def _set_yaml(scope_required: str | None) -> None:
+        body = "project: test\n"
+        if scope_required is not None:
+            body += f"hooks:\n  scope_required: {scope_required}\n"
+        (project_dir / ".evidraft" / "project.yaml").write_text(body)
+
+    def _run(cmd: str) -> tuple[int, str]:
+        envelope = f'{{"prompt":"{cmd} no-scope"}}'
+        result = subprocess.run(
+            ["bash", str(script)],
+            input=envelope,
+            capture_output=True,
+            text=True,
+            env={**os.environ, "CLAUDE_PROJECT_DIR": str(project_dir)},
+            timeout=15,
+        )
+        return result.returncode, result.stderr
+
+    def _classify(cmd: str) -> str:
+        rc, err = _run(cmd)
+        if rc == 2:
+            return "BLOCK"
+        if rc == 0 and err.strip():
+            return "WARN"
+        if rc == 0:
+            return "PASS"
+        return f"UNEXPECTED(rc={rc}, err={err!r})"
+
+    # --- T1: no YAML override → per-command defaults
+    _set_yaml(None)
+    cases_default = [
+        # writers default block
+        ("/scholar:paper-draft", "BLOCK"),
+        ("/scholar:patent-claims", "BLOCK"),
+        ("/scholar:polish", "BLOCK"),
+        # analysers default warn
+        ("/scholar:paper-idea", "WARN"),
+        ("/scholar:patent-scout", "WARN"),
+        ("/scholar:deepresearch", "WARN"),
+        # non-gated pass silently
+        ("/scholar:paper-init", "PASS"),
+        ("/scholar:reading-list", "PASS"),
+    ]
+    for cmd, want in cases_default:
+        got = _classify(cmd)
+        assert got == want, (
+            f"per-command default drift: {cmd} expected {want}, got {got}"
+        )
+
+    # --- T2: YAML scope_required=block uplifts analyser back to block
+    _set_yaml("block")
+    got = _classify("/scholar:paper-idea")
+    assert got == "BLOCK", (
+        f"YAML scope_required=block should uplift paper-idea to BLOCK, got {got}"
+    )
+
+    # --- T3: YAML scope_required=warn downgrades writer to warn
+    _set_yaml("warn")
+    got = _classify("/scholar:paper-draft")
+    assert got == "WARN", (
+        f"YAML scope_required=warn should downgrade paper-draft to WARN, got {got}"
+    )
+
+    # --- T4: YAML scope_required=disabled passes everything silently
+    _set_yaml("disabled")
+    for cmd in ("/scholar:paper-draft", "/scholar:paper-idea"):
+        got = _classify(cmd)
+        assert got == "PASS", (
+            f"YAML scope_required=disabled should PASS {cmd} silently, got {got}"
+        )
