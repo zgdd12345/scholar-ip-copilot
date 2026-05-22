@@ -1156,3 +1156,75 @@ printf 'a=%s\nb=%s\nc=%s\na2=%s\nproj=%s\n' "$a" "$b" "$c" "$a2" "$proj"
         "  project tree clean (no .evidraft/.state/ under CLAUDE_PROJECT_DIR);\n"
         f"got {out!r}\nstderr={result.stderr!r}"
     )
+
+
+def test_invariant_m_codex_guardrails_projection(
+    plugin: Plugin, rendered: dict[str, dict[str, Any]]
+) -> None:
+    """Cross-adapter projection of the per-command opt-out.
+
+    Codex CLI has no executable hook surface — its only hook channel is
+    a ``## Guardrails`` advisory block inlined into the rendered command
+    body (see ``packages/adapters/codex_cli/generate.py`` _command_skill_body).
+    The Claude Code path enforces ``hooks: []`` via the runtime sidecar; on
+    Codex the same intent is preserved by simply rendering ZERO hook bullets
+    into Guardrails, so the model never sees the audit-chain language in the
+    first place.
+
+    Asserts, for every source command:
+
+    - ``hooks: []`` (lite-mode opt-out) → rendered Codex body has NO hook
+      bullet ``- **<hook_id>**`` line. (A non-empty Guardrails block may
+      still appear if `safety:` is non-empty, but the per-hook bullets
+      MUST be absent.)
+    - ``hooks: [a, b]`` → rendered body lists exactly those hook bullets;
+      no extras.
+
+    OpenCode does not render hooks at all (deferred — JS-module surface),
+    so no parallel assertion is needed there. The discrepancy is documented
+    in ``docs/architecture.md``.
+    """
+    root = Path(rendered["codex_cli"]["root"])
+    bullet_re = re.compile(r"^- \*\*([a-z][a-z0-9_-]*)\*\*", re.MULTILINE)
+
+    offenders: list[str] = []
+    for cmd in plugin.commands:
+        meta = cmd.meta or {}
+        if "hooks" not in meta:
+            continue
+        declared = [str(h) for h in (meta.get("hooks") or [])]
+        cmd_id = str(meta.get("id") or cmd.path.stem)
+
+        # Locate the rendered Codex skill body for this command.
+        skill_md = root / "skills" / f"scholar-{cmd_id}" / "SKILL.md"
+        if not skill_md.is_file():
+            offenders.append(
+                f"{cmd_id}: rendered Codex SKILL.md missing at {skill_md}"
+            )
+            continue
+
+        body = skill_md.read_text(encoding="utf-8")
+        # Scope to the Guardrails section: from `## Guardrails` to next `## ` or EOF.
+        guard_start = body.find("\n## Guardrails")
+        guard_block = ""
+        if guard_start != -1:
+            tail = body[guard_start + 1 :]
+            next_h2 = tail.find("\n## ", 1)
+            guard_block = tail if next_h2 == -1 else tail[:next_h2]
+
+        rendered_bullets = bullet_re.findall(guard_block)
+        # The safety block can add `- Never read/write:` / `- Never invoke:` lines,
+        # but those start with capital N, not a `**<hook_id>**` pattern, so the
+        # regex above already excludes them.
+
+        if rendered_bullets != declared:
+            offenders.append(
+                f"{cmd_id}: source hooks={declared!r} but rendered Codex "
+                f"Guardrails bullets={rendered_bullets!r}"
+            )
+
+    assert not offenders, (
+        "Codex CLI Guardrails projection diverges from source `hooks:` "
+        "declarations; the lite-mode opt-out is silently broken on Codex if "
+        "this fails:\n  " + "\n  ".join(offenders)
+    )

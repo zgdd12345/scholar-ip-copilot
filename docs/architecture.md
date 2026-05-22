@@ -119,6 +119,18 @@ Adapters are small generators. Each one:
 
 This keeps platform churn out of the plugin author's life.
 
+### Per-command hook opt-out across adapters
+
+A command may declare `hooks: []` (lite-mode marker, e.g. `/scholar:reading-list`) or `hooks: [a, b]` (paper-mode allowlist) in its source frontmatter. The same source field is projected differently per host because each host has a different hook surface:
+
+| Host | Hook surface | What `hooks: []` does | Enforced where |
+|---|---|---|---|
+| `claude_code` | Executable `.sh` via `hooks/hooks.json` | Runtime gate: PostToolUse hooks consult `hooks/command-hooks.json` (adapter-emitted sidecar) and skip when the active command's allowlist is empty. State for the "active command" lives outside the project tree under `$XDG_STATE_HOME/scholar-ip` (or `$TMPDIR/scholar-ip`), keyed by project hash + session id. | `_lib.sh::hook_disabled_by_command` |
+| `codex_cli` | `## Guardrails` text block inlined into the rendered command body | No runtime gate exists. The adapter projects `hooks: [...]` as one bullet per hook id under `## Guardrails`; `hooks: []` renders zero bullets, so the model never sees the audit-chain language. | The model honours the rendered prompt |
+| `opencode` | Not rendered (hooks would require JS modules under `.opencode/plugins/`) | No projection. Lite-mode discipline lives entirely in the command body. | The model honours the command body |
+
+Test invariant M in `tests/test_adapter_conformance.py` gates the Claude Code sidecar shape, its runtime semantics (via a bash subprocess against the rendered `_lib.sh`), and the Codex Guardrails projection.
+
 ---
 
 ## 4. MCP layer (`packages/mcp/`)

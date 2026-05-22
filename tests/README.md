@@ -1,12 +1,12 @@
 # tests/
 
-Executable pytest suite. **55 tests** across **5 test files**; `make verify` re-renders + runs everything in under a second.
+Executable pytest suite. **56 tests** across **5 test files**; `make verify` re-renders + runs everything in under a second.
 
 ## Run
 
 ```bash
 source .venv/bin/activate
-python -m pytest tests/        # 55 passed
+python -m pytest tests/        # 56 passed
 ```
 
 ## Layout
@@ -14,7 +14,7 @@ python -m pytest tests/        # 55 passed
 ```
 tests/
 ├── README.md                           this file
-├── test_adapter_conformance.py         13 structural invariants (A-M) across claude-code / codex-cli / opencode; 23 parametrised cases
+├── test_adapter_conformance.py         13 structural invariants (A-M) across claude-code / codex-cli / opencode; 24 parametrised cases
 ├── test_loader_skill_bundles.py        _shared/loader.py contract — one-skill-per-dir discovery, frontmatter survival
 ├── test_manifest_version.py            plugin.yaml manifest_version + the migrate.py 0.0.0 -> 1.0.0 framework
 ├── test_retention_prune.py             retention: TTL + keep_last prune semantics
@@ -47,7 +47,7 @@ tests/
 | J | source-tree link integrity | every relative `[text](path)` link in source resolves to a file |
 | K | rendered-tree link integrity | same as J but on rendered output — catches adapter path-flattening bugs J cannot see |
 | L | frontmatter doc refs | every `references[].doc:` in source YAML resolves to a file or directory |
-| M | command-hook opt-out sidecar | adapter projects per-command `hooks:` allowlists into `hooks/command-hooks.json`; runtime smoke verifies `_lib.sh` opt-out + concurrency + no project-tree pollution (bash + jq required) |
+| M | command-hook opt-out sidecar | 3 tests: claude-code adapter projects per-command `hooks:` allowlists into `hooks/command-hooks.json`; runtime smoke verifies `_lib.sh` opt-out + concurrency + no project-tree pollution (bash + jq required); codex-cli adapter projects the same source field as zero/N `## Guardrails` bullets in the rendered command body |
 
 ## How `expected_counts.json` works
 
