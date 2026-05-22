@@ -149,6 +149,20 @@ Acceptance criteria:
 - `/scholar:deepresearch` can proceed after the stub without weakening hook
   policy globally.
 
+### Status — 2026-05-22 (§2 CLOSED)
+
+Shipped in commit `3ee4b72`:
+
+- `skills/using-deep-research/SKILL.md:81` carries the corrected
+  scope-stub template with valid YAML frontmatter (`status: approved`,
+  `verdict: pursue`, `approved_date`, `staleness_until`) so the stub
+  passes the runtime hook without ad-hoc patching.
+- `hooks/scope-required.sh:80` parses the same frontmatter — the .sh
+  was lifted from existence-only to status+freshness checking in the
+  same commit, closing the spec/impl drift the trial surfaced.
+
+All three acceptance criteria met; no global hook weakening needed.
+
 ## 3. Make blocked command recovery action-oriented
 
 Problem: The block message says to run `/scholar:brainstorming`, but users who
@@ -168,6 +182,22 @@ Acceptance criteria:
 - Block output includes the current missing condition and the next executable
   command.
 - The wording distinguishes "approved scope missing" from "scope file missing".
+
+### Status — 2026-05-22 (§3 CLOSED)
+
+Shipped in commit `3ee4b72`:
+
+- `hooks/scope-required.sh:121` builds a copy-pasteable suggestion
+  block keyed off the failure mode: `no-project` → run
+  `/scholar:paper-init` first; `missing` → both full path
+  (`/scholar:brainstorming`) and fast path
+  (`/scholar:using-deep-research`); `draft-only` → edit the latest
+  scope file and set `status: approved`; `stale` → re-scope or refresh
+  `approved_date`. The four failure modes are distinct first-class
+  branches with their own wording — no more single generic suggestion.
+
+Both acceptance criteria met. `scope-required.md` was also updated in
+the same commit so the spec mirrors the implementation.
 
 ## 4. Add first-class support for blogs, engineering posts, and reports
 
@@ -191,6 +221,28 @@ Acceptance criteria:
 - Blog/source records no longer need to pretend to have sections or venues.
 - `/scholar:paper-review` can still cite them correctly.
 - BibTeX entries use appropriate `@misc` fields and no invented venue.
+
+### Status — 2026-05-22 (§4 CLOSED)
+
+Shipped in commit `2804eda`:
+
+- `packages/core/schemas/evidence.schema.json:19` introduces
+  `source_kind ∈ {paper, blog, engineering_report, docs, tutorial, spec}`
+  as a sub-type within `type=paper` — chose option (a) "keep
+  `type=paper` for compatibility" rather than adding a new top-level
+  `type=literature`, matching the recommendation's preferred path.
+- `commands/paper-lit.md:73` describes the non-paper retrieval flow:
+  use the `scholar-search` `webfetch` variant, store the snapshot
+  under `.evidraft/literature/snapshots/<sha1>.md` (per the §5 P2-2
+  closure), emit the evidence row with the matching `source_kind`,
+  and write a `@misc{...}` BibTeX entry with real `howpublished` / `url`
+  (no invented venue).
+- `/scholar:paper-review` cites them via the same `citation_key`
+  mechanism as papers — no special-casing needed downstream.
+
+All three acceptance criteria met. The matrix column changes from the
+recommendation were folded into the existing matrix schema via the
+`Source kind` field rather than adding three new columns.
 
 ## 5. Cache fetched web snapshots used by evidence records
 
@@ -267,6 +319,22 @@ Acceptance criteria:
 - On fallback copy, `paper-lit` always re-syncs the manuscript BibTeX and reports
   it did so.
 
+### Status — 2026-05-22 (§6 CLOSED)
+
+Shipped in commit `3ee4b72`:
+
+- `commands/paper-init.md:63` explicitly checks the
+  `manuscript/references.bib → ../.evidraft/literature/references.bib`
+  symlink and creates it on POSIX (with the snapshot-copy fallback path
+  documented for platforms without symlinks).
+- `commands/paper-lit.md:93` re-syncs the manuscript copy on every run
+  when the symlink is absent and reports `bib_sync: noop | resynced` in
+  the chat summary.
+
+Both acceptance criteria met. The fallback-copy resync runs on every
+`paper-lit` invocation; the symlink is created once at `paper-init` time
+and verified on each subsequent `paper-lit`.
+
 ## 7. Add a bundled BibTeX validation fallback
 
 Problem: The done criteria mention a standard BibTeX validator, but the default
@@ -283,6 +351,23 @@ Acceptance criteria:
 
 - `paper-lit` does not finish with an unmet "validator unavailable" caveat.
 - Validation failures name the key and field.
+
+### Status — 2026-05-22 (§7 CLOSED)
+
+Shipped in commit `3ee4b72` with the second of the two paths from the
+recommendation — a hand-rolled local fallback rather than a hard
+dependency on `bibtexparser`:
+
+- `commands/paper-lit.md:126` declares the validator chain as
+  `bibtex-tidy | hand-roll` (prefer the binary if present; otherwise
+  fall through to the awk/sed local recipe).
+- `skills/bib-manager/SKILL.md:135` ships the hand-rolled fallback
+  recipe so the run never finishes with an unmet "validator
+  unavailable" caveat.
+
+`bibtexparser` was intentionally NOT added to dependencies — keeping
+the project zero-Python-dep beyond the venv was a design goal of the
+v0.2 lite-mode work.
 
 ## 8. Clarify `paper-lit` topic selection
 
@@ -303,6 +388,19 @@ Acceptance criteria:
 - `matrix.md` states where the topic came from.
 - The chat summary says "used project title as topic" or equivalent.
 
+### Status — 2026-05-22 (§8 CLOSED)
+
+Shipped in commit `2804eda`:
+
+- `commands/paper-lit.md:56` declares the 4-step topic precedence
+  (explicit arg → latest approved scope research question →
+  `project.yaml.title` → user-prompted) and pins the resolved value
+  plus a `topic_source` discriminant into `lit_run.yaml`.
+- `commands/paper-lit.md:101` requires the run-metadata file to carry
+  `topic_source ∈ {explicit-arg, scope.research_question,
+  project.yaml.title, user-prompted}` — the chat summary reads the
+  same field so the user always sees which precedence step won.
+
 ## 9. Distinguish `paper-lit` from `deepresearch` in final output
 
 Problem: Users can mistake a seeded matrix for a completed systematic review.
@@ -318,6 +416,18 @@ Recommendation:
 Acceptance criteria:
 
 - The final chat output never implies that `paper-lit` completed deep research.
+
+### Status — 2026-05-22 (§9 CLOSED)
+
+Shipped in commit `2bf754f`:
+
+- `commands/paper-lit.md:67` requires a fixed banner pinned at the
+  top of `matrix.md` declaring the file is a single-pass seed, NOT
+  a PRISMA review.
+- `commands/paper-lit.md:132` requires the chat summary to end with
+  a fixed three-line footer that names `/scholar:deepresearch` for
+  PRISMA screening and `/scholar:paper-review` for prose, so the
+  user can never silently mistake the matrix for a completed review.
 
 ## 10. Record command run metadata
 
@@ -343,6 +453,24 @@ Acceptance criteria:
 
 - Later `/scholar:paper-review` and `/scholar:paper-check` can identify which
   literature run produced the current matrix.
+
+### Status — 2026-05-22 (§10 CLOSED)
+
+Shipped in commits `2804eda` (schema + initial keys) and `2bf754f`
+(precedence pins added):
+
+- `commands/paper-lit.md:101` defines the on-disk shape of
+  `.evidraft/literature/lit_run.yaml` with required keys `run_id`,
+  `command`, `topic`, `topic_source`, `mode`, `source_limit`,
+  `retrieval`, `validator_used`. Overwrite semantics (last-write
+  wins; earlier runs recoverable via `git log`).
+- `docs/data-model.md:144` documents the same shape as part of the
+  literature-tree schema, so downstream `paper-review` and
+  `paper-check` can locate it by convention.
+
+Both acceptance criteria met: any subsequent command can read
+`lit_run.yaml` to identify which literature run produced the current
+matrix.
 
 ## Suggested priority
 
