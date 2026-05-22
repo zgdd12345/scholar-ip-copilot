@@ -88,6 +88,12 @@ The plugin **refuses** to make strong claims without citable evidence, and refus
 |---|---|
 | `/scholar:using` | This entry — orientation. Read-only. |
 
+### Lite (1) — personal literature research, no project required
+
+| Command | What it does |
+|---|---|
+| `/scholar:reading-list` | Single markdown reading list at `.evidraft/notes/<slug>-<date>.md`. No BibTeX, no `evidence.jsonl`, no audit chain. For personal reference reading. Every entry is `WebFetch`-verified; failed verifications are rejected, not silently downgraded. |
+
 ### Paper (9) — arXiv-neutral draft, venue chosen at submission time
 
 | Command | Purpose | Key output |
@@ -187,11 +193,25 @@ When multiple hooks fire on the same action, adapters MUST run them in this orde
 
 ## What to do on first interaction
 
-1. `Read` `.evidraft/project.yaml` if it exists.
-2. If missing → recommend `/scholar:paper-init` or `/scholar:patent-init`.
-3. If present → walk the `status:` block, find the first non-`done` stage, recommend its command.
-4. List any gating hooks that are currently active (e.g., scope-required if Phase 2 is installed and `scope/` is missing).
-5. Confirm with the user before invoking the recommended next command.
+1. **Read intent first.** If the user's request involves literature work (调研 / 综述 / "look up X" / "find papers on Y") **without** explicit mention of a paper section, patent, venue, or submission, ask ONE intent-clarifying question before any recommendation:
+
+   > Is this for personal literature research (markdown notes only), or are you building toward a paper / patent? I can do either; they go through different paths.
+
+   **Skip the question when context disambiguates** (no need to ask):
+   - `.evidraft/project.yaml.status.manuscript` is `in_progress` or `done` → paper mode.
+   - `.evidraft/project.yaml.project_type` is `patent` or `mixed` → patent mode.
+   - The user names a venue, "投稿", "submit", "paper section", "TID", or similar → paper / patent mode.
+   - The user says "just / 只是 / 自己看 / personal / notes / 笔记" → notes mode.
+
+2. **For notes mode** (the answer is "personal" or skip-heuristic detected it): recommend `/scholar:reading-list <topic>` directly. **Do not** propose `/scholar:paper-init`. The reading-list command needs no project scaffold, no scope file, no BibTeX. Output lands at `.evidraft/notes/<slug>-<date>.md` and is the sole artefact.
+
+3. **For paper / patent mode**:
+   1. `Read` `.evidraft/project.yaml` if it exists.
+   2. If missing → recommend `/scholar:paper-init` or `/scholar:patent-init`.
+   3. If present → walk the `status:` block, find the first non-`done` stage, recommend its command.
+   4. List any gating hooks that are currently active (e.g., `scope-required` if `scope/` is missing).
+
+4. **Always** confirm with the user before invoking the recommended next command. Never propose more than one path at a time — the intent question already disambiguated; don't replay it as a 3-option matrix.
 
 ## What this skill never does
 

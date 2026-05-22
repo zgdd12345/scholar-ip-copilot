@@ -72,6 +72,8 @@ workflows:
     - /scholar:using                # orientation; safe to run any time
     - /scholar:using-deep-research  # single entry to the PRISMA-style deep lit review workflow
     - /scholar:brainstorming        # scope clarification; precondition for paper-idea, patent-scout, draft, claims, deepresearch, polish
+  notes:                            # lite-mode personal literature research; no project init, no bib, no audit
+    - /scholar:reading-list         # single markdown reading list at .evidraft/notes/<slug>-<date>.md
   paper:
     - /scholar:paper-init
     - /scholar:paper-lit            # light single-pass literature; for heavy use /scholar:deepresearch
