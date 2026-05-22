@@ -11,6 +11,11 @@ read_stdin
 PROMPT="$(stdin_jq_field '.prompt // .user_prompt')"
 [ -n "${PROMPT:-}" ] || PROMPT="${LIB_STDIN:-}"
 
+# Record the active /scholar:<cmd> for downstream PostToolUse hooks to consult
+# against the command's frontmatter `hooks:` allowlist. Always runs, even on
+# non-gated prompts (then it just clears stale state).
+record_active_command "$PROMPT"
+
 # Only enforce when the prompt starts with one of the gated slash commands.
 GATED_RE='^/scholar:(paper-idea|paper-draft|patent-scout|patent-claims|deepresearch|polish)\b'
 printf '%s' "$PROMPT" | grep -Eq "$GATED_RE" || exit 0

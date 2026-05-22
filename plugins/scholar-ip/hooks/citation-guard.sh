@@ -6,6 +6,14 @@ set -euo pipefail
 . "$(dirname "$0")/_lib.sh"
 
 read_stdin
+# Per-command opt-out: if the currently active /scholar:<cmd> does not list
+# `citation-guard` in its frontmatter `hooks:` allowlist (or declares `hooks:
+# []`), skip the check entirely. This is the runtime side of the contract
+# that lite-mode commands like /scholar:reading-list rely on.
+if hook_disabled_by_command "citation-guard"; then
+  exit 0
+fi
+
 # Need jq to find the edited file path inside the tool-call envelope; without
 # it we cannot scope the check, so skip rather than block.
 command -v jq >/dev/null 2>&1 || exit 0

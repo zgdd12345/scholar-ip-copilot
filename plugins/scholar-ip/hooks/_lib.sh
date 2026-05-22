@@ -38,3 +38,124 @@ emit_block_decision() {
   fi
   exit 2
 }
+
+# ---------------------------------------------------------------------------
+# Per-command hook opt-out
+#
+# The "active command" is the /scholar:<cmd> currently running in this turn.
+# scope-required.sh (UserPromptSubmit) records it; PostToolUse hooks read it
+# and consult the command's frontmatter `hooks:` field to decide whether to
+# fire. Treats `hooks:` as an explicit allowlist:
+#   - field missing  → all hooks fire (backward-compat)
+#   - hooks: []      → no hooks fire (lite path: reading-list, using, ...)
+#   - hooks: [a, b]  → only a and b fire; others are skipped
+#
+# State lives OUTSIDE the project tree so commands like /scholar:reading-list
+# can keep their "output file is the only artefact" promise. Precedence:
+#   $SCHOLAR_IP_STATE_DIR  (explicit override; test fixtures use this)
+#   $XDG_STATE_HOME/scholar-ip   (Linux convention)
+#   $TMPDIR/scholar-ip           (macOS / fallback)
+#   /tmp/scholar-ip              (last resort)
+# Keyed by project hash + session id so two concurrent Claude Code sessions
+# in the same repo do not trample each other's active-cmd.
+
+_state_root() {
+  if [ -n "${SCHOLAR_IP_STATE_DIR:-}" ]; then
+    printf '%s' "$SCHOLAR_IP_STATE_DIR"
+  elif [ -n "${XDG_STATE_HOME:-}" ]; then
+    printf '%s/scholar-ip' "$XDG_STATE_HOME"
+  else
+    printf '%s/scholar-ip' "${TMPDIR:-/tmp}"
+  fi
+}
+
+# Short stable digest of the project dir, so /a/b/foo and /c/d/foo don't share.
+_project_key() {
+  local proj="${CLAUDE_PROJECT_DIR:-$PWD}"
+  if command -v shasum >/dev/null 2>&1; then
+    printf '%s' "$proj" | shasum -a 1 | cut -c1-12
+  elif command -v sha1sum >/dev/null 2>&1; then
+    printf '%s' "$proj" | sha1sum | cut -c1-12
+  else
+    # No hash tool — collapse the path into a fs-safe basename suffix.
+    printf '%s' "$proj" | tr -c '[:alnum:]' '_' | tail -c 24
+  fi
+}
+
+# Session id from the Claude Code hook envelope; falls back to parent PID so
+# single-session runs still get a unique slot. Sanitised to fs-safe chars.
+_session_key() {
+  local sid
+  sid="$(stdin_jq_field '.session_id')"
+  [ -n "$sid" ] || sid="pid-${PPID:-0}"
+  printf '%s' "$sid" | tr -c '[:alnum:]_-' '_'
+}
+
+_state_dir() {
+  printf '%s/%s/%s' "$(_state_root)" "$(_project_key)" "$(_session_key)"
+}
+
+_state_file() {
+  printf '%s/active-cmd' "$(_state_dir)"
+}
+
+# Parse the user prompt; if it begins with "/scholar:<cmd>", write <cmd> to
+# the state file (just the bare cmd name, no leading slash). If not, clear
+# the file so a stale command name from a prior turn does not leak through.
+record_active_command() {
+  local prompt="$1"
+  local sdir sfile cmd
+  sdir="$(_state_dir)"
+  sfile="$(_state_file)"
+  mkdir -p "$sdir" 2>/dev/null || return 0
+  cmd="$(printf '%s' "$prompt" | awk '
+    match($0, /^\/scholar:[a-zA-Z0-9_-]+/) {
+      print substr($0, RSTART+9, RLENGTH-9); exit
+    }')"
+  if [ -n "$cmd" ]; then
+    printf '%s\n' "$cmd" > "$sfile"
+  else
+    : > "$sfile"
+  fi
+}
+
+# Return 0 if the named hook is DISABLED for the currently active command,
+# 1 otherwise. Defaults to "active" on every uncertain path so we never
+# silently weaken a hook for a command that has no opt-out declared.
+#
+# Source of truth: hooks/command-hooks.json, emitted by the claude_code
+# adapter alongside hooks.json. The rendered command frontmatter no longer
+# carries the source `hooks:` field (CC only recognises description /
+# argument-hint / allowed-tools), so the adapter projects each command's
+# allowlist into this sidecar.
+hook_disabled_by_command() {
+  local hook_name="$1"
+  local sfile cmd plugin_root map_file allow
+  sfile="$(_state_file)"
+  [ -s "$sfile" ] || return 1
+  cmd="$(head -n1 "$sfile" | tr -d '\n\r ' )"
+  [ -n "$cmd" ] || return 1
+  plugin_root="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+  map_file="$plugin_root/hooks/command-hooks.json"
+  [ -f "$map_file" ] || return 1
+  command -v jq >/dev/null 2>&1 || return 1
+  # `null` ← command absent from sidecar (no opt-out declared, all hooks fire).
+  # `""`   ← empty allowlist (commands[cmd] == [], all hooks skip).
+  # `"a b c"` ← space-joined allowlist; the hook fires only if hook_name is in it.
+  allow="$(jq -r --arg c "$cmd" '
+    if (.commands | has($c)) then
+      (.commands[$c] | join(" "))
+    else
+      "null"
+    end
+  ' "$map_file" 2>/dev/null || printf 'null')"
+  case "$allow" in
+    null) return 1 ;;
+    "")   return 0 ;;
+  esac
+  # Word-bounded match against the space-joined allowlist.
+  for h in $allow; do
+    [ "$h" = "$hook_name" ] && return 1
+  done
+  return 0
+}

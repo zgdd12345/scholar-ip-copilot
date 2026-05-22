@@ -346,6 +346,37 @@ def _render_executable_hooks(plugin: Plugin, out_dir: Path) -> list[Path]:
             shutil.copyfile(helper, dest)
             written.append(dest)
 
+        # Sidecar lookup consumed by _lib.sh::hook_disabled_by_command. The
+        # rendered command frontmatter no longer carries the source `hooks:`
+        # field (CC only recognises description/argument-hint/allowed-tools),
+        # so we project the per-command allowlist into a separate JSON the
+        # PostToolUse hooks read at runtime. Format is intentionally minimal:
+        #   - command name present, value = [] → all hooks disabled for that cmd
+        #   - command name present, value = [a, b] → only a,b fire; others skip
+        #   - command name absent → no opt-out declared → all hooks fire (legacy)
+        cmd_hook_map: dict[str, list[str]] = {}
+        for cmd in plugin.commands:
+            meta = cmd.meta or {}
+            if "hooks" not in meta:
+                continue
+            value = meta.get("hooks")
+            if not isinstance(value, list):
+                continue
+            cmd_name = str(meta.get("id") or cmd.path.stem)
+            cmd_hook_map[cmd_name] = [str(h) for h in value]
+        if cmd_hook_map:
+            ch_path = out_hooks_dir / "command-hooks.json"
+            ch_path.write_text(
+                json.dumps(
+                    {"version": 1, "commands": dict(sorted(cmd_hook_map.items()))},
+                    indent=2,
+                    ensure_ascii=False,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            written.append(ch_path)
+
     return written
 
 

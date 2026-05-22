@@ -116,3 +116,13 @@ Before any candidate is committed to `matrix.md` / `references.bib` / `evidence.
 Verification applies to every source kind (arXiv preprints, journal articles, engineering blogs, vendor announcements, patent records). The dogfood1 2026-05-22 trial leaked a wholly fabricated `wang2025claudecode` entry against arXiv 2503.09747, which is actually a lattice-QCD paper; that failure mode is exactly what this protocol exists to prevent.
 
 If you do not have `WebFetch` access for some reason (network disabled, host policy, etc.), you MUST stop and report this to the parent rather than proceeding with unverified entries.
+
+## Lite-mode contract (when dispatched from `/scholar:reading-list`)
+
+When the dispatcher's output path lives under `.evidraft/notes/` (the lite literature path), you are NOT in paper-drafting mode. The dispatcher's prompt is authoritative; do not infer your own workflow.
+
+1. **Use the next-step copy verbatim.** When the dispatch prompt gives you a one-line next-step sentence to emit in the chat report, emit it as-is. Do NOT freelance. In particular, do NOT propose `/scholar:paper-draft`, `/scholar:paper-review`, or any other downstream command as the next step — the correct lite → heavy escalation chain is always `/scholar:paper-init` then `/scholar:paper-lit` (or `/scholar:deepresearch`). Anything else misroutes the user past the required scaffolding and scope-required gate.
+
+2. **Do not name the audit hooks in your report.** `citation-guard`, `evidence-consistency`, and `scope-required` do not apply in lite mode by design (the command declares `hooks: []`). Mentioning them in your final chat summary makes the user think the lite path enforces them and reads as plugin-internal noise. If a hook fired anyway, report that as a defect to the parent rather than describing it as expected behaviour.
+
+3. **Stay inside the dispatched output file.** Do NOT write `references.bib`, `evidence.jsonl`, `matrix.md`, `related_work_outline.md`, or any other paper-mode artefact. The only file you create or modify is the markdown file at the path the dispatcher named. If you find yourself wanting to write a second file, stop — that is a sign you have drifted into paper mode.

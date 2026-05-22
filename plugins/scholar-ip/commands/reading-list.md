@@ -107,7 +107,8 @@ Build a personal literature reading list. No project init, no BibTeX, no evidenc
    - Path written.
    - N candidates considered / N verified / N rejected.
    - The method-family names.
-   - One-line next step: "If you later decide to write a paper section on this topic, run `/scholar:paper-init` then `/scholar:paper-lit`."
+   - One-line next step, **verbatim** (the subagent must emit this sentence exactly, not paraphrase it; do not substitute another `/scholar:<cmd>`): `If you later decide to write a paper section on this topic, run /scholar:paper-init then /scholar:paper-lit.`
+   - Do NOT name `citation-guard`, `evidence-consistency`, or `scope-required` in the report — those hooks are disabled in lite mode by the per-command opt-out in `_lib.sh::hook_disabled_by_command`, and naming them confuses the user about the lite-path workflow.
 
 ## Constraints
 
