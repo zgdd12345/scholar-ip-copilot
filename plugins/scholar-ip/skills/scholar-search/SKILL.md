@@ -74,6 +74,22 @@ All retrieval skills share one cache convention. **Read this before every WebFet
   2. `sha1` it (`shasum -a 1 <<< "$url"` or `sha1sum`),
   3. write the parsed JSON response to `.evidraft/literature/.cache/<provider>/<sha1>.json` with two extra top-level keys: `_fetched_at` (UTC iso) and `_url` (the canonical URL).
 
+### Variant: `webfetch` (full-text snapshots for citable web sources)
+
+The JSON variant above is for structured retrieval responses (arXiv / S2 / OpenAlex). For sources that downstream evidence rows need to cite line-by-line (blog posts, vendor docs, engineering reports, tutorials, specs), use the `webfetch` flavour: store the rendered body as markdown so the line numbers are stable.
+
+- Body: `.evidraft/literature/.cache/webfetch/<sha1(url)>.md` — `WebFetch`'s own rendered markdown, written verbatim (no LLM rewriting).
+- Companion: `.evidraft/literature/.cache/webfetch/<sha1(url)>.json` — `{"_fetched_at":"<utc>","_url":"<canonical>","content_type":"<mime>","title":"<page title>"}`.
+- Reciprocal contract: any evidence record with `source` starting `http://` / `https://` MUST carry `source_kind != "paper"` and a `file_path` pointing at the `.md` above; see `../evidence-check/SKILL.md §1.1` for the row shape.
+- TTL still 14 days; stale snapshots are deleted on encounter. Evidence rows that reference a deleted snapshot are flagged by `evidence-auditor` and must be re-fetched (a new sha1 is allowed — `supersedes` the old row).
+
+Recipe:
+
+1. Canonicalise + sha1 as above.
+2. `WebFetch` the URL.
+3. Write the body to `.cache/webfetch/<sha1>.md` and the metadata stub to `.cache/webfetch/<sha1>.json`.
+4. Return `{cache_path: ".evidraft/literature/.cache/webfetch/<sha1>.md", title, content_type}` so the caller (`paper-lit`) can build the evidence row directly.
+
 ## Inputs
 
 - a free-text query, or one of: `arxiv:<id>`, `doi:<id>`, `openalex:<W...>`, `s2:<paperId>`

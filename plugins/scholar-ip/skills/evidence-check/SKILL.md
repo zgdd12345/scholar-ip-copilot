@@ -62,6 +62,7 @@ Every record is a single line of compact JSON. Fields common to all types:
 | `id` | yes | `ev_NNNN`, 4-digit zero-padded, globally monotonic in the file |
 | `type` | yes | one of `paper`, `experiment`, `code`, `patent`, `note` |
 | `source` | yes | URI-ish: `arxiv:…`, `doi:…`, file path, patent number, URL |
+| `source_kind` | no (default `paper`) | sub-type within `type=paper`: `paper` (formal publication) / `blog` / `engineering_report` / `docs` / `tutorial` / `spec` — see §1.1 |
 | `claim` | yes | one declarative sentence, no hedging, no marketing |
 | `support` | yes | where in the source the claim is backed up |
 | `confidence` | yes | `high` / `medium` / `low` |
@@ -71,7 +72,8 @@ Type-specific required fields:
 
 | `type` | Additional required | Forbidden / must be null |
 |---|---|---|
-| `paper` | `citation_key` (must exist in `references.bib`) | `file_path`, `line_range` |
+| `paper` (`source_kind=paper`) | `citation_key` (must exist in `references.bib`) | `file_path`, `line_range` |
+| `paper` (`source_kind` in {`blog`, `engineering_report`, `docs`, `tutorial`, `spec`}) | `citation_key` (BibTeX `@misc`), `file_path` (cache snapshot), `line_range` | — |
 | `experiment` | `file_path` (csv/jsonl/log path), `line_range` (`row:col` or `start:end`) | `citation_key` |
 | `code` | `file_path`, `line_range` (`start:end`, 1-indexed, inclusive) | `citation_key` |
 | `patent` | `source` is a patent number (`US10000000B2`, `EP1234567A1`, `CN111111111A`) | `citation_key` (use `source` instead) |
@@ -81,8 +83,28 @@ Pre-flight checks before appending:
 
 - `id` is one greater than the current max in the file.
 - For `paper`: `citation_key` resolves in `references.bib` (grep first).
+- For `paper` with non-default `source_kind`: `file_path` resolves under `.evidraft/literature/.cache/webfetch/` and exists on disk.
 - For `experiment` / `code`: `file_path` exists on disk and `line_range` is in bounds.
 - `claim` is one sentence and contains no strong-claim verb unless backed by another record.
+
+### 1.1 URL-sourced evidence (blog, docs, engineering reports)
+
+Live web pages do not have stable line numbers. When the evidence is a blog post, vendor doc, engineering report, or any non-paper web source, the row is still `type=paper` but with a non-default `source_kind`. The citation must point at a local cache snapshot, not the live URL:
+
+```json
+{"id":"ev_0042","type":"paper","source_kind":"blog","source":"https://example.com/post",
+ "citation_key":"acme2025harness","file_path":".evidraft/literature/.cache/webfetch/<sha1>.md",
+ "line_range":"42:58","claim":"...","support":"§ 'Guardrails'","confidence":"medium","verified":false}
+```
+
+Recipe (the `scholar-search` skill `webfetch` variant emits the cache files; this skill only validates):
+
+- `source_kind` must be one of the non-paper enum values, and `source` must be the original URL.
+- `file_path` must start with `.evidraft/literature/.cache/webfetch/` and exist on disk.
+- `line_range` follows the same `start:end` rule as `type=code`.
+- `citation_key` must resolve in `references.bib` as an `@misc{…}` entry whose `howpublished` / `url` matches `source`.
+
+The evidence-auditor verifies the claim by opening the cache snapshot at the cited line range — never by re-fetching the live URL.
 
 ### 2. `id` allocation
 

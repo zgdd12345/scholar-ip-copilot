@@ -36,6 +36,7 @@ outputs:
   - path: .evidraft/literature/matrix.md
   - path: .evidraft/evidence/evidence.jsonl  # append-only
   - path: .evidraft/literature/related_work_outline.md  # only when draft_outline=true
+  - path: .evidraft/literature/lit_run.yaml  # run metadata (one per invocation, last-write wins)
 allowed_tools: [Read, Glob, Grep, Write, Edit, WebSearch, WebFetch, "Bash:cat*"]
 hooks: [citation-guard, evidence-consistency]
 subagents: [literature-reviewer, evidence-auditor]
@@ -52,6 +53,14 @@ Build a literature foundation for the paper. Online retrieval uses the host-nati
 
 ## Steps
 
+0. **Resolve the topic and pin a `run_id`.** Topic precedence (first hit wins; record which one in `lit_run.yaml`):
+   1. explicit command argument (`topic_source: explicit-arg`)
+   2. latest approved scope file's `# Research question` line (`topic_source: scope.research_question`)
+   3. `.evidraft/project.yaml.title` (`topic_source: project.yaml.title`)
+   4. ask the user (`topic_source: user-prompted`)
+
+   Generate `run_id` as the current UTC ISO-8601 timestamp (`date -u +%Y-%m-%dT%H:%M:%SZ`). Pass `run_id` to the `scholar-search` skill so every retrieval row carries it.
+
 1. **Inventory existing material.**
    - Look for `references.bib`, `references/*.pdf`, `papers/*.pdf`.
    - Read `.evidraft/literature/matrix.md` (may be empty).
@@ -61,11 +70,16 @@ Build a literature foundation for the paper. Online retrieval uses the host-nati
           For systematic screening + cluster critique, run /scholar:deepresearch. -->
      ```
 2. **Online retrieval (optional).** If the user supplies a topic, load the `scholar-search` skill and request up to N (default 20) candidate papers per the URL templates / rate-limit policy in `skills/scholar-search/SKILL.md` (arXiv, Semantic Scholar, OpenAlex). For each candidate produce a structured stub (title, authors, year, venue, abstract, why-relevant). All bib edits go through `skills/bib-manager/SKILL.md` for dedup + key normalisation.
-3. **Per-paper extraction.** Use the `literature-reviewer` subagent to curate the matrix rows, then use the `evidence-auditor` subagent to spot-check each appended `type=paper` evidence row against `references.bib`. For every paper you commit to (existing or new):
-   - Add a clean BibTeX entry to `.evidraft/literature/references.bib`. Citation key: `firstauthorYEARkeyword` (lowercase).
+   - **Non-paper sources** (blog posts, vendor docs, engineering reports, tutorials, specs): use the `scholar-search` `webfetch` variant (`skills/scholar-search/SKILL.md` §Variant: webfetch). It writes the page body to `.evidraft/literature/.cache/webfetch/<sha1>.md` plus a metadata stub. Record the cache path — step 3 will reference it.
+3. **Per-paper extraction.** Use the `literature-reviewer` subagent to curate the matrix rows, then use the `evidence-auditor` subagent to spot-check each appended `type=paper` evidence row against `references.bib`. For every source you commit to (existing or new):
+   - Add a clean BibTeX entry to `.evidraft/literature/references.bib`. Citation key: `firstauthorYEARkeyword` (lowercase). Non-paper sources use `@misc{...}` with real `howpublished` / `url` — never invent a venue.
    - Add one or more rows to `.evidraft/literature/matrix.md`:
-     | citation_key | Year | Venue | Problem | Method | Datasets | Key Result | Gap | Evidence ids |
-   - Append one evidence record per *non-trivial* claim to `.evidraft/evidence/evidence.jsonl` with `type=paper`, `citation_key`, `claim`, `support` ("Section 4.2", "Table 3", …), and `verified=false` (auditor flips later).
+     | citation_key | Source kind | Year | Venue | Problem | Method | Datasets | Key Result | Gap | Evidence ids |
+     `Source kind` is `paper` (default) / `blog` / `engineering_report` / `docs` / `tutorial` / `spec`.
+   - Append one evidence record per *non-trivial* claim to `.evidraft/evidence/evidence.jsonl`:
+     - Formal paper: `type=paper`, default `source_kind=paper`, `citation_key`, `support` (`"Section 4.2"`, `"Table 3"`).
+     - URL source: `type=paper`, `source_kind` ∈ {`blog`, `engineering_report`, `docs`, `tutorial`, `spec`}, `citation_key` (the `@misc` key), `source` is the canonical URL, `file_path` points at the `.cache/webfetch/<sha1>.md` snapshot from step 2, `line_range` is 1-indexed inclusive into that snapshot, `support` describes the section heading. See `skills/evidence-check/SKILL.md` §1.1.
+     - Always `verified=false` (auditor flips later).
 4. **Cluster.** At the end, write a brief "Method family" summary into the bottom of `matrix.md` grouping papers into 3–6 method families.
 5. **Outline (only when `draft_outline=true`).** Write `.evidraft/literature/related_work_outline.md` — a lightweight survey aid, **not** a PRISMA review:
    - One H2 per method family from step 4 (`## <family name>`).
@@ -84,6 +98,21 @@ Build a literature foundation for the paper. Online retrieval uses the host-nati
    fi
    ```
    Report `bib_sync: noop | resynced` in the chat summary.
+7. **Write run metadata.** Persist `.evidraft/literature/lit_run.yaml` (overwrite any prior file; last-write wins — earlier runs are recoverable through `git log`):
+   ```yaml
+   run_id: 2026-05-22T02:21:00Z         # the run_id pinned in step 0
+   command: /scholar:paper-lit
+   topic: "<resolved topic>"
+   topic_source: explicit-arg | scope.research_question | project.yaml.title | user-prompted
+   mode: single_pass | draft_outline    # draft_outline iff input.draft_outline=true
+   source_limit: 20                     # the N from step 2
+   retrieval: web | offline             # offline iff host has no network or user opted out
+   validator_used: bibtex-tidy | hand-roll   # from done criteria
+   draft_outline_path: .evidraft/literature/related_work_outline.md  # null when mode=single_pass
+   bib_link: symlink | snapshot         # mirrors paper-init step 4 / step 6 sync
+   bib_sync: noop | resynced            # from step 6
+   ```
+   `/scholar:paper-review`, `/scholar:paper-check`, and a future `/scholar:paper-experiment` may read this file to identify which literature run produced the current matrix.
 
 ## Constraints
 
@@ -98,6 +127,7 @@ Build a literature foundation for the paper. Online retrieval uses the host-nati
 - `matrix.md` has ≥ 1 row per cited paper and starts with the "NOT a PRISMA review" banner from step 1.
 - `evidence.jsonl` has ≥ 1 `type=paper` record per cited paper.
 - `manuscript/references.bib` is in sync with the canonical file (step 6). Chat reports `bib_sync: noop | resynced`.
+- `.evidraft/literature/lit_run.yaml` exists with all required keys from step 7; `topic_source` accurately reflects which precedence step resolved the topic.
 - When `draft_outline=true`: `.evidraft/literature/related_work_outline.md` exists, starts with the outline banner, and every sentence carries a `[citation_key]` resolving in `references.bib`.
 - Chat summary ends with this fixed line, verbatim:
 

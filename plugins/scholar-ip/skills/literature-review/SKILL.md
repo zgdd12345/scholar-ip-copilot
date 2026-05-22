@@ -98,20 +98,26 @@ Forbidden:
 
 For every paper you commit to (existing or new), produce exactly this set of artefacts in this order:
 
-1. **BibTeX entry** in `references.bib` (see hygiene above).
+1. **BibTeX entry** in `references.bib` (see hygiene above). Use `@misc` with a real `howpublished` / `url` when the source is a blog / engineering report / vendor doc / tutorial / spec — never invent a venue.
 2. **Matrix row** in `matrix.md`:
 
    ```
-   | citation_key | Year | Venue | Problem | Method | Datasets | Key Result | Gap | Evidence ids |
+   | citation_key | Source kind | Year | Venue | Problem | Method | Datasets | Key Result | Gap | Evidence ids |
    ```
-   Each cell is short (≤ 12 words). "Key Result" carries one concrete number with units when available (`81.3 mAP on COCO val2017`).
-3. **Evidence record(s)** appended to `evidence.jsonl` — one per non-trivial claim you intend to reuse downstream. Minimum shape:
+   `Source kind` is one of `paper` (default, omit or write `paper`) / `blog` / `engineering_report` / `docs` / `tutorial` / `spec`. For non-paper kinds `Venue` carries the publisher/site (`Anthropic Engineering Blog`, `OpenAI Cookbook`); never invent a venue. Each cell is short (≤ 12 words). "Key Result" carries one concrete number with units when available (`81.3 mAP on COCO val2017`); for non-paper sources, the cell may be qualitative.
+3. **Evidence record(s)** appended to `evidence.jsonl` — one per non-trivial claim you intend to reuse downstream. Minimum shape depends on `source_kind`:
 
+   Formal paper (`source_kind: paper`, default):
    ```json
    {"id":"ev_NNNN","type":"paper","source":"arxiv:2103.xxxx","claim":"<one sentence>","support":"Section 4.2 / Table 3 / Eq. (7)","citation_key":"<key>","file_path":null,"line_range":null,"confidence":"high","verified":false}
    ```
 
-   `verified=false` until a human auditor flips it. See `../evidence-check/SKILL.md` for full field rules.
+   Non-paper web source (`source_kind: blog` / `engineering_report` / `docs` / `tutorial` / `spec`):
+   ```json
+   {"id":"ev_NNNN","type":"paper","source_kind":"blog","source":"https://example.com/post","claim":"<one sentence>","support":"§ '<heading>' / paragraph N","citation_key":"<key>","file_path":".evidraft/literature/.cache/webfetch/<sha1>.md","line_range":"42:58","confidence":"medium","verified":false}
+   ```
+
+   `verified=false` until a human auditor flips it. See `../evidence-check/SKILL.md` for full field rules (§1.1 for URL-sourced rows specifically).
 
 Never write a matrix row without at least one matching evidence record. Never write an evidence record with a `citation_key` that is missing from `references.bib`.
 

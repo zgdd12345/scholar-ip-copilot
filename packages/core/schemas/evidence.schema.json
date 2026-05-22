@@ -16,6 +16,12 @@
       "type": "string",
       "enum": ["paper", "experiment", "code", "patent", "note"]
     },
+    "source_kind": {
+      "type": "string",
+      "enum": ["paper", "blog", "engineering_report", "docs", "tutorial", "spec"],
+      "default": "paper",
+      "description": "Sub-type within type=paper. Default 'paper' means a formal academic publication. Non-paper kinds (blog, engineering_report, docs, tutorial, spec) require a local cache snapshot under .evidraft/literature/.cache/webfetch/ and a file_path + line_range pointing at it — the live URL line numbers are not stable."
+    },
     "source": {
       "type": "string",
       "description": "URI-like pointer: arxiv:..., doi:..., file path, patent number, URL."
@@ -74,6 +80,16 @@
     {
       "if": { "properties": { "type": { "const": "code" } } },
       "then": { "required": ["file_path"] }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": { "const": "paper" },
+          "source_kind": { "enum": ["blog", "engineering_report", "docs", "tutorial", "spec"] }
+        },
+        "required": ["type", "source_kind"]
+      },
+      "then": { "required": ["citation_key", "file_path", "line_range"] }
     }
   ]
 }
