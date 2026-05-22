@@ -191,7 +191,7 @@ Every record in `evidence/evidence.jsonl` carries:
 }
 ```
 
-`source_kind` is optional and defaults to `paper`. Non-paper kinds within `type=paper` (blog / engineering_report / docs / tutorial / spec) MUST carry a `file_path` pointing at a local `.evidraft/literature/.cache/webfetch/<sha1>.md` snapshot — live URL line numbers are not stable. See [`data-model.md`](data-model.md) for the full schema.
+`source_kind` is optional and defaults to `paper`. Non-paper kinds within `type=paper` (blog / engineering_report / docs / tutorial / spec) MUST carry a `file_path` pointing at a local `.evidraft/literature/snapshots/<sha1>.md` snapshot — live URL line numbers are not stable. The `snapshots/` tree is durable evidence backing (no TTL, no auto-delete); see [`data-model.md`](data-model.md) for the full schema and `plugins/scholar-ip/skills/scholar-search/SKILL.md` §Tier 2 for refresh semantics.
 
 ---
 

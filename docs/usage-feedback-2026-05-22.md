@@ -212,6 +212,37 @@ Acceptance criteria:
 - Evidence auditor can verify a claim without re-fetching the live web page.
 - A stale or changed web page does not invalidate prior evidence pointers.
 
+### Status — 2026-05-22 (P2-2 CLOSED)
+
+Shipped in commit (this series): WebFetch snapshots split into a two-tier
+on-disk model and made durable.
+
+- **Tier 1 — Provider JSON cache** (`.evidraft/literature/.cache/<provider>/<sha1>.json`):
+  unchanged. 14-day TTL, delete-on-encounter. These files are not cited by
+  any `evidence.jsonl` row, so disposability is safe.
+- **Tier 2 — Snapshot store** (`.evidraft/literature/snapshots/<sha1>.{md,json}`):
+  new path. **No TTL, no auto-delete**. A snapshot referenced by any
+  `evidence.jsonl` row is immutable provenance. To refresh a snapshot whose
+  upstream page has changed, fetch a NEW `<sha1>` and emit a fresh evidence
+  row carrying `supersedes` at the prior row's id; never overwrite or delete
+  the prior snapshot.
+
+Surface area updated: `scholar-search` (SKILL + procedure + anti-patterns),
+`evidence-check` (validator accepts new path; legacy `.cache/webfetch/`
+tolerated for pre-2026-05-22 rows), `paper-lit` step 2 / step 3,
+`literature-review` example row, `evidence.schema.json` description,
+`docs/architecture.md`, `docs/data-model.md` tree + row example + field
+description. `.gitignore` was already permissive (only `**/.evidraft/.cache/`
+and `**/.evidraft/tmp/` are ignored, so `snapshots/` is committed alongside
+`references.bib` and `evidence.jsonl` in real user projects).
+
+Acceptance criteria, met:
+
+- Auditor reads snapshot files directly (unchanged from before).
+- TTL no longer deletes snapshots pinned by evidence rows — the second
+  acceptance criterion ("A stale or changed web page does not invalidate
+  prior evidence pointers") is now structurally satisfied.
+
 ## 6. Fix `manuscript/references.bib` symlink behavior
 
 Problem: A recursive template copy produced `manuscript/references.bib` as a

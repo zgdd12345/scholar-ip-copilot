@@ -14,9 +14,9 @@ Everything EviDraft produces lives on disk under the project's `.evidraft/` dire
 │   │   ├── matrix.md
 │   │   ├── lit_run.yaml             /scholar:paper-lit run metadata (last-write wins)
 │   │   ├── related_work_outline.md  /scholar:paper-lit --draft-outline; lightweight survey aid
-│   │   ├── .cache/<provider>/<sha1>.json   structured retrieval (arxiv / s2 / openalex)
-│   │   ├── .cache/webfetch/<sha1>.md       full-page snapshots for citable blog / docs / report sources
-│   │   ├── .cache/webfetch/<sha1>.json     companion metadata (url, fetched_at, title)
+│   │   ├── .cache/<provider>/<sha1>.json   disposable structured-retrieval cache (arxiv / s2 / openalex); 14d TTL
+│   │   ├── snapshots/<sha1>.md             durable webfetch body — evidence backing for blog/docs/report rows
+│   │   ├── snapshots/<sha1>.json           durable companion metadata (url, fetched_at, title, content_type)
 │   │   └── (deepresearch artefacts: plan.yaml, candidates.jsonl,
 │   │        screening_log.csv, clusters.yaml, critique/, citation_audit.json,
 │   │        evidence_map.json, related_work.draft.md)
@@ -102,7 +102,7 @@ One JSON object per line. The "lingua franca" for every downstream draft.
 {"id":"ev_0001","type":"paper","source":"arxiv:2103.xxxx","claim":"Method X achieves 81.3 mAP on COCO.","support":"Table 3 of the cited paper.","citation_key":"smith2021methodx","file_path":null,"line_range":null,"confidence":"high","verified":true}
 {"id":"ev_0017","type":"experiment","source":"experiments/runs/exp_2026_03_01.csv","claim":"Our model attains 82.6 mAP on COCO val2017.","support":"Row 4, column 'map_5095' of the cited csv.","citation_key":null,"file_path":"experiments/runs/exp_2026_03_01.csv","line_range":"4:4","confidence":"high","verified":true}
 {"id":"ev_0042","type":"code","source":"src/models/detector.py","claim":"Anchor-free head implemented via the FCOSHead class.","support":"Class definition and forward pass.","citation_key":null,"file_path":"src/models/detector.py","line_range":"118:204","confidence":"high","verified":true}
-{"id":"ev_0055","type":"paper","source_kind":"blog","source":"https://www.anthropic.com/engineering/example","claim":"Claude Code's hook system fires before tool use.","support":"§ 'Hooks lifecycle'","citation_key":"anthropic2025harness","file_path":".evidraft/literature/.cache/webfetch/3a7f...e9.md","line_range":"42:58","confidence":"medium","verified":false}
+{"id":"ev_0055","type":"paper","source_kind":"blog","source":"https://www.anthropic.com/engineering/example","claim":"Claude Code's hook system fires before tool use.","support":"§ 'Hooks lifecycle'","citation_key":"anthropic2025harness","file_path":".evidraft/literature/snapshots/3a7f...e9.md","line_range":"42:58","confidence":"medium","verified":false}
 ```
 
 Field meanings:
@@ -111,7 +111,7 @@ Field meanings:
 |---|---|---|
 | `id` | yes | `ev_` + 4-digit zero-padded counter |
 | `type` | yes | `paper` / `experiment` / `code` / `patent` / `note` / `invention` / `number` |
-| `source_kind` | optional | sub-type within `type=paper`; one of `paper` (default — formal publication) / `blog` / `engineering_report` / `docs` / `tutorial` / `spec`. Non-paper kinds REQUIRE `file_path` + `line_range` pointing at a `.evidraft/literature/.cache/webfetch/<sha1>.md` snapshot (URL line numbers are not stable) |
+| `source_kind` | optional | sub-type within `type=paper`; one of `paper` (default — formal publication) / `blog` / `engineering_report` / `docs` / `tutorial` / `spec`. Non-paper kinds REQUIRE `file_path` + `line_range` pointing at a `.evidraft/literature/snapshots/<sha1>.md` snapshot (URL line numbers are not stable). Snapshots are durable evidence backing — see `plugins/scholar-ip/skills/scholar-search/SKILL.md` §Tier 2. Legacy `.cache/webfetch/` paths (pre-2026-05-22) remain valid |
 | `source` | yes | URI-ish: `arxiv:…`, `doi:…`, file path, patent number, URL |
 | `claim` | yes | one sentence, no hedging |
 | `support` | yes | where in the source the claim is backed up |

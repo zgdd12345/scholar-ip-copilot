@@ -20,7 +20,7 @@
       "type": "string",
       "enum": ["paper", "blog", "engineering_report", "docs", "tutorial", "spec"],
       "default": "paper",
-      "description": "Sub-type within type=paper. Default 'paper' means a formal academic publication. Non-paper kinds (blog, engineering_report, docs, tutorial, spec) require a local cache snapshot under .evidraft/literature/.cache/webfetch/ and a file_path + line_range pointing at it — the live URL line numbers are not stable."
+      "description": "Sub-type within type=paper. Default 'paper' means a formal academic publication. Non-paper kinds (blog, engineering_report, docs, tutorial, spec) require a local durable snapshot under .evidraft/literature/snapshots/ and a file_path + line_range pointing at it — the live URL line numbers are not stable. Snapshots are immutable evidence backing (no TTL); refresh via new sha1 + supersedes. Legacy .evidraft/literature/.cache/webfetch/ paths (pre-2026-05-22) are still accepted by validators."
     },
     "source": {
       "type": "string",

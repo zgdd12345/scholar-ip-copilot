@@ -21,6 +21,8 @@ Path B: form a natural-language query that includes domain-specific terminology;
 
 Compute `sha1` of the canonical URL (path A) or the `(query, allowed_domains)` tuple (path B). If `.evidraft/literature/.cache/<provider>/<sha1>.json` exists **and** is < 14 days old (compare `_fetched_at` to now), load it instead of fetching. If stale, **delete** the file and fall through to the fetch.
 
+This rule applies to the Tier 1 provider JSON cache only. The Tier 2 snapshot store at `.evidraft/literature/snapshots/` (used by the `webfetch` variant) is durable evidence backing — never delete those files, even if older than 14 days; see `SKILL.md` §Tier 2.
+
 ## 3. Fetch
 
 Path A: call `WebFetch` with the URL. For arXiv (XML), pass a prompt like "extract entries". For S2 / OpenAlex (JSON), pass a prompt asking the host to return the body verbatim, then parse.

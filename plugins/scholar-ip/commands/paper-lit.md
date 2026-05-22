@@ -70,7 +70,7 @@ Build a literature foundation for the paper. Online retrieval uses the host-nati
           For systematic screening + cluster critique, run /scholar:deepresearch. -->
      ```
 2. **Online retrieval (optional).** If the user supplies a topic, load the `scholar-search` skill and request up to N (default 20) candidate papers per the URL templates / rate-limit policy in `skills/scholar-search/SKILL.md` (arXiv, Semantic Scholar, OpenAlex). For each candidate produce a structured stub (title, authors, year, venue, abstract, why-relevant). All bib edits go through `skills/bib-manager/SKILL.md` for dedup + key normalisation.
-   - **Non-paper sources** (blog posts, vendor docs, engineering reports, tutorials, specs): use the `scholar-search` `webfetch` variant (`skills/scholar-search/SKILL.md` §Variant: webfetch). It writes the page body to `.evidraft/literature/.cache/webfetch/<sha1>.md` plus a metadata stub. Record the cache path — step 3 will reference it.
+   - **Non-paper sources** (blog posts, vendor docs, engineering reports, tutorials, specs): use the `scholar-search` `webfetch` variant (`skills/scholar-search/SKILL.md` §Tier 2). It writes the page body to `.evidraft/literature/snapshots/<sha1>.md` plus a metadata stub. The `snapshots/` tree is durable evidence backing — files there are never auto-deleted; refreshes go through new `<sha1>` + `supersedes`. Record the snapshot path — step 3 will reference it.
 3. **Per-paper extraction.** Use the `literature-reviewer` subagent to curate the matrix rows, then use the `evidence-auditor` subagent to spot-check each appended `type=paper` evidence row against `references.bib`. For every source you commit to (existing or new):
    - Add a clean BibTeX entry to `.evidraft/literature/references.bib`. Citation key: `firstauthorYEARkeyword` (lowercase). Non-paper sources use `@misc{...}` with real `howpublished` / `url` — never invent a venue.
    - Add one or more rows to `.evidraft/literature/matrix.md`:
@@ -78,7 +78,7 @@ Build a literature foundation for the paper. Online retrieval uses the host-nati
      `Source kind` is `paper` (default) / `blog` / `engineering_report` / `docs` / `tutorial` / `spec`.
    - Append one evidence record per *non-trivial* claim to `.evidraft/evidence/evidence.jsonl`:
      - Formal paper: `type=paper`, default `source_kind=paper`, `citation_key`, `support` (`"Section 4.2"`, `"Table 3"`).
-     - URL source: `type=paper`, `source_kind` ∈ {`blog`, `engineering_report`, `docs`, `tutorial`, `spec`}, `citation_key` (the `@misc` key), `source` is the canonical URL, `file_path` points at the `.cache/webfetch/<sha1>.md` snapshot from step 2, `line_range` is 1-indexed inclusive into that snapshot, `support` describes the section heading. See `skills/evidence-check/SKILL.md` §1.1.
+     - URL source: `type=paper`, `source_kind` ∈ {`blog`, `engineering_report`, `docs`, `tutorial`, `spec`}, `citation_key` (the `@misc` key), `source` is the canonical URL, `file_path` points at the `snapshots/<sha1>.md` from step 2, `line_range` is 1-indexed inclusive into that snapshot, `support` describes the section heading. See `skills/evidence-check/SKILL.md` §1.1.
      - Always `verified=false` (auditor flips later).
 4. **Cluster.** At the end, write a brief "Method family" summary into the bottom of `matrix.md` grouping papers into 3–6 method families.
 5. **Outline (only when `draft_outline=true`).** Write `.evidraft/literature/related_work_outline.md` — a lightweight survey aid, **not** a PRISMA review:

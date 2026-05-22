@@ -114,7 +114,7 @@ For every paper you commit to (existing or new), produce exactly this set of art
 
    Non-paper web source (`source_kind: blog` / `engineering_report` / `docs` / `tutorial` / `spec`):
    ```json
-   {"id":"ev_NNNN","type":"paper","source_kind":"blog","source":"https://example.com/post","claim":"<one sentence>","support":"§ '<heading>' / paragraph N","citation_key":"<key>","file_path":".evidraft/literature/.cache/webfetch/<sha1>.md","line_range":"42:58","confidence":"medium","verified":false}
+   {"id":"ev_NNNN","type":"paper","source_kind":"blog","source":"https://example.com/post","claim":"<one sentence>","support":"§ '<heading>' / paragraph N","citation_key":"<key>","file_path":".evidraft/literature/snapshots/<sha1>.md","line_range":"42:58","confidence":"medium","verified":false}
    ```
 
    `verified=false` until a human auditor flips it. See `../evidence-check/SKILL.md` for full field rules (§1.1 for URL-sourced rows specifically).

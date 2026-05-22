@@ -61,11 +61,15 @@ Load whenever a command needs to **retrieve paper metadata or abstracts** from t
 
 If the calling command provides a `run_id` (from its `plan.yaml`), every row written by this skill MUST carry it.
 
-## Shared cache + run_id convention
+## On-disk layout: disposable cache vs. durable snapshots
 
-All retrieval skills share one cache convention. **Read this before every WebFetch call.**
+Two storage tiers, intentionally separate. **Read this before every WebFetch call.**
 
-- Cache root: `.evidraft/literature/.cache/<provider>/<sha1(url)>.json`
+### Tier 1 — Provider JSON cache (disposable)
+
+Structured retrieval responses from arXiv / Semantic Scholar / OpenAlex. Nothing in `evidence.jsonl` pins these files; they are pure speedup for repeat retrievals.
+
+- Path: `.evidraft/literature/.cache/<provider>/<sha1(url)>.json`
 - TTL: 14 days. Stale entries are **deleted on encounter**, not refreshed in the background.
 - The host's `.gitignore` covers `**/.evidraft/cache/`; the dotted `.cache/` form may not be covered — flagged separately in the migration report.
 - Every retrieval row records `run_id` (from the calling command's `plan.yaml`).
@@ -74,21 +78,23 @@ All retrieval skills share one cache convention. **Read this before every WebFet
   2. `sha1` it (`shasum -a 1 <<< "$url"` or `sha1sum`),
   3. write the parsed JSON response to `.evidraft/literature/.cache/<provider>/<sha1>.json` with two extra top-level keys: `_fetched_at` (UTC iso) and `_url` (the canonical URL).
 
-### Variant: `webfetch` (full-text snapshots for citable web sources)
+### Tier 2 — `webfetch` snapshots (durable evidence backing)
 
-The JSON variant above is for structured retrieval responses (arXiv / S2 / OpenAlex). For sources that downstream evidence rows need to cite line-by-line (blog posts, vendor docs, engineering reports, tutorials, specs), use the `webfetch` flavour: store the rendered body as markdown so the line numbers are stable.
+For sources that downstream evidence rows cite line-by-line (blog posts, vendor docs, engineering reports, tutorials, specs), store the rendered body as markdown so the line numbers are stable. **These files are evidence backing, not cache** — they live OUTSIDE `.cache/` and are NEVER auto-deleted.
 
-- Body: `.evidraft/literature/.cache/webfetch/<sha1(url)>.md` — `WebFetch`'s own rendered markdown, written verbatim (no LLM rewriting).
-- Companion: `.evidraft/literature/.cache/webfetch/<sha1(url)>.json` — `{"_fetched_at":"<utc>","_url":"<canonical>","content_type":"<mime>","title":"<page title>"}`.
+- Body: `.evidraft/literature/snapshots/<sha1(url)>.md` — `WebFetch`'s own rendered markdown, written verbatim (no LLM rewriting).
+- Companion: `.evidraft/literature/snapshots/<sha1(url)>.json` — `{"_fetched_at":"<utc>","_url":"<canonical>","content_type":"<mime>","title":"<page title>"}`.
 - Reciprocal contract: any evidence record with `source` starting `http://` / `https://` MUST carry `source_kind != "paper"` and a `file_path` pointing at the `.md` above; see `../evidence-check/SKILL.md §1.1` for the row shape.
-- TTL still 14 days; stale snapshots are deleted on encounter. Evidence rows that reference a deleted snapshot are flagged by `evidence-auditor` and must be re-fetched (a new sha1 is allowed — `supersedes` the old row).
+- **No TTL. No auto-delete.** A snapshot referenced by any `evidence.jsonl` row is provenance — losing it invalidates every claim that cited it. Stale snapshots stay on disk; `evidence-auditor` re-reads them as-is.
+- **Refresh recipe**: when the upstream page has materially changed and you need a newer snapshot, fetch the new URL (or the same URL — content drift produces the same sha1 only if bytes match), write a NEW `<sha1>` pair, and emit a fresh evidence row whose `supersedes` points at the prior row. Never overwrite or delete the prior snapshot — it backs an immutable historical claim.
+- Tracking: `.evidraft/literature/snapshots/` is intentionally outside `.gitignore`'s `**/.evidraft/.cache/` ignore. In user projects it is committed alongside `references.bib` and `evidence.jsonl`; in this plugin's own repo the root-level `/.evidraft/` is ignored for trial scaffolds only.
 
 Recipe:
 
 1. Canonicalise + sha1 as above.
 2. `WebFetch` the URL.
-3. Write the body to `.cache/webfetch/<sha1>.md` and the metadata stub to `.cache/webfetch/<sha1>.json`.
-4. Return `{cache_path: ".evidraft/literature/.cache/webfetch/<sha1>.md", title, content_type}` so the caller (`paper-lit`) can build the evidence row directly.
+3. Write the body to `snapshots/<sha1>.md` and the metadata stub to `snapshots/<sha1>.json`.
+4. Return `{snapshot_path: ".evidraft/literature/snapshots/<sha1>.md", title, content_type}` so the caller (`paper-lit`) can build the evidence row directly.
 
 ## Inputs
 

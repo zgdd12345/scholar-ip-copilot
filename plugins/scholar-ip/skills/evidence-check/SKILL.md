@@ -83,24 +83,26 @@ Pre-flight checks before appending:
 
 - `id` is one greater than the current max in the file.
 - For `paper`: `citation_key` resolves in `references.bib` (grep first).
-- For `paper` with non-default `source_kind`: `file_path` resolves under `.evidraft/literature/.cache/webfetch/` and exists on disk.
+- For `paper` with non-default `source_kind`: `file_path` resolves under `.evidraft/literature/snapshots/` and exists on disk. Legacy rows pointing at `.evidraft/literature/.cache/webfetch/` (pre-2026-05-22) are still accepted by the validator; new rows MUST use the `snapshots/` path.
 - For `experiment` / `code`: `file_path` exists on disk and `line_range` is in bounds.
 - `claim` is one sentence and contains no strong-claim verb unless backed by another record.
 
 ### 1.1 URL-sourced evidence (blog, docs, engineering reports)
 
-Live web pages do not have stable line numbers. When the evidence is a blog post, vendor doc, engineering report, or any non-paper web source, the row is still `type=paper` but with a non-default `source_kind`. The citation must point at a local cache snapshot, not the live URL:
+Live web pages do not have stable line numbers. When the evidence is a blog post, vendor doc, engineering report, or any non-paper web source, the row is still `type=paper` but with a non-default `source_kind`. The citation must point at a local **snapshot** (durable evidence backing under `.evidraft/literature/snapshots/`), not the live URL:
 
 ```json
 {"id":"ev_0042","type":"paper","source_kind":"blog","source":"https://example.com/post",
- "citation_key":"acme2025harness","file_path":".evidraft/literature/.cache/webfetch/<sha1>.md",
+ "citation_key":"acme2025harness","file_path":".evidraft/literature/snapshots/<sha1>.md",
  "line_range":"42:58","claim":"...","support":"§ 'Guardrails'","confidence":"medium","verified":false}
 ```
 
-Recipe (the `scholar-search` skill `webfetch` variant emits the cache files; this skill only validates):
+Snapshots are immutable: once an `evidence.jsonl` row points at a `<sha1>.md`, the file is provenance and is never deleted or overwritten (see `../scholar-search/SKILL.md` §Tier 2). To replace one whose upstream page has materially changed, fetch a NEW `<sha1>` and append a fresh evidence row carrying `supersedes` at the prior row's id — keep the old snapshot on disk.
+
+Recipe (the `scholar-search` skill `webfetch` variant emits the snapshot files; this skill only validates):
 
 - `source_kind` must be one of the non-paper enum values, and `source` must be the original URL.
-- `file_path` must start with `.evidraft/literature/.cache/webfetch/` and exist on disk.
+- `file_path` must start with `.evidraft/literature/snapshots/` (preferred) or `.evidraft/literature/.cache/webfetch/` (legacy, accepted for pre-2026-05-22 rows) and exist on disk.
 - `line_range` follows the same `start:end` rule as `type=code`.
 - `citation_key` must resolve in `references.bib` as an `@misc{…}` entry whose `howpublished` / `url` matches `source`.
 
