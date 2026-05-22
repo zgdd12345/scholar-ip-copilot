@@ -1,12 +1,12 @@
 # tests/
 
-Executable pytest suite. **57 tests** across **5 test files**; `make verify` re-renders + runs everything in under a second.
+Executable pytest suite. **58 tests** across **5 test files**; `make verify` re-renders + runs everything in under a second.
 
 ## Run
 
 ```bash
 source .venv/bin/activate
-python -m pytest tests/        # 57 passed
+python -m pytest tests/        # 58 passed
 ```
 
 ## Layout
@@ -14,7 +14,7 @@ python -m pytest tests/        # 57 passed
 ```
 tests/
 ├── README.md                           this file
-├── test_adapter_conformance.py         14 structural invariants (A-N) across claude-code / codex-cli / opencode; 25 parametrised cases
+├── test_adapter_conformance.py         15 structural invariants (A-O) across claude-code / codex-cli / opencode; 26 parametrised cases
 ├── test_loader_skill_bundles.py        _shared/loader.py contract — one-skill-per-dir discovery, frontmatter survival
 ├── test_manifest_version.py            plugin.yaml manifest_version + the migrate.py 0.0.0 -> 1.0.0 framework
 ├── test_retention_prune.py             retention: TTL + keep_last prune semantics
@@ -49,6 +49,7 @@ tests/
 | L | frontmatter doc refs | every `references[].doc:` in source YAML resolves to a file or directory |
 | M | command-hook opt-out sidecar | 3 tests: claude-code adapter projects per-command `hooks:` allowlists into `hooks/command-hooks.json`; runtime smoke verifies `_lib.sh` opt-out + concurrency + no project-tree pollution (bash + jq required); codex-cli adapter projects the same source field as zero/N `## Guardrails` bullets in the rendered command body |
 | N | scope-required per-command default | runtime smoke against rendered `scope-required.sh`: writers (paper-draft / patent-claims / polish) default block, analysers (paper-idea / patent-scout / deepresearch) default warn, `project.yaml.hooks.scope_required` overrides project-wide (bash required) |
+| O | state-file GC | runtime smoke against rendered `_lib.sh`: `record_active_command` lazy-sweeps orphan `<project-hash>/<session>/active-cmd` files older than 30 days, throttled to once per 7 days via a `.last-gc` sentinel; `SCHOLAR_IP_GC_DISABLE=1` short-circuits (bash + jq required) |
 
 ## How `expected_counts.json` works
 

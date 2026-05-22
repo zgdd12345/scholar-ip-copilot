@@ -1348,3 +1348,127 @@ def test_invariant_n_scope_required_per_command_default(
         assert got == "PASS", (
             f"YAML scope_required=disabled should PASS {cmd} silently, got {got}"
         )
+
+
+# ---------------------------------------------------------------------------
+# O. _lib.sh state-file GC (lazy cleanup of orphan session slots)
+# ---------------------------------------------------------------------------
+
+
+def test_invariant_o_state_file_gc(
+    rendered: dict[str, dict[str, Any]], tmp_path: Path
+) -> None:
+    """`record_active_command` triggers a lazy GC of the state root so
+    orphan `<project-hash>/<session-key>/active-cmd` files don't accumulate
+    forever on $XDG_STATE_HOME (Linux) or $TMPDIR (macOS).
+
+    Contract gated here:
+
+    - First call sweeps `active-cmd` files older than 30 days (`mtime +30`)
+      and prunes the now-empty session/project dirs. Files fresher than 30
+      days survive. A sentinel `.last-gc` is created at the state root.
+    - A second call within 7 days of the sentinel must NOT re-sweep
+      (cooldown), so an artificially-aged file added between the two
+      calls survives.
+    - When the sentinel is older than 7 days, the next call sweeps again.
+    - `SCHOLAR_IP_GC_DISABLE=1` short-circuits the entire GC path.
+
+    Requires bash + jq. Skips otherwise. Uses BSD/GNU `touch -t` and `find
+    -mtime +N` which both support; if `touch -t` parsing of `YYYYMMDDhhmm`
+    fails on the host the test skips (rather than asserting a false positive).
+    """
+    import os
+    import shutil
+    import subprocess
+
+    if not shutil.which("bash") or not shutil.which("jq"):
+        pytest.skip("bash + jq required for the _lib.sh GC smoke")
+
+    root = Path(rendered["claude_code"]["root"])
+    lib_sh = root / "hooks" / "_lib.sh"
+    assert lib_sh.is_file()
+
+    state_dir = tmp_path / "state"
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    state_dir.mkdir()
+
+    env_base = {
+        **os.environ,
+        "SCHOLAR_IP_STATE_DIR": str(state_dir),
+        "CLAUDE_PROJECT_DIR": str(project_dir),
+        "CLAUDE_PLUGIN_ROOT": str(root),
+    }
+
+    script = r"""
+set -u
+. "$CLAUDE_PLUGIN_ROOT/hooks/_lib.sh"
+
+# Stage: orphan stale dir + a fresh dir under separate project hashes.
+mkdir -p "$SCHOLAR_IP_STATE_DIR/projOld/sessOld"
+mkdir -p "$SCHOLAR_IP_STATE_DIR/projFresh/sessFresh"
+echo paper-draft > "$SCHOLAR_IP_STATE_DIR/projOld/sessOld/active-cmd"
+echo paper-draft > "$SCHOLAR_IP_STATE_DIR/projFresh/sessFresh/active-cmd"
+# Backdate stale file by 60 days. Try BSD `touch -t` first, then GNU `-d`.
+old_stamp="$(date -v-60d '+%Y%m%d0000' 2>/dev/null || date -d '60 days ago' '+%Y%m%d0000' 2>/dev/null)"
+if [ -z "$old_stamp" ]; then echo "SKIP: cannot compute 60-days-ago stamp"; exit 88; fi
+touch -t "$old_stamp" "$SCHOLAR_IP_STATE_DIR/projOld/sessOld/active-cmd"
+
+# Trigger 1: first record_active_command should sweep.
+export LIB_STDIN='{"session_id":"s1","prompt":"/scholar:reading-list x"}'
+record_active_command "/scholar:reading-list x"
+
+# After T1: stale gone, fresh kept, sentinel created.
+if [ -e "$SCHOLAR_IP_STATE_DIR/projOld" ]; then echo "FAIL: stale projOld survived first sweep"; exit 1; fi
+if [ ! -f "$SCHOLAR_IP_STATE_DIR/projFresh/sessFresh/active-cmd" ]; then echo "FAIL: fresh projFresh was wrongly cleaned"; exit 1; fi
+if [ ! -f "$SCHOLAR_IP_STATE_DIR/.last-gc" ]; then echo "FAIL: sentinel not created"; exit 1; fi
+echo "T1 PASS"
+
+# Trigger 2: cooldown — sentinel just made, a NEW stale dir must SURVIVE.
+mkdir -p "$SCHOLAR_IP_STATE_DIR/projC/sessC"
+echo paper-lit > "$SCHOLAR_IP_STATE_DIR/projC/sessC/active-cmd"
+touch -t "$old_stamp" "$SCHOLAR_IP_STATE_DIR/projC/sessC/active-cmd"
+export LIB_STDIN='{"session_id":"s2","prompt":"/scholar:reading-list y"}'
+record_active_command "/scholar:reading-list y"
+if [ ! -f "$SCHOLAR_IP_STATE_DIR/projC/sessC/active-cmd" ]; then echo "FAIL: cooldown failed, projC was swept too early"; exit 1; fi
+echo "T2 PASS"
+
+# Trigger 3: age the sentinel out → next call sweeps projC.
+exp_stamp="$(date -v-14d '+%Y%m%d0000' 2>/dev/null || date -d '14 days ago' '+%Y%m%d0000' 2>/dev/null)"
+touch -t "$exp_stamp" "$SCHOLAR_IP_STATE_DIR/.last-gc"
+export LIB_STDIN='{"session_id":"s3","prompt":"/scholar:reading-list z"}'
+record_active_command "/scholar:reading-list z"
+if [ -e "$SCHOLAR_IP_STATE_DIR/projC" ]; then echo "FAIL: projC not swept after sentinel expired"; exit 1; fi
+echo "T3 PASS"
+
+# Trigger 4: SCHOLAR_IP_GC_DISABLE=1 short-circuits, even with expired sentinel.
+mkdir -p "$SCHOLAR_IP_STATE_DIR/projD/sessD"
+echo paper-lit > "$SCHOLAR_IP_STATE_DIR/projD/sessD/active-cmd"
+touch -t "$old_stamp" "$SCHOLAR_IP_STATE_DIR/projD/sessD/active-cmd"
+rm -f "$SCHOLAR_IP_STATE_DIR/.last-gc"
+export SCHOLAR_IP_GC_DISABLE=1
+export LIB_STDIN='{"session_id":"s4","prompt":"/scholar:reading-list w"}'
+record_active_command "/scholar:reading-list w"
+if [ ! -f "$SCHOLAR_IP_STATE_DIR/projD/sessD/active-cmd" ]; then echo "FAIL: SCHOLAR_IP_GC_DISABLE=1 did not skip GC"; exit 1; fi
+if [ -f "$SCHOLAR_IP_STATE_DIR/.last-gc" ]; then echo "FAIL: sentinel touched while disabled"; exit 1; fi
+echo "T4 PASS"
+"""
+
+    result = subprocess.run(
+        ["bash", "-c", script],
+        env=env_base,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if result.returncode == 88:
+        pytest.skip(f"host date does not support relative stamps: {result.stdout!r}")
+    assert result.returncode == 0, (
+        f"_lib.sh GC drift (returncode={result.returncode}):\n"
+        f"stdout={result.stdout!r}\nstderr={result.stderr!r}"
+    )
+    passes = [line for line in result.stdout.strip().splitlines() if line.endswith("PASS")]
+    assert len(passes) == 4, (
+        f"expected 4 GC sub-tests to PASS, got {len(passes)}; "
+        f"stdout={result.stdout!r}"
+    )

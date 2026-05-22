@@ -99,9 +99,45 @@ _state_file() {
   printf '%s/active-cmd' "$(_state_dir)"
 }
 
+# Lazy GC of orphan state slots. Each Claude Code session opens a new
+# `<project-hash>/<session-key>/` directory under the state root and never
+# revisits it once the session ends, so long-running users accumulate orphan
+# dirs forever — particularly on Linux where $XDG_STATE_HOME is permanent.
+#
+# Sweep at most once per 7 days (tracked via a sentinel file at the state
+# root). On each sweep, delete `active-cmd` files whose mtime is older than
+# 30 days, then prune now-empty session and project directories.
+#
+# Conservative thresholds: 30 days is well beyond any real session window
+# (Claude Code sessions are typically hours, not weeks), and the 7-day
+# cooldown keeps the sweep amortised. Failures are silent — GC must never
+# make a hook fail. Disable via `SCHOLAR_IP_GC_DISABLE=1` if desired.
+_gc_state() {
+  [ "${SCHOLAR_IP_GC_DISABLE:-}" = "1" ] && return 0
+  local root sentinel
+  root="$(_state_root)"
+  [ -d "$root" ] || return 0
+  sentinel="$root/.last-gc"
+  # Cooldown: if the sentinel was touched within the last 7 days, skip.
+  if [ -f "$sentinel" ] \
+     && find "$sentinel" -mtime -7 -print 2>/dev/null | grep -q .; then
+    return 0
+  fi
+  # Delete active-cmd files older than 30 days. -mtime +30 is portable
+  # across GNU and BSD find. Errors swallowed (best-effort).
+  find "$root" -type f -name 'active-cmd' -mtime +30 -delete 2>/dev/null || true
+  # Prune now-empty session/project dirs (don't delete root itself).
+  find "$root" -mindepth 1 -type d -empty -delete 2>/dev/null || true
+  # Touch sentinel even if nothing was deleted — the next sweep cooldown
+  # starts from this attempt, not from the last successful delete.
+  touch "$sentinel" 2>/dev/null || true
+}
+
 # Parse the user prompt; if it begins with "/scholar:<cmd>", write <cmd> to
 # the state file (just the bare cmd name, no leading slash). If not, clear
 # the file so a stale command name from a prior turn does not leak through.
+# Triggers a lazy GC sweep after the write — at most once per 7 days; see
+# `_gc_state`.
 record_active_command() {
   local prompt="$1"
   local sdir sfile cmd
@@ -117,6 +153,7 @@ record_active_command() {
   else
     : > "$sfile"
   fi
+  _gc_state
 }
 
 # Return 0 if the named hook is DISABLED for the currently active command,
