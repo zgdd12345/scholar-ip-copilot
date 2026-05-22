@@ -52,6 +52,14 @@ Build a literature foundation for the paper. Online retrieval uses the host-nati
      | citation_key | Year | Venue | Problem | Method | Datasets | Key Result | Gap | Evidence ids |
    - Append one evidence record per *non-trivial* claim to `.evidraft/evidence/evidence.jsonl` with `type=paper`, `citation_key`, `claim`, `support` ("Section 4.2", "Table 3", …), and `verified=false` (auditor flips later).
 4. **Cluster.** At the end, write a brief "Method family" summary into the bottom of `matrix.md` grouping papers into 3–6 method families.
+5. **Sync manuscript bibliography.** The canonical BibTeX lives at `.evidraft/literature/references.bib`. If `manuscript/references.bib` is a symlink to it (the `/scholar:paper-init` happy path), the manuscript side is already current — skip. Otherwise:
+   ```bash
+   if [ ! -L manuscript/references.bib ]; then
+     cp .evidraft/literature/references.bib manuscript/references.bib
+     echo "manuscript/references.bib: re-synced from canonical (snapshot mode)"
+   fi
+   ```
+   Report `bib_sync: noop | resynced` in the chat summary.
 
 ## Constraints
 
@@ -62,7 +70,8 @@ Build a literature foundation for the paper. Online retrieval uses the host-nati
 
 ## Done criteria
 
-- `references.bib` parses with a standard BibTeX validator (e.g. `bibtexparser`).
+- `references.bib` passes the validation chain described in `skills/bib-manager/SKILL.md §5` and `skills/bib-audit/SKILL.md §5.1` (prefer `bibtex-tidy`; fall back to the hand-rolled parser the same skills use). Chat output reports `validator_used: bibtex-tidy | hand-roll`.
 - `matrix.md` has ≥ 1 row per cited paper.
 - `evidence.jsonl` has ≥ 1 `type=paper` record per cited paper.
+- `manuscript/references.bib` is in sync with the canonical file (step 5). Chat reports `bib_sync: noop | resynced`.
 - Chat output recommends `/scholar:paper-idea` or `/scholar:paper-review` next.

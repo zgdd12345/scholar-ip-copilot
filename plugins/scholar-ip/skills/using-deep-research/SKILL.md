@@ -70,22 +70,39 @@ You do **not** need a paper project to use deepresearch. The two prereq commands
 
 `paper-init` builds `.evidraft/project.yaml`, empty `references.bib`, empty `evidence.jsonl`. You can ignore the `manuscript/` directory if you are only doing a lit review.
 
-`brainstorming` writes a single scope file. The `scope-required` hook requires at least one `.md` under `.evidraft/scope/` before `/scholar:deepresearch` is allowed to fire.
+`brainstorming` writes a single scope file. The `scope-required` hook enforces three rules on the latest `.md` under `.evidraft/scope/` (see `hooks/scope-required.md` §Rules):
+
+1. **Existence** — at least one file matches.
+2. **Approval** — frontmatter has `status: approved`.
+3. **Freshness** — `today - approved_date <= staleness_days` (default 14).
+
+The fast-path stub below satisfies all three.
 
 ## Fast-path: scope-stub for ad-hoc use
 
 When the user explicitly pushes back on the 5-minute brainstorming step ("just run it"), you may stub the scope file. **Confirm with the user first** ("running brainstorming gives sharper recall — want to skip it?") and then:
 
 ```bash
+TODAY="$(date +%Y-%m-%d)"
+STALE="$(date -v+14d +%Y-%m-%d 2>/dev/null || date -d '+14 days' +%Y-%m-%d)"
 mkdir -p .evidraft/scope
-cat > .evidraft/scope/$(date +%Y-%m-%d)-fast.md <<'EOF'
+cat > ".evidraft/scope/${TODAY}-fast.md" <<EOF
+---
+kind: paper
+status: approved
+verdict: pursue
+riskiest_assumption: "Ad-hoc scope; needs later refinement."
+evidence_seeds: []
+approved_date: ${TODAY}
+staleness_until: ${STALE}
+---
 # Scope: <topic>
+
+> Created via scope-stub fast path; not a substitute for brainstorming.
+> The scope-required hook checks: status=approved + 14-day freshness.
 
 ## Research question
 <one sentence — extract from the user's request>
-
-## Why now
-Ad-hoc deep-research request; stub scope (not full brainstorming).
 
 ## Inclusion
 - year_range: 2021-2026
@@ -97,7 +114,7 @@ Ad-hoc deep-research request; stub scope (not full brainstorming).
 EOF
 ```
 
-`scope-required` accepts any non-empty `.md` under `.evidraft/scope/`. The orchestrator's stage-1 frame will read this file when building `plan.yaml`, so a thoughtful one-sentence research question pays for itself.
+The frontmatter (`status: approved`, `approved_date`) is what makes the hook pass — without it the stub is treated as a draft and the gated command is refused. The orchestrator's stage-1 frame will read this file when building `plan.yaml`, so a thoughtful one-sentence research question pays for itself.
 
 ## Budget knobs
 

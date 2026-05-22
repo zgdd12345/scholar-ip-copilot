@@ -61,16 +61,27 @@ Scaffold an EviDraft paper project in the **current working directory**. Treat t
    - `manuscript/main.tex`
    - `manuscript/sections/{introduction,related_work,method,experiments,conclusion}.tex`
    - a symlink (or fallback copy on Windows) `manuscript/references.bib → ../.evidraft/literature/references.bib`
-4. **Fill the project.yaml** with the values you collected. Validate against `packages/core/schemas/project.schema.json` (logically — schema lookup may be by path, not network).
-5. **If the repo has code**, run a *fast* repo summary into `.evidraft/code/repo_summary.md`:
+4. **Verify the bibliography link.** Recursive template copy materialises the symlink as a plain file on most platforms, so check after step 3:
+   ```bash
+   test -L manuscript/references.bib \
+     && readlink manuscript/references.bib \
+        | grep -q '^\.\./\.evidraft/literature/references\.bib$'
+   ```
+   - On POSIX (macOS/Linux) when the check fails: `rm manuscript/references.bib && ln -s ../.evidraft/literature/references.bib manuscript/references.bib`, then re-run the check.
+   - On Windows or any platform where `ln -s` is unavailable: keep the copy and record in chat **"manuscript/references.bib is a snapshot; /scholar:paper-lit will re-sync on every run."**
+   - In either case, report `bib_link: symlink | snapshot` in the chat next-steps block.
+5. **Fill the project.yaml** with the values you collected. Validate against `packages/core/schemas/project.schema.json` (logically — schema lookup may be by path, not network).
+6. **If the repo has code**, run a *fast* repo summary into `.evidraft/code/repo_summary.md`:
    - language(s), entry points, top-level modules, configs, test command if obvious.
    - mark unknowns as `TODO` — do not guess.
-6. **Print a short next-steps block** in chat:
+7. **Print a short next-steps block** in chat:
    ```
    Next:
      /scholar:paper-lit         start literature work
      /scholar:paper-code-audit  map your code to the planned method
      /scholar:paper-experiment  analyse experiment outputs (if any)
+
+   bib_link: symlink | snapshot   # from step 4
    ```
 
 ## Constraints
@@ -84,4 +95,5 @@ Scaffold an EviDraft paper project in the **current working directory**. Treat t
 
 - `.evidraft/project.yaml` exists and validates.
 - `manuscript/main.tex` exists with a working `\documentclass` skeleton.
-- Chat output ends with the "Next" block.
+- `manuscript/references.bib` is either a symlink to `../.evidraft/literature/references.bib` (POSIX) **or** the chat output explicitly declares `bib_link: snapshot` together with the re-sync notice.
+- Chat output ends with the "Next" block, including the `bib_link:` line.
