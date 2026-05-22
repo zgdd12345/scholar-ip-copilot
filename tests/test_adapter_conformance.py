@@ -954,3 +954,205 @@ def test_invariant_l_frontmatter_doc_refs_resolve(plugin: Plugin) -> None:
         f"{len(offenders)} unresolvable frontmatter doc: ref(s); fix the "
         "path or update the caller:\n  " + "\n  ".join(offenders)
     )
+
+
+# ---------------------------------------------------------------------------
+# M. command-hook opt-out sidecar (adapter renderer + runtime smoke)
+# ---------------------------------------------------------------------------
+
+
+def test_invariant_m_command_hooks_sidecar_shape(
+    plugin: Plugin, rendered: dict[str, dict[str, Any]]
+) -> None:
+    """The claude_code adapter projects per-command ``hooks:`` allowlists
+    into ``hooks/command-hooks.json``, which ``_lib.sh::hook_disabled_by_command``
+    consumes at PostToolUse time.
+
+    Rendered command frontmatter on Claude Code is restricted to description /
+    argument-hint / allowed-tools — the source ``hooks:`` field cannot ride
+    through. The sidecar is the projection that survives.
+
+    Asserts:
+
+    1. At least one source command declares ``hooks: []`` (the lite-mode
+       opt-out marker; currently ``/scholar:reading-list``). Regression
+       guard against silently rolling back the lite path.
+    2. ``hooks/command-hooks.json`` exists with shape
+       ``{"version": 1, "commands": {...}}``.
+    3. Bidirectional equality: every source command with ``hooks:`` appears
+       in the sidecar verbatim, and commands WITHOUT a source ``hooks:``
+       field MUST NOT appear (their absence = "all hooks fire" legacy
+       default; an accidental empty-list projection would silently disable
+       paper-mode hooks).
+    """
+    src_with_hooks: dict[str, list[str]] = {}
+    for cmd in plugin.commands:
+        meta = cmd.meta or {}
+        if "hooks" not in meta:
+            continue
+        value = meta.get("hooks")
+        assert isinstance(value, list), (
+            f"command {cmd.path}: frontmatter `hooks:` must be a list when "
+            f"present, got {type(value).__name__}"
+        )
+        cmd_name = str(meta.get("id") or cmd.path.stem)
+        src_with_hooks[cmd_name] = [str(h) for h in value]
+
+    assert src_with_hooks, (
+        "no source command declares frontmatter `hooks:`; either the "
+        "lite-mode opt-out contract was rolled back or the source layout "
+        "drifted. /scholar:reading-list should at least declare `hooks: []`."
+    )
+    assert src_with_hooks.get("reading-list") == [], (
+        f"expected /scholar:reading-list to declare frontmatter `hooks: []` "
+        f"(empty allowlist = all hooks skip in lite mode), got "
+        f"{src_with_hooks.get('reading-list', '<no entry>')!r}"
+    )
+
+    root = Path(rendered["claude_code"]["root"])
+    sidecar = root / "hooks" / "command-hooks.json"
+    assert sidecar.is_file(), (
+        f"claude_code: expected sidecar at {sidecar} but it is missing — "
+        "the adapter did not project frontmatter `hooks:` into "
+        "command-hooks.json (required by _lib.sh::hook_disabled_by_command)"
+    )
+
+    raw = json.loads(sidecar.read_text(encoding="utf-8"))
+    assert isinstance(raw, dict), (
+        f"command-hooks.json must be a JSON object, got {type(raw).__name__}"
+    )
+    assert raw.get("version") == 1, (
+        f"command-hooks.json: expected version=1, got {raw.get('version')!r}"
+    )
+    rendered_commands = raw.get("commands")
+    assert isinstance(rendered_commands, dict), (
+        f"command-hooks.json: expected `commands` object, got "
+        f"{type(rendered_commands).__name__}"
+    )
+
+    assert dict(rendered_commands) == src_with_hooks, (
+        "command-hooks.json drift between source and rendered output:\n"
+        f"  source declares: {sorted(src_with_hooks.items())}\n"
+        f"  sidecar carries: {sorted(rendered_commands.items())}\n"
+        "Commands without `hooks:` in source MUST NOT appear in the sidecar "
+        "(their absence = 'all hooks fire'). Commands with `hooks: [...]` "
+        "MUST appear verbatim."
+    )
+
+
+def test_invariant_m_runtime_hook_disabled_by_command(
+    rendered: dict[str, dict[str, Any]], tmp_path: Path
+) -> None:
+    """Behavioural smoke for the runtime side of the opt-out:
+    ``_lib.sh::record_active_command`` (UserPromptSubmit) writes a per-session
+    state slot OUTSIDE the project tree; ``hook_disabled_by_command``
+    (PostToolUse) reads it to decide whether to skip.
+
+    Asserts the matrix lite-mode depends on, covering all three sidecar
+    semantics in one bash subprocess:
+
+    - reading-list (allowlist ``[]``) → citation-guard DISABLED
+    - paper-draft (allowlist includes citation-guard) → citation-guard ACTIVE
+    - a fabricated active-cmd absent from sidecar → citation-guard ACTIVE
+      (legacy "no opt-out declared → all hooks fire" branch)
+    - session-B writing its own active-cmd MUST NOT pollute session-A's slot
+      (the concurrency property of the state-isolation fix)
+    - project tree stays clean — no ``.evidraft/.state/`` ever materialises
+      under ``CLAUDE_PROJECT_DIR`` (the "output file is the only artefact"
+      promise of /scholar:reading-list)
+
+    Requires bash + jq on PATH. Skips otherwise; CI Linux runners and macOS
+    dev machines have both. The script runs entirely against the RENDERED
+    ``_lib.sh`` and ``command-hooks.json`` from the claude_code fixture, so a
+    drift in either file surfaces here as a behavioural regression.
+    """
+    import os
+    import shutil
+    import subprocess
+
+    if not shutil.which("bash") or not shutil.which("jq"):
+        pytest.skip("bash + jq required for the _lib.sh runtime smoke")
+
+    root = Path(rendered["claude_code"]["root"])
+    lib_sh = root / "hooks" / "_lib.sh"
+    sidecar = root / "hooks" / "command-hooks.json"
+    assert lib_sh.is_file() and sidecar.is_file(), (
+        "claude_code: hooks/_lib.sh and hooks/command-hooks.json must both "
+        "be rendered for this smoke test"
+    )
+
+    state_dir = tmp_path / "state"
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+
+    env = {
+        **os.environ,
+        "SCHOLAR_IP_STATE_DIR": str(state_dir),
+        "CLAUDE_PROJECT_DIR": str(project_dir),
+        "CLAUDE_PLUGIN_ROOT": str(root),
+    }
+
+    script = r"""
+set -u
+. "$CLAUDE_PLUGIN_ROOT/hooks/_lib.sh"
+
+# session-A runs /scholar:reading-list (allowlist []) → DISABLED
+export LIB_STDIN='{"session_id":"sA","prompt":"/scholar:reading-list x"}'
+record_active_command "/scholar:reading-list x"
+export LIB_STDIN='{"session_id":"sA","tool_input":{"file_path":"/foo"}}'
+if hook_disabled_by_command "citation-guard"; then a=DISABLED; else a=ACTIVE; fi
+
+# session-B runs /scholar:paper-draft (allowlist includes citation-guard) → ACTIVE
+export LIB_STDIN='{"session_id":"sB","prompt":"/scholar:paper-draft topic=x"}'
+record_active_command "/scholar:paper-draft topic=x"
+export LIB_STDIN='{"session_id":"sB","tool_input":{"file_path":"/foo"}}'
+if hook_disabled_by_command "citation-guard"; then b=DISABLED; else b=ACTIVE; fi
+
+# session-C names a command absent from the sidecar → ACTIVE (legacy default)
+export LIB_STDIN='{"session_id":"sC","prompt":"/scholar:not-a-real-cmd"}'
+record_active_command "/scholar:not-a-real-cmd"
+export LIB_STDIN='{"session_id":"sC","tool_input":{"file_path":"/foo"}}'
+if hook_disabled_by_command "citation-guard"; then c=DISABLED; else c=ACTIVE; fi
+
+# back to session-A: its slot must NOT be polluted by B or C
+export LIB_STDIN='{"session_id":"sA","tool_input":{"file_path":"/foo"}}'
+if hook_disabled_by_command "citation-guard"; then a2=DISABLED; else a2=ACTIVE; fi
+
+# project tree must remain clean — no .evidraft/.state/ created
+if [ -e "$CLAUDE_PROJECT_DIR/.evidraft" ]; then proj=POLLUTED; else proj=clean; fi
+
+printf 'a=%s\nb=%s\nc=%s\na2=%s\nproj=%s\n' "$a" "$b" "$c" "$a2" "$proj"
+"""
+
+    result = subprocess.run(
+        ["bash", "-c", script],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, (
+        f"_lib.sh runtime smoke crashed (returncode={result.returncode}):\n"
+        f"stdout={result.stdout!r}\nstderr={result.stderr!r}"
+    )
+
+    out = dict(
+        line.split("=", 1)
+        for line in result.stdout.strip().splitlines()
+        if "=" in line
+    )
+    assert out == {
+        "a": "DISABLED",
+        "b": "ACTIVE",
+        "c": "ACTIVE",
+        "a2": "DISABLED",
+        "proj": "clean",
+    }, (
+        "_lib.sh runtime drift; expected:\n"
+        "  reading-list  → citation-guard DISABLED (allowlist []),\n"
+        "  paper-draft   → citation-guard ACTIVE (citation-guard in allowlist),\n"
+        "  unknown cmd   → citation-guard ACTIVE (absent from sidecar = legacy default),\n"
+        "  session-A still DISABLED after B and C's intervening writes,\n"
+        "  project tree clean (no .evidraft/.state/ under CLAUDE_PROJECT_DIR);\n"
+        f"got {out!r}\nstderr={result.stderr!r}"
+    )
