@@ -134,13 +134,27 @@ _gc_state() {
 }
 
 # Parse the user prompt; if it begins with "/scholar:<cmd>", write <cmd> to
-# the state file (just the bare cmd name, no leading slash). If not, clear
-# the file so a stale command name from a prior turn does not leak through.
+# the state file (just the bare cmd name, no leading slash) and refresh its
+# mtime — a fresh /scholar:<cmd> always wins.
+#
+# If the prompt does NOT carry a /scholar: prefix (e.g. a clarifying answer
+# inside a multi-turn workflow), preserve the existing state file as long as
+# it was written within TTL. Past TTL, clear it so a stale command name
+# from a prior session does not leak through. Default TTL = 86400 s (24 h);
+# override via env SCHOLAR_IP_ACTIVE_CMD_TTL (seconds).
+#
+# Rationale: the previous "clear on any non-/scholar prompt" rule broke
+# downstream PostToolUse opt-out for every multi-turn /scholar:<cmd> flow
+# (the user's clarifying reply has no slash prefix → state wiped → hooks
+# see empty state → opt-out fails). The TTL window is measured from the
+# last /scholar:<cmd> write; non-slash preserves do NOT bump the mtime, so
+# the TTL truly bounds "how long since the user last named a command".
+#
 # Triggers a lazy GC sweep after the write — at most once per 7 days; see
 # `_gc_state`.
 record_active_command() {
   local prompt="$1"
-  local sdir sfile cmd
+  local sdir sfile tmp cmd ttl now mtime
   sdir="$(_state_dir)"
   sfile="$(_state_file)"
   mkdir -p "$sdir" 2>/dev/null || return 0
@@ -149,9 +163,37 @@ record_active_command() {
       print substr($0, RSTART+9, RLENGTH-9); exit
     }')"
   if [ -n "$cmd" ]; then
-    printf '%s\n' "$cmd" > "$sfile"
+    # Atomic replace: write to a sibling then mv. Avoids exposing a truncated
+    # file to PostToolUse readers racing against UserPromptSubmit.
+    tmp="$sfile.tmp.$$"
+    printf '%s\n' "$cmd" > "$tmp" && mv -f "$tmp" "$sfile"
   else
-    : > "$sfile"
+    ttl="${SCHOLAR_IP_ACTIVE_CMD_TTL:-86400}"
+    # Refuse non-integer TTL: bash `$((...))` on a non-numeric string aborts
+    # under `set -euo pipefail` (scope-required.sh:6) — silently fall back
+    # to default rather than killing the hook.
+    case "$ttl" in
+      ''|*[!0-9]*) ttl=86400 ;;
+    esac
+    if [ -f "$sfile" ]; then
+      now="$(date +%s)"
+      # GNU stat first (Linux); BSD stat second (macOS / *BSD). The reverse
+      # order is broken: GNU `stat -f %m` is valid but returns mount point,
+      # not mtime, so a BSD-first chain short-circuits with garbage on Linux
+      # and the arithmetic below aborts under set -e.
+      mtime="$(stat -c %Y "$sfile" 2>/dev/null \
+               || stat -f %m "$sfile" 2>/dev/null \
+               || printf '0')"
+      # Future mtime (NFS / clock skew / restored backup) → treat as corrupt
+      # and clear, else `now - mtime` is negative and the slot is preserved
+      # indefinitely.
+      if [ "$now" -lt "$mtime" ] || [ "$((now - mtime))" -ge "$ttl" ]; then
+        tmp="$sfile.tmp.$$"
+        : > "$tmp" && mv -f "$tmp" "$sfile"
+      fi
+      # else: preserve untouched (do NOT bump mtime — TTL window is from the
+      # last /scholar:<cmd> write, not from the last preserve).
+    fi
   fi
   _gc_state
 }

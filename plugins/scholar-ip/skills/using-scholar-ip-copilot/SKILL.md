@@ -211,7 +211,7 @@ When multiple hooks fire on the same action, adapters MUST run them in this orde
    3. If present → walk the `status:` block, find the first non-`done` stage, recommend its command.
    4. List any gating hooks that are currently active (e.g., `scope-required` if `scope/` is missing).
 
-4. **Always** confirm with the user before invoking the recommended next command. Never propose more than one path at a time — the intent question already disambiguated; don't replay it as a 3-option matrix.
+4. **Always** confirm with the user before invoking the recommended next command. Never replay the **intent question itself** as a 3-option matrix — it is a single binary choice (notes vs paper/patent). Orthogonal-concern triage that arises *after* the intent is settled (e.g. output-file collision, ambiguous family clustering, missing sub-argument) remains acceptable and should still be surfaced as a small choice menu to the user.
 
 ## What this skill never does
 

@@ -8,7 +8,8 @@ description: >
   BibTeX, no evidence.jsonl, no audit chain — intended for personal
   reference reading rather than paper drafting. For publish-grade output
   use /scholar:paper-lit instead; for PRISMA-style systematic review use
-  /scholar:deepresearch.
+  /scholar:deepresearch. If the target path already exists, the command
+  surfaces a reuse/augment/overwrite triage instead of silently overwriting.
 kind: command
 slash: /scholar:reading-list
 phase: shared
@@ -62,6 +63,14 @@ Build a personal literature reading list. No project init, no BibTeX, no evidenc
    - Otherwise default to `.evidraft/notes/<topic-slug>-<date>.md`.
    - `mkdir -p` the parent directory. Do **not** create `.evidraft/project.yaml`. The lite path runs in any directory.
 
+2a. **If the resolved output path already exists and is non-empty, do NOT overwrite silently.** Read the existing file's header (first ~10 lines) and surface three options to the user in chat:
+
+   - **reuse** — keep the existing file as-is; abort the command and point the user at the file path.
+   - **augment** — generate a new file at `.evidraft/notes/<topic-slug>-<refine-tag>-<date>.md` where `<refine-tag>` is a short slug derived from the user's narrowing intent (e.g. `2024-2026-transformer-only`); leave the existing file untouched. This is the default for "narrow the scope" or "look at the new papers" follow-ups. **If the user gave no narrowing intent** (e.g. just said "augment" or "option 2"), ask ONE clarifying question to elicit a tag before proceeding — do not invent a tag. **If the augment path itself already exists** at the resolved `<refine-tag>-<date>` combination, append a numeric disambiguator (`-2`, `-3`, …) until unique.
+   - **overwrite** — proceed to Step 3 and replace the existing file. Only do this if the user explicitly says "覆盖" / "overwrite" / "refresh in place". Never default to this.
+
+   Do NOT proceed to Step 3 until the user picks one. The `out` argument bypasses this check only if `out` resolves to a path that does NOT already exist; if `out` points at an existing file, the same triage still applies.
+
 3. **Retrieve candidates.** Load the `scholar-search` skill and request up to `max` candidates (default 20) across arXiv, Semantic Scholar, OpenAlex. The skill's `webfetch` variant is allowed for non-paper sources (engineering blogs, vendor docs, practitioner posts).
 
 4. **Dispatch the `literature-reviewer` subagent** with these instructions:
@@ -109,6 +118,7 @@ Build a personal literature reading list. No project init, no BibTeX, no evidenc
    - The method-family names.
    - One-line next step, **verbatim** (the subagent must emit this sentence exactly, not paraphrase it; do not substitute another `/scholar:<cmd>`): `If you later decide to write a paper section on this topic, run /scholar:paper-init then /scholar:paper-lit.`
    - Do NOT name `citation-guard`, `evidence-consistency`, or `scope-required` in the report — those hooks are disabled in lite mode by the per-command opt-out in `_lib.sh::hook_disabled_by_command`, and naming them confuses the user about the lite-path workflow.
+   - **Sibling file** (only if the Step 2a triage resolved to `augment`): name the prior file path that was left untouched.
 
 ## Constraints
 
@@ -124,3 +134,4 @@ Build a personal literature reading list. No project init, no BibTeX, no evidenc
 - `## Rejected candidates` section exists (may be empty).
 - No writes outside the output file and its parent directory.
 - Chat report names the file path and the considered/verified/rejected counts.
+- If the resolved output path existed at start of run, the user-selected triage outcome (reuse/augment/overwrite) is named in the chat report.

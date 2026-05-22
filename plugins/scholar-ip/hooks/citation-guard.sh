@@ -22,6 +22,23 @@ if [ -z "${FILE_PATH:-}" ] || [ ! -f "$FILE_PATH" ]; then
   exit 0
 fi
 
+# Hard exclude lite-mode artefacts: notes, scope files, external-agent reviews.
+# These never carry strong-claim publication prose; gating them would block
+# /scholar:reading-list, /scholar:brainstorming, /scholar:xreview even when
+# the per-command opt-out fails to propagate (e.g. Skill-tool invocation,
+# multi-turn workflows that lose active-cmd state).
+#
+# Anchor the `.evidraft/` segment to a `/` boundary so `foo.evidraft/notes/`
+# (unlikely but legal directory name) does NOT match. Both an absolute path
+# (`*/.evidraft/notes/*`) and a relative path starting at `.evidraft/`
+# (`.evidraft/notes/*`) are accepted; bash `case` glob has no
+# start-of-string anchor, so both arms are needed.
+case "$FILE_PATH" in
+  */.evidraft/notes/*|.evidraft/notes/*) exit 0 ;;
+  */.evidraft/scope/*|.evidraft/scope/*) exit 0 ;;
+  */.evidraft/reviews/*|.evidraft/reviews/*) exit 0 ;;
+esac
+
 # Scope: only enforce on manuscript/** and .evidraft/** paths.
 case "$FILE_PATH" in
   *manuscript/*|*.evidraft/*) ;;
