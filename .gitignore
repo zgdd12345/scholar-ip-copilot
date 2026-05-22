@@ -4,7 +4,7 @@
 .codex
 .opencode
 .agents/skills/
-
+.claude-plugin/
 # Python
 __pycache__/
 *.py[cod]
@@ -48,6 +48,13 @@ Thumbs.db
 **/.evidraft/cache/
 **/.evidraft/.cache/
 **/.evidraft/tmp/
+
+# Trial scaffolds at the repo root. The plugin repo itself is not an
+# EviDraft project; when /scholar:paper-init or similar is run here
+# during a trial, the resulting .evidraft/ + manuscript/ trees are
+# trial output, not source.
+/.evidraft/
+/manuscript/
 
 # Test artefacts
 .pytest_cache/
