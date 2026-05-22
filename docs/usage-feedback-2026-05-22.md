@@ -87,6 +87,36 @@ Acceptance criteria:
 - The draft cites only keys present in `.evidraft/literature/references.bib`.
 - Strong claims are backed by an evidence id or toned down.
 
+### Status — 2026-05-22 (P1-1 CLOSED with deviation)
+
+Shipped in commit `2bf754f`:
+
+- `/scholar:paper-lit --draft-outline=true` → `.evidraft/literature/related_work_outline.md`
+  (banner-tagged "NOT /scholar:deepresearch Stage 6").
+
+Deliberately **not** shipped: `related_work.draft.md`. After triage, the original
+two-file ask conflates two artefacts the architecture treats as different rigor
+tiers:
+
+| Artefact | Owner command | Gating |
+|---|---|---|
+| `related_work_outline.md` | `/scholar:paper-lit --draft-outline=true` | None beyond `citation-guard`; lightweight survey aid. |
+| `related_work.draft.md` | `/scholar:deepresearch` Stage 6 | PRISMA screening + cluster critique + final citation audit (`citation_audit.json`). |
+| `related_work.md` (markdown mid-tier) | `/scholar:paper-review --format=md` (planned P3 in `docs/lite-mode-plan-2026-05-22.md:118`) | Citation-keyed; no PRISMA. |
+| `manuscript/sections/related_work.tex` | `/scholar:paper-review` (default) | Full audit chain at `/scholar:paper-check` time. |
+
+Emitting `related_work.draft.md` from `paper-lit` would re-blur the lite/heavy
+boundary this trial spent P0/P1/P2 tightening. The dogfood concern that the lite
+output looks PRISMA-rigorous is exactly what the rigor-tier separation guards
+against. The lite-mode-plan §P3 covers the user-visible "I want a markdown
+related-work draft without LaTeX" niche through `paper-review --format=md`
+without smuggling PRISMA semantics back into `paper-lit`.
+
+Acceptance criteria, updated: chat response names the outline path; outline
+sentences cite only keys in `references.bib`; strong-claim verbs gated by
+`citation-guard`. The "draft" wording in the original acceptance is satisfied
+by the outline for the `paper-lit` scope.
+
 ## 2. Reconcile the scope-stub fast path with `scope-required`
 
 Problem: `using-deep-research` documents a stub `.md` without frontmatter, but
