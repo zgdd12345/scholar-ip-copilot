@@ -179,6 +179,7 @@ Every record in `evidence/evidence.jsonl` carries:
 {
   "id": "ev_0001",
   "type": "paper|experiment|code|patent|note",
+  "source_kind": "paper|blog|engineering_report|docs|tutorial|spec",
   "source": "...",
   "claim": "...",
   "support": "...",
@@ -190,7 +191,7 @@ Every record in `evidence/evidence.jsonl` carries:
 }
 ```
 
-See [`data-model.md`](data-model.md) for the full schema.
+`source_kind` is optional and defaults to `paper`. Non-paper kinds within `type=paper` (blog / engineering_report / docs / tutorial / spec) MUST carry a `file_path` pointing at a local `.evidraft/literature/.cache/webfetch/<sha1>.md` snapshot — live URL line numbers are not stable. See [`data-model.md`](data-model.md) for the full schema.
 
 ---
 

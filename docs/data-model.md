@@ -12,6 +12,11 @@ Everything EviDraft produces lives on disk under the project's `.evidraft/` dire
 │   ├── literature/
 │   │   ├── references.bib
 │   │   ├── matrix.md
+│   │   ├── lit_run.yaml             /scholar:paper-lit run metadata (last-write wins)
+│   │   ├── related_work_outline.md  /scholar:paper-lit --draft-outline; lightweight survey aid
+│   │   ├── .cache/<provider>/<sha1>.json   structured retrieval (arxiv / s2 / openalex)
+│   │   ├── .cache/webfetch/<sha1>.md       full-page snapshots for citable blog / docs / report sources
+│   │   ├── .cache/webfetch/<sha1>.json     companion metadata (url, fetched_at, title)
 │   │   └── (deepresearch artefacts: plan.yaml, candidates.jsonl,
 │   │        screening_log.csv, clusters.yaml, critique/, citation_audit.json,
 │   │        evidence_map.json, related_work.draft.md)
@@ -97,6 +102,7 @@ One JSON object per line. The "lingua franca" for every downstream draft.
 {"id":"ev_0001","type":"paper","source":"arxiv:2103.xxxx","claim":"Method X achieves 81.3 mAP on COCO.","support":"Table 3 of the cited paper.","citation_key":"smith2021methodx","file_path":null,"line_range":null,"confidence":"high","verified":true}
 {"id":"ev_0017","type":"experiment","source":"experiments/runs/exp_2026_03_01.csv","claim":"Our model attains 82.6 mAP on COCO val2017.","support":"Row 4, column 'map_5095' of the cited csv.","citation_key":null,"file_path":"experiments/runs/exp_2026_03_01.csv","line_range":"4:4","confidence":"high","verified":true}
 {"id":"ev_0042","type":"code","source":"src/models/detector.py","claim":"Anchor-free head implemented via the FCOSHead class.","support":"Class definition and forward pass.","citation_key":null,"file_path":"src/models/detector.py","line_range":"118:204","confidence":"high","verified":true}
+{"id":"ev_0055","type":"paper","source_kind":"blog","source":"https://www.anthropic.com/engineering/example","claim":"Claude Code's hook system fires before tool use.","support":"§ 'Hooks lifecycle'","citation_key":"anthropic2025harness","file_path":".evidraft/literature/.cache/webfetch/3a7f...e9.md","line_range":"42:58","confidence":"medium","verified":false}
 ```
 
 Field meanings:
@@ -105,11 +111,12 @@ Field meanings:
 |---|---|---|
 | `id` | yes | `ev_` + 4-digit zero-padded counter |
 | `type` | yes | `paper` / `experiment` / `code` / `patent` / `note` / `invention` / `number` |
+| `source_kind` | optional | sub-type within `type=paper`; one of `paper` (default — formal publication) / `blog` / `engineering_report` / `docs` / `tutorial` / `spec`. Non-paper kinds REQUIRE `file_path` + `line_range` pointing at a `.evidraft/literature/.cache/webfetch/<sha1>.md` snapshot (URL line numbers are not stable) |
 | `source` | yes | URI-ish: `arxiv:…`, `doi:…`, file path, patent number, URL |
 | `claim` | yes | one sentence, no hedging |
 | `support` | yes | where in the source the claim is backed up |
-| `citation_key` | conditional | required if `type=paper`; BibTeX key in `references.bib` |
-| `file_path` | conditional | required if `type=code`, or if the record points at a specific row in a numeric/csv source (`type=experiment` / `type=number`) |
+| `citation_key` | conditional | required if `type=paper` (any `source_kind`); BibTeX key in `references.bib`. For non-paper `source_kind`, the entry is `@misc` |
+| `file_path` | conditional | required if `type=code`; if `type=experiment`/`type=number` points at a specific row; or if `type=paper` AND `source_kind` is non-paper |
 | `line_range` | conditional | `"start:end"` (inclusive); required whenever `file_path` points at a specific row/range |
 | `confidence` | yes | `high` / `medium` / `low` |
 | `verified` | yes | boolean; auditor sets this after manual check |
@@ -126,7 +133,31 @@ Validated by [`packages/core/schemas/evidence.schema.json`](../packages/core/sch
 
 A markdown table that is friendly to both humans and grep. Columns:
 
-| Paper (citation_key) | Year | Venue | Problem | Method | Datasets | Key Result | Gap | Evidence ids |
+| Paper (citation_key) | Source kind | Year | Venue | Problem | Method | Datasets | Key Result | Gap | Evidence ids |
+
+`Source kind` is `paper` (default — formal publication) / `blog` / `engineering_report` / `docs` / `tutorial` / `spec`. For non-paper kinds, `Venue` carries the publisher/site (e.g. `Anthropic Engineering Blog`, `OpenAI Cookbook`); never invent a venue. `Key Result` may be qualitative when the source has no number.
+
+The first non-blank lines are a fixed banner `<!-- paper-lit: single-pass seed matrix. NOT a PRISMA review. -->` (inserted by `/scholar:paper-lit` step 1) so a seeded matrix is not mistaken for a completed systematic review.
+
+---
+
+## `.evidraft/literature/lit_run.yaml`
+
+Run metadata for the latest `/scholar:paper-lit` invocation. Overwritten on every run (history lives in `git log`). Lets `/scholar:paper-review` and `/scholar:paper-check` identify which literature run produced the current matrix.
+
+```yaml
+run_id: 2026-05-22T02:21:00Z       # UTC ISO-8601, shared with scholar-search retrieval rows
+command: /scholar:paper-lit
+topic: "<resolved topic>"
+topic_source: explicit-arg | scope.research_question | project.yaml.title | user-prompted
+mode: single_pass | draft_outline
+source_limit: 20
+retrieval: web | offline
+validator_used: bibtex-tidy | hand-roll
+draft_outline_path: .evidraft/literature/related_work_outline.md   # null when mode=single_pass
+bib_link: symlink | snapshot
+bib_sync: noop | resynced
+```
 
 ---
 
