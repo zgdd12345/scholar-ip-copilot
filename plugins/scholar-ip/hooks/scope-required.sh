@@ -50,7 +50,22 @@ if [ -f "$PROJECT_YAML" ]; then
       sub(/[[:space:]]*#.*$/,""); gsub(/["'"'"']/,""); gsub(/[[:space:]]/,"")
       print; exit
     }' "$PROJECT_YAML" 2>/dev/null || true)"
-  [ -n "$v" ] && DOWNGRADE="$v"
+  # Normalise per the documented enum: enabled (alias block) | warn | disabled.
+  # Any unknown value (typo, deprecated alias) is ignored with a stderr notice
+  # rather than silently falling into block — that previously masked typos like
+  # `warning` or `disable` as a stricter mode.
+  if [ -n "$v" ]; then
+    case "$v" in
+      enabled|block)
+        DOWNGRADE="block" ;;
+      warn|disabled)
+        DOWNGRADE="$v" ;;
+      *)
+        printf 'scope-required: unknown value %s for project.yaml.hooks.scope_required (expected one of: enabled, block, warn, disabled) — keeping per-command default %s\n' \
+          "\"$v\"" "\"$DOWNGRADE\"" >&2
+        ;;
+    esac
+  fi
 
   d="$(awk '
     /^scope:[[:space:]]*$/ { in_scope=1; next }

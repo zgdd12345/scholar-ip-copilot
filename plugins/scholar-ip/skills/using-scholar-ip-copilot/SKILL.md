@@ -82,11 +82,12 @@ The plugin **refuses** to make strong claims without citable evidence, and refus
 
 ## The full command map
 
-### Meta (1)
+### Meta (2)
 
 | Command | What it does |
 |---|---|
 | `/scholar:using` | This entry — orientation. Read-only. |
+| `/scholar:using-deep-research` | Orientation for the heavy 6-stage `/scholar:deepresearch` workflow: the prereqs (`paper-init` + `brainstorming`) that unblock `scope-required`, the scope-stub fast-path, the breadth / depth budget knobs, the 6-stage artefact map, and the four failure modes. Read-only. |
 
 ### Lite (1) — personal literature research, no project required
 
@@ -128,7 +129,7 @@ The plugin **refuses** to make strong claims without citable evidence, and refus
 | `/scholar:xreview` | Delegate to an external agent (Codex / Claude bare / OpenCode) for a second-opinion review; read-only enforced; stdin-only prompts | `.evidraft/reviews/<agent>-<persona>-<ts>.md` |
 | `/scholar:polish` | Williams-style humanize: preserves numbers/citations/entities/hedges; mandatory diff log; ethics-bound (not detector-evasion) | rewritten target + `.evidraft/style/humanize-<ts>.{log,report.md}` |
 
-`/scholar:brainstorming` is a **hard precondition** (via `scope-required` hook, default `block`) for `/scholar:paper-idea`, `/scholar:patent-scout`, `/scholar:paper-draft`, `/scholar:patent-claims`, `/scholar:deepresearch`, and `/scholar:polish`. Downgradable via `.evidraft/project.yaml.hooks.scope_required` to `warn` or `disabled`.
+`/scholar:brainstorming` is a precondition (via the `scope-required` hook) for `/scholar:paper-idea`, `/scholar:patent-scout`, `/scholar:paper-draft`, `/scholar:patent-claims`, `/scholar:deepresearch`, and `/scholar:polish`. **Default severity is split**: `paper-draft` / `patent-claims` / `polish` **block** without an approved scope file; `paper-idea` / `patent-scout` / `deepresearch` only **warn**. Downgradable per-command via `.evidraft/project.yaml.hooks.scope_required` to `warn` or `disabled`.
 
 ## Workflow ordering
 
@@ -171,7 +172,7 @@ The plugin **refuses** to make strong claims without citable evidence, and refus
 | `evidence-consistency` | writing any paper section / TID section | Block: literature claims must trace to `evidence.jsonl`; numbers must trace to `experiments/`; code claims must include `file_path` + line range. |
 | `latex-compile` | `.tex` modified | Warn: run `latexmk`, parse structured errors. |
 | `sensitive-file-guard` | reading `.env`, `secrets/`, `credentials.json`, `*.pem`, `*.key` | Block by default; explicit one-shot user-confirmed override required. |
-| `scope-required` | invoking `/scholar:paper-idea`, `/scholar:patent-scout`, `/scholar:paper-draft`, `/scholar:patent-claims`, `/scholar:deepresearch`, `/scholar:polish` | Block: requires an approved `.evidraft/scope/<date>-<slug>.md` ≤ `staleness_days` (default 14) old. |
+| `scope-required` | invoking `/scholar:paper-idea`, `/scholar:patent-scout`, `/scholar:paper-draft`, `/scholar:patent-claims`, `/scholar:deepresearch`, `/scholar:polish` | Split severity: **block** for writer commands (`paper-draft`, `patent-claims`, `polish`); **warn** for analysis commands (`paper-idea`, `patent-scout`, `deepresearch`). Both branches require an approved `.evidraft/scope/<date>-<slug>.md` ≤ `staleness_days` (default 14) old. |
 | `external-write-zone` | any external-agent invocation via `/scholar:xreview` | Block: outputs may only land under `.evidraft/reviews/`. |
 | `humanize-evidence-preserve` | `/scholar:polish` rewrite step | Block: token-level diff for numbers, citation keys, named entities, hedging adverbs must be empty before applying a hunk. |
 
@@ -191,6 +192,8 @@ When multiple hooks fire on the same action, adapters MUST run them in this orde
 7. latex-compile                 # subprocess (slowest; runs last and async-friendly)
 ```
 
+The Claude Code adapter realises this contract by sorting hooks within each event by the `HOOK_ORDER` constant in `packages/adapters/claude_code/generate.py` before writing `hooks.json`. Other adapters MUST do the same — the ordering is a runtime contract, not a documentation convention.
+
 ## What to do on first interaction
 
 1. **Read intent first.** If the user's request involves literature work (调研 / 综述 / "look up X" / "find papers on Y") **without** explicit mention of a paper section, patent, venue, or submission, ask ONE intent-clarifying question before any recommendation:
@@ -202,6 +205,7 @@ When multiple hooks fire on the same action, adapters MUST run them in this orde
    - `.evidraft/project.yaml.project_type` is `patent` or `mixed` → patent mode.
    - The user names a venue, "投稿", "submit", "paper section", "TID", or similar → paper / patent mode.
    - The user says "just / 只是 / 自己看 / personal / notes / 笔记" → notes mode.
+   - The cwd has **no `.evidraft/` directory at all** AND the topic is a short noun phrase (≤ 4 tokens) AND no paper/patent/venue/submit keywords are present → default to **notes mode**; **confirm** ("I'll do a markdown reading list — OK?") rather than ask the binary question. This is the dominant personal-reading case: a short topic in a fresh directory rarely means "build a paper from scratch", and a single confirmation costs less than a yes/no question.
 
 2. **For notes mode** (the answer is "personal" or skip-heuristic detected it): recommend `/scholar:reading-list <topic>` directly. **Do not** propose `/scholar:paper-init`. The reading-list command needs no project scaffold, no scope file, no BibTeX. Output lands at `.evidraft/notes/<slug>-<date>.md` and is the sole artefact.
 

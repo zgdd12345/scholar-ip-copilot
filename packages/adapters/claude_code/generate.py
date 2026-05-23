@@ -229,6 +229,31 @@ def _build_plugin_json(plugin: Plugin) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+# Canonical hook execution order (cheap → expensive), mirroring the order
+# documented in skills/using-scholar-ip-copilot/SKILL.md §"Hook evaluation
+# order". When multiple hooks fire on the same event, this orders them so a
+# cheap reject (sensitive-file-guard) runs before an expensive scan
+# (evidence-consistency / latex-compile). Hooks not listed here (e.g. the
+# session-start synth) sort to the end in id order.
+HOOK_ORDER: tuple[str, ...] = (
+    "sensitive-file-guard",
+    "scope-required",
+    "citation-guard",
+    "external-write-zone",
+    "humanize-evidence-preserve",
+    "evidence-consistency",
+    "latex-compile",
+)
+
+
+def _hook_order_key(hook_id: str) -> tuple[int, str]:
+    """Sort key putting HOOK_ORDER hooks first in declared order, then others alpha."""
+    try:
+        return (HOOK_ORDER.index(hook_id), hook_id)
+    except ValueError:
+        return (len(HOOK_ORDER), hook_id)
+
+
 def _derive_event_and_matcher(meta: dict[str, Any]) -> tuple[str, str | None]:
     """Infer (event, matcher) for a hook's hooks.json entry.
 
@@ -284,16 +309,18 @@ def _render_executable_hooks(plugin: Plugin, out_dir: Path) -> list[Path]:
     src_hooks_dir = plugin.root / "hooks"
     written: list[Path] = []
 
-    # event -> list of CC matcher entries
-    entries: dict[str, list[dict[str, Any]]] = {}
+    # event -> list of (hook_id, CC matcher entry). The hook_id is retained so
+    # entries can be sorted by HOOK_ORDER at write time; we strip it before
+    # serializing to hooks.json.
+    entries: dict[str, list[tuple[str, dict[str, Any]]]] = {}
     seen_scripts: set[str] = set()
 
-    def _add(event: str, matcher: str | None, basename: str) -> None:
+    def _add(event: str, matcher: str | None, basename: str, hook_id: str) -> None:
         cmd = '"${CLAUDE_PLUGIN_ROOT}"/hooks/' + basename
         entry: dict[str, Any] = {"hooks": [{"type": "command", "command": cmd}]}
         if matcher:
             entry["matcher"] = matcher
-        entries.setdefault(event, []).append(entry)
+        entries.setdefault(event, []).append((hook_id, entry))
 
     out_hooks_dir = out_dir / "hooks"
 
@@ -315,7 +342,8 @@ def _render_executable_hooks(plugin: Plugin, out_dir: Path) -> list[Path]:
         seen_scripts.add(script_name)
 
         event, matcher = _derive_event_and_matcher(hook.meta or {})
-        _add(event, matcher, script_name)
+        hook_id = str((hook.meta or {}).get("id") or Path(script_name).stem)
+        _add(event, matcher, script_name, hook_id)
 
     # Synthesise the session-start hook (no companion .md) if its script is
     # present and was not already wired above.
@@ -327,12 +355,18 @@ def _render_executable_hooks(plugin: Plugin, out_dir: Path) -> list[Path]:
         mode = os.stat(ss_src).st_mode
         os.chmod(dest, mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
         written.append(dest)
-        _add("SessionStart", None, "session-start.sh")
+        _add("SessionStart", None, "session-start.sh", "session-start")
 
     if entries:
         manifest_path = out_hooks_dir / "hooks.json"
         # CC schema requires the events nested under a top-level ``hooks`` key.
-        sorted_entries = {k: entries[k] for k in sorted(entries)}
+        # Within each event, hooks are sorted by HOOK_ORDER (cheap → expensive)
+        # so the docs/runtime contract documented in using-scholar-ip-copilot
+        # is actually realised in the manifest, not just convention.
+        sorted_entries: dict[str, list[dict[str, Any]]] = {}
+        for event in sorted(entries):
+            items = sorted(entries[event], key=lambda t: _hook_order_key(t[0]))
+            sorted_entries[event] = [entry for _, entry in items]
         manifest_path.write_text(
             json.dumps({"hooks": sorted_entries}, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",

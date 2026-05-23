@@ -79,6 +79,8 @@ Build a personal literature reading list. No project init, no BibTeX, no evidenc
    - Cluster the included candidates into ≤6 method families.
    - Return the file body using the schema below.
    - Append the rejection list at the bottom under `## Rejected candidates`, one bullet per rejection.
+   - **Author truncation**: if a verified entry has more than 8 authors, render the `**Authors**:` field as the first three names followed by `, et al. (N authors)` instead of dumping the full list. The canonical URL still resolves the full author list — this is purely signal-to-noise hygiene.
+   - **Rejection metadata discipline**: every `## Rejected candidates` bullet MUST include a square-bracketed tag immediately after the title — either `[<verified canonical URL>]` (the URL was actually `WebFetch`-resolved) or `[canonical metadata not confirmed]` (no resolved URL). Never assert an author name, arXiv id, year, or venue inside a rejection bullet unless the canonical URL was confirmed; otherwise the rejection section becomes a vector for the very fabrication the verify-then-reject rule exists to prevent.
 
 5. **Write the file.** Single markdown file at the path from step 2. Schema:
 
@@ -98,7 +100,7 @@ Build a personal literature reading list. No project init, no BibTeX, no evidenc
    ## Entries
 
    ### <Title>
-   - **Authors**: <names>
+   - **Authors**: <names; if N > 8 authors, render as the first 3 names then ", et al. (N authors)">
    - **Year / Venue**: <year> / <venue or arXiv class>
    - **URL**: <canonical URL>
    - **Summary**: <2-3 sentences from the verified page>
@@ -109,7 +111,7 @@ Build a personal literature reading list. No project init, no BibTeX, no evidenc
 
    ## Rejected candidates
 
-   - <Title or guessed identifier> — <one-sentence reason>
+   - <Title or guessed identifier> [<verified canonical URL> OR "canonical metadata not confirmed"] — <one-sentence reason>
    ```
 
 6. **Report back** in chat (≤120 words):
