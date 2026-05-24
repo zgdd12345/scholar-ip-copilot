@@ -116,6 +116,12 @@ _gc_state() {
   [ "${SCHOLAR_IP_GC_DISABLE:-}" = "1" ] && return 0
   local root sentinel
   root="$(_state_root)"
+  # First-ever invocation: the state root has never been created (no command
+  # has called record_active_command yet). Return without touching the
+  # sentinel — nothing to GC. The next invocation will see the root (created
+  # by record_active_command's mkdir) and the sentinel can finally land.
+  # Net effect: the very first session pays no GC cost, every subsequent
+  # session participates in the 7-day cooldown sweep.
   [ -d "$root" ] || return 0
   sentinel="$root/.last-gc"
   # Cooldown: if the sentinel was touched within the last 7 days, skip.
@@ -125,6 +131,13 @@ _gc_state() {
   fi
   # Delete active-cmd files older than 30 days. -mtime +30 is portable
   # across GNU and BSD find. Errors swallowed (best-effort).
+  #
+  # Note: the same `active-cmd` mtime is consulted by record_active_command
+  # under a 24-h TTL (see SCHOLAR_IP_ACTIVE_CMD_TTL). Those two thresholds
+  # are intentionally independent — TTL clears stale command state mid-flow,
+  # GC reclaims orphan directories after the session has been dead for a
+  # month. A 25-hour idle session sees its slot cleared by TTL but not by
+  # GC; that is correct.
   find "$root" -type f -name 'active-cmd' -mtime +30 -delete 2>/dev/null || true
   # Prune now-empty session/project dirs (don't delete root itself).
   find "$root" -mindepth 1 -type d -empty -delete 2>/dev/null || true
@@ -207,6 +220,16 @@ record_active_command() {
 # carries the source `hooks:` field (CC only recognises description /
 # argument-hint / allowed-tools), so the adapter projects each command's
 # allowlist into this sidecar.
+#
+# DEPENDENCY: jq is required to parse the sidecar (see line below). If jq is
+# not on PATH, this function returns 1 ("not disabled"), which re-enables
+# every hook for every command — including the lite-mode ones that declared
+# `hooks: []`. This is fail-closed (a hook firing where it shouldn't is
+# noisier than silent miscompliance) but it means `/scholar:reading-list` on
+# a no-jq box would suddenly see citation-guard fire. The hard-exclude path
+# globs inside each hook (e.g. citation-guard.sh's manuscript-section
+# pattern) are the runtime backstop. Document any new lite-mode command's
+# expected paths there as well, not only here.
 hook_disabled_by_command() {
   local hook_name="$1"
   local sfile cmd plugin_root map_file allow

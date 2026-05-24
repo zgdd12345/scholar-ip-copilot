@@ -13,7 +13,7 @@ triggers:
   - "user asks 'what can this plugin do?' or 'how do I use this?'"
   - "before any /scholar:<cmd> is invoked for the first time in a session"
 provides:
-  - "complete command map (16 commands + future modules)"
+  - "complete command map (22 commands across meta / lite / paper / patent / phase-2)"
   - "workflow ordering for paper and patent phases"
   - "evidence-grounded discipline overview"
   - "gating-hook reference"
@@ -36,7 +36,7 @@ before drafting, or skipping `/scholar:patent-disclosure` before claims, is a
 discipline violation — the plugin will refuse via hook.
 </EXTREMELY-IMPORTANT>
 
-You are working inside the **scholar** plugin (product name **EviDraft**). The plugin id is `scholar`; everything is invoked as `/scholar:<cmd>`. The folder on disk is `plugins/scholar-ip/` (historical, tied to the repo name `scholar-ip-copilot`).
+You are working inside the **scholar** plugin (product name **EviDraft**). The plugin id is `scholar`; everything is invoked as `/scholar:<cmd>`. The source lives at `plugins/scholar-ip/`.
 
 ## What this plugin is for
 
@@ -208,6 +208,8 @@ The Claude Code adapter realises this contract by sorting hooks within each even
    - The cwd has **no `.evidraft/` directory at all** AND the topic is a short noun phrase (≤ 4 tokens) AND no paper/patent/venue/submit keywords are present → default to **notes mode**; **confirm** ("I'll do a markdown reading list — OK?") rather than ask the binary question. This is the dominant personal-reading case: a short topic in a fresh directory rarely means "build a paper from scratch", and a single confirmation costs less than a yes/no question.
 
 2. **For notes mode** (the answer is "personal" or skip-heuristic detected it): recommend `/scholar:reading-list <topic>` directly. **Do not** propose `/scholar:paper-init`. The reading-list command needs no project scaffold, no scope file, no BibTeX. Output lands at `.evidraft/notes/<slug>-<date>.md` and is the sole artefact.
+
+   **Topic-specificity sub-question.** If the user's topic is a bare noun phrase ≤ 2 tokens (e.g. `code agent`, `RAG`, `vision transformer`), ask one scope-tightening question BEFORE dispatching: `narrow to <subtopic-A> | <subtopic-B> | broad survey?`. The 2-token threshold is empirical — bare topics blow up the candidate pool with scaffolds and benchmarks (the dogfood1 trial had 5 of 15 included entries only tangentially related to "code agent"). For topics ≥ 3 tokens the user has usually already done the scoping; do not re-ask.
 
 3. **For paper / patent mode**:
    1. `Read` `.evidraft/project.yaml` if it exists.

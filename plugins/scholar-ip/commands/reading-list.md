@@ -118,7 +118,7 @@ Build a personal literature reading list. No project init, no BibTeX, no evidenc
    - Path written.
    - N candidates considered / N verified / N rejected.
    - The method-family names.
-   - One-line next step, **verbatim** (the subagent must emit this sentence exactly, not paraphrase it; do not substitute another `/scholar:<cmd>`): `If you later decide to write a paper section on this topic, run /scholar:paper-init then /scholar:paper-lit.`
+   - One-line next step, **verbatim** (the subagent must emit this sentence exactly, not paraphrase it; do not substitute another `/scholar:<cmd>`): `If you later decide to write a paper section on this topic, run /scholar:paper-init then /scholar:paper-lit.` If the surrounding chat is in a non-English language (e.g. Chinese), emit the English sentence on its own line first, then add a translation BELOW it — never replace the English with the translation. The verbatim line is the machine-readable handoff to the next workflow stage.
    - Do NOT name `citation-guard`, `evidence-consistency`, or `scope-required` in the report — those hooks are disabled in lite mode by the per-command opt-out in `_lib.sh::hook_disabled_by_command`, and naming them confuses the user about the lite-path workflow.
    - **Sibling file** (only if the Step 2a triage resolved to `augment`): name the prior file path that was left untouched.
 
