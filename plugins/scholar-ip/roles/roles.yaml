@@ -1,0 +1,65 @@
+tiers:
+  fast:
+    description: Mechanical or bounded review work with low reasoning cost.
+    mode_specs:
+      consistency-checker: modes/consistency-checker.md
+      latex-editor: modes/latex-editor.md
+      screener: modes/screener.md
+  standard:
+    description: Default research, analysis, and writing work.
+    mode_specs:
+      brainstormer: modes/brainstormer.md
+      codebase-analyst: modes/codebase-analyst.md
+      evidence-auditor: modes/evidence-auditor.md
+      experiment-analyst: modes/experiment-analyst.md
+      literature-reviewer: modes/literature-reviewer.md
+      methodology-reviewer: modes/methodology-reviewer.md
+      paper-critic: modes/paper-critic.md
+      prose-polisher: modes/prose-polisher.md
+  deep:
+    description: Correctness-critical synthesis, orchestration, novelty, and claims work.
+    mode_specs:
+      claim-drafter: modes/claim-drafter.md
+      deep-research-orchestrator: modes/deep-research-orchestrator.md
+      novelty-critic: modes/novelty-critic.md
+      patent-engineer: modes/patent-engineer.md
+roles:
+  researcher:
+    description: Retrieves, screens, critiques, and synthesises literature and ideas.
+    default_tier: standard
+    modes:
+      - brainstormer
+      - deep-research-orchestrator
+      - literature-reviewer
+      - paper-critic
+      - screener
+  evidence-reviewer:
+    description: Audits citations, evidence records, supersession, and consistency.
+    default_tier: standard
+    modes:
+      - consistency-checker
+      - evidence-auditor
+  code-reviewer:
+    description: Maps technical and methodological claims to implementation evidence.
+    default_tier: standard
+    modes:
+      - codebase-analyst
+      - methodology-reviewer
+  experiment-reviewer:
+    description: Normalises experiment outputs and verifies reported numbers.
+    default_tier: standard
+    modes:
+      - experiment-analyst
+  writing-reviewer:
+    description: Drafts, compiles, and polishes manuscript prose and LaTeX.
+    default_tier: standard
+    modes:
+      - latex-editor
+      - prose-polisher
+  patent-reviewer:
+    description: Scouts inventions, critiques novelty, and drafts attorney-reviewable material.
+    default_tier: deep
+    modes:
+      - claim-drafter
+      - novelty-critic
+      - patent-engineer

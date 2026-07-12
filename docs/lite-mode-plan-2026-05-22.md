@@ -2,6 +2,10 @@
 
 Date: 2026-05-22
 Status: proposal
+
+> Historical v1 proposal. The v2 public replacement is `research reading-list`; other
+> command, agent, hook, and path names below document the design context at the time.
+
 Origin: dogfood1 session — `/scholar:paper-lit` + `/scholar:paper-review` chain triggered for a user request that turned out to be "personal lit research, no LaTeX". The audit chain caught a fabricated arXiv paper, but the pipeline took ~2 hours for what should have been a markdown reading list.
 
 ## Problem

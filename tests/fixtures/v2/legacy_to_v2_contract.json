@@ -1,0 +1,1234 @@
+{
+  "contract_version": 2,
+  "description": "Frozen EviDraft v1 command frontmatter projected onto the seven v2 workflow entrypoints.",
+  "mappings": [
+    {
+      "legacy_id": "using",
+      "workflow": "using",
+      "action": "run",
+      "inputs": [],
+      "outputs": [],
+      "legacy_hooks": [],
+      "policies": [],
+      "roles": [],
+      "retention": {}
+    },
+    {
+      "legacy_id": "brainstorming",
+      "workflow": "scope",
+      "action": "run",
+      "inputs": [
+        {
+          "name": "branch",
+          "type": "enum",
+          "values": [
+            "paper",
+            "patent",
+            "mixed",
+            "auto"
+          ],
+          "optional": true,
+          "default": "auto",
+          "description": "paper|patent|mixed select the project's project_type axis explicitly; auto = read .evidraft/project.yaml.project_type (and ask once if mixed)."
+        },
+        {
+          "name": "mode",
+          "type": "enum",
+          "values": [
+            "full",
+            "fast"
+          ],
+          "optional": true,
+          "default": "full"
+        },
+        {
+          "name": "seed_idea",
+          "type": "string",
+          "optional": true
+        }
+      ],
+      "outputs": [
+        {
+          "path": ".evidraft/scope/YYYY-MM-DD-<slug>.md"
+        }
+      ],
+      "legacy_hooks": [],
+      "policies": [],
+      "roles": [
+        {
+          "id": "researcher",
+          "mode": "brainstormer",
+          "tier": "standard"
+        }
+      ],
+      "retention": {}
+    },
+    {
+      "legacy_id": "using-deep-research",
+      "workflow": "research",
+      "action": "guide",
+      "inputs": [
+        {
+          "name": "topic",
+          "type": "string",
+          "optional": true,
+          "description": "Optional research topic; the skill will propose the right command sequence based on it."
+        }
+      ],
+      "outputs": [],
+      "legacy_hooks": [],
+      "policies": [],
+      "roles": [],
+      "retention": {}
+    },
+    {
+      "legacy_id": "reading-list",
+      "workflow": "research",
+      "action": "reading-list",
+      "inputs": [
+        {
+          "name": "topic",
+          "type": "string",
+          "optional": false,
+          "description": "The search topic / question. Used verbatim as the query and slugged for the output filename.\n"
+        },
+        {
+          "name": "max",
+          "type": "integer",
+          "optional": true,
+          "default": 20,
+          "description": "Maximum number of candidates to consider (before verification rejects)."
+        },
+        {
+          "name": "out",
+          "type": "path",
+          "optional": true,
+          "description": "Override the default output path. Default: .evidraft/notes/<topic-slug>-<UTC-date>.md\n"
+        }
+      ],
+      "outputs": [
+        {
+          "path": ".evidraft/notes/<topic-slug>-<date>.md"
+        }
+      ],
+      "legacy_hooks": [],
+      "policies": [],
+      "roles": [
+        {
+          "id": "researcher",
+          "mode": "literature-reviewer",
+          "tier": "standard"
+        }
+      ],
+      "retention": {}
+    },
+    {
+      "legacy_id": "deepresearch",
+      "workflow": "research",
+      "action": "deep",
+      "inputs": [
+        {
+          "name": "topic",
+          "type": "string",
+          "optional": true,
+          "description": "Free-text research focus. Falls back to project.yaml.topic when omitted."
+        },
+        {
+          "name": "breadth",
+          "type": "integer",
+          "optional": true,
+          "default": 6,
+          "description": "Maximum sub-queries per fan-out at every stage."
+        },
+        {
+          "name": "depth",
+          "type": "integer",
+          "optional": true,
+          "default": 2,
+          "description": "Recursion depth for follow-up queries (citations / references)."
+        },
+        {
+          "name": "providers",
+          "type": "list",
+          "optional": true,
+          "default": [
+            "arxiv",
+            "semantic-scholar",
+            "openalex"
+          ],
+          "description": "Ordered retrieval backends consumed by skills/scholar-search/SKILL.md. Records `source` per row; never blends silently."
+        },
+        {
+          "name": "mode",
+          "type": "enum",
+          "values": [
+            "fast",
+            "full"
+          ],
+          "optional": true,
+          "default": "full",
+          "description": "`fast` halves breadth+depth and skips per-paper SWOT; `full` runs all 6 stages."
+        },
+        {
+          "name": "resume_from",
+          "type": "enum",
+          "values": [
+            "frame",
+            "retrieve",
+            "screen",
+            "cluster",
+            "critique",
+            "synthesise"
+          ],
+          "optional": true,
+          "description": "Skip all earlier stages and resume at the named stage."
+        }
+      ],
+      "outputs": [
+        {
+          "path": ".evidraft/literature/plan.yaml"
+        },
+        {
+          "path": ".evidraft/literature/candidates.jsonl"
+        },
+        {
+          "path": ".evidraft/literature/screening_log.csv"
+        },
+        {
+          "path": ".evidraft/literature/clusters.yaml"
+        },
+        {
+          "path": ".evidraft/literature/evidence_map.json"
+        },
+        {
+          "path": ".evidraft/literature/critique/"
+        },
+        {
+          "path": ".evidraft/literature/related_work.draft.md"
+        },
+        {
+          "path": ".evidraft/literature/citation_audit.json"
+        }
+      ],
+      "legacy_hooks": [
+        "scope-required",
+        "citation-guard",
+        "evidence-consistency"
+      ],
+      "policies": [
+        "scope",
+        "evidence-integrity"
+      ],
+      "roles": [
+        {
+          "id": "researcher",
+          "mode": "deep-research-orchestrator",
+          "tier": "deep"
+        },
+        {
+          "id": "researcher",
+          "mode": "screener",
+          "tier": "fast"
+        },
+        {
+          "id": "researcher",
+          "mode": "paper-critic",
+          "tier": "standard"
+        },
+        {
+          "id": "researcher",
+          "mode": "literature-reviewer",
+          "tier": "standard"
+        },
+        {
+          "id": "evidence-reviewer",
+          "mode": "evidence-auditor",
+          "tier": "standard"
+        }
+      ],
+      "retention": {}
+    },
+    {
+      "legacy_id": "paper-init",
+      "workflow": "paper",
+      "action": "init",
+      "inputs": [
+        {
+          "name": "project_type",
+          "type": "enum",
+          "values": [
+            "paper",
+            "patent",
+            "mixed"
+          ],
+          "optional": true,
+          "default": "paper"
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "field",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "target_venue",
+          "type": "string",
+          "optional": true
+        }
+      ],
+      "outputs": [
+        {
+          "path": ".evidraft/project.yaml"
+        },
+        {
+          "path": ".evidraft/evidence/evidence.jsonl"
+        },
+        {
+          "path": ".evidraft/literature/references.bib"
+        },
+        {
+          "path": "manuscript/main.tex"
+        },
+        {
+          "path": "manuscript/sections/"
+        }
+      ],
+      "legacy_hooks": [
+        "sensitive-file-guard"
+      ],
+      "policies": [
+        "workspace-safety"
+      ],
+      "roles": [],
+      "retention": {}
+    },
+    {
+      "legacy_id": "paper-lit",
+      "workflow": "paper",
+      "action": "lit",
+      "inputs": [
+        {
+          "name": "topic",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "seed_pdfs",
+          "type": "list",
+          "optional": true
+        },
+        {
+          "name": "seed_bibtex",
+          "type": "path",
+          "optional": true
+        },
+        {
+          "name": "draft_outline",
+          "type": "boolean",
+          "optional": true,
+          "default": false,
+          "description": "When true, also write a method-family outline to .evidraft/literature/related_work_outline.md. This is a lightweight survey aid for ad-hoc review requests \u2014 NOT a PRISMA review and not the `related_work.draft.md` produced by /scholar:deepresearch Stage 6.\n"
+        }
+      ],
+      "outputs": [
+        {
+          "path": ".evidraft/literature/references.bib"
+        },
+        {
+          "path": ".evidraft/literature/matrix.md"
+        },
+        {
+          "path": ".evidraft/evidence/evidence.jsonl"
+        },
+        {
+          "path": ".evidraft/literature/related_work_outline.md"
+        },
+        {
+          "path": ".evidraft/literature/lit_run.yaml"
+        }
+      ],
+      "legacy_hooks": [
+        "citation-guard",
+        "evidence-consistency"
+      ],
+      "policies": [
+        "evidence-integrity"
+      ],
+      "roles": [
+        {
+          "id": "researcher",
+          "mode": "literature-reviewer",
+          "tier": "standard"
+        },
+        {
+          "id": "evidence-reviewer",
+          "mode": "evidence-auditor",
+          "tier": "standard"
+        }
+      ],
+      "retention": {}
+    },
+    {
+      "legacy_id": "paper-idea",
+      "workflow": "paper",
+      "action": "idea",
+      "inputs": [
+        {
+          "name": "seed_idea",
+          "type": "string",
+          "optional": true
+        }
+      ],
+      "outputs": [
+        {
+          "path": ".evidraft/ideas/novelty_matrix.md"
+        },
+        {
+          "path": ".evidraft/ideas/risk_matrix.md"
+        },
+        {
+          "path": ".evidraft/ideas/experiment_to_validate.md"
+        }
+      ],
+      "legacy_hooks": [
+        "scope-required",
+        "citation-guard",
+        "evidence-consistency"
+      ],
+      "policies": [
+        "scope",
+        "evidence-integrity"
+      ],
+      "roles": [
+        {
+          "id": "researcher",
+          "mode": "literature-reviewer",
+          "tier": "standard"
+        },
+        {
+          "id": "code-reviewer",
+          "mode": "codebase-analyst",
+          "tier": "standard"
+        },
+        {
+          "id": "patent-reviewer",
+          "mode": "novelty-critic",
+          "tier": "deep"
+        }
+      ],
+      "retention": {}
+    },
+    {
+      "legacy_id": "paper-code-audit",
+      "workflow": "paper",
+      "action": "code-audit",
+      "inputs": [
+        {
+          "name": "claims_source",
+          "type": "enum",
+          "values": [
+            "novelty_matrix",
+            "draft_method",
+            "manual_list"
+          ],
+          "optional": true,
+          "default": "novelty_matrix"
+        }
+      ],
+      "outputs": [
+        {
+          "path": ".evidraft/code/repo_summary.md"
+        },
+        {
+          "path": ".evidraft/code/method_to_code.md"
+        },
+        {
+          "path": ".evidraft/code/paper_code_audit.md"
+        }
+      ],
+      "legacy_hooks": [
+        "evidence-consistency",
+        "sensitive-file-guard"
+      ],
+      "policies": [
+        "evidence-integrity",
+        "workspace-safety"
+      ],
+      "roles": [
+        {
+          "id": "code-reviewer",
+          "mode": "codebase-analyst",
+          "tier": "standard"
+        },
+        {
+          "id": "code-reviewer",
+          "mode": "methodology-reviewer",
+          "tier": "standard"
+        },
+        {
+          "id": "evidence-reviewer",
+          "mode": "evidence-auditor",
+          "tier": "standard"
+        }
+      ],
+      "retention": {}
+    },
+    {
+      "legacy_id": "paper-experiment",
+      "workflow": "paper",
+      "action": "experiment",
+      "inputs": [
+        {
+          "name": "results_dir",
+          "type": "path",
+          "optional": true,
+          "default": "experiments/"
+        }
+      ],
+      "outputs": [
+        {
+          "path": ".evidraft/experiments/result_analysis.md"
+        },
+        {
+          "path": ".evidraft/experiments/tables/"
+        },
+        {
+          "path": ".evidraft/evidence/evidence.jsonl"
+        }
+      ],
+      "legacy_hooks": [
+        "evidence-consistency"
+      ],
+      "policies": [
+        "evidence-integrity"
+      ],
+      "roles": [
+        {
+          "id": "experiment-reviewer",
+          "mode": "experiment-analyst",
+          "tier": "standard"
+        },
+        {
+          "id": "evidence-reviewer",
+          "mode": "evidence-auditor",
+          "tier": "standard"
+        }
+      ],
+      "retention": {}
+    },
+    {
+      "legacy_id": "paper-review",
+      "workflow": "paper",
+      "action": "review",
+      "inputs": [
+        {
+          "name": "target_section",
+          "type": "enum",
+          "values": [
+            "related_work",
+            "survey"
+          ],
+          "optional": true,
+          "default": "related_work"
+        },
+        {
+          "name": "target_length",
+          "type": "string",
+          "optional": true,
+          "default": "1.5 pages"
+        },
+        {
+          "name": "format",
+          "type": "enum",
+          "values": [
+            "tex",
+            "md"
+          ],
+          "optional": true,
+          "default": "tex",
+          "description": "Output format. `tex` (default) writes `manuscript/sections/<target_section>.tex` ready for inclusion in `main.tex`. `md` writes `.evidraft/literature/<target_section>.md` as Pandoc-style markdown (`[@citation_key]` inline citations) \u2014 useful when the venue doesn't need LaTeX or for a markdown preview before committing to LaTeX. Both formats share the same outline step (`.evidraft/literature/related_work_outline.md`) and the same evidence-store discipline (citation-guard + evidence-consistency apply to both). Switching format does NOT re-run the outline or the auditors when those are already current.\n"
+        }
+      ],
+      "outputs": [
+        {
+          "path": "manuscript/sections/related_work.tex"
+        },
+        {
+          "path": ".evidraft/literature/related_work.md"
+        },
+        {
+          "path": ".evidraft/literature/related_work_outline.md"
+        }
+      ],
+      "legacy_hooks": [
+        "citation-guard",
+        "evidence-consistency"
+      ],
+      "policies": [
+        "evidence-integrity"
+      ],
+      "roles": [
+        {
+          "id": "researcher",
+          "mode": "literature-reviewer",
+          "tier": "standard"
+        },
+        {
+          "id": "evidence-reviewer",
+          "mode": "evidence-auditor",
+          "tier": "standard"
+        },
+        {
+          "id": "evidence-reviewer",
+          "mode": "consistency-checker",
+          "tier": "fast"
+        }
+      ],
+      "retention": {}
+    },
+    {
+      "legacy_id": "paper-draft",
+      "workflow": "paper",
+      "action": "draft",
+      "inputs": [
+        {
+          "name": "sections",
+          "type": "list",
+          "optional": true,
+          "default": [
+            "introduction",
+            "related_work",
+            "method",
+            "experiments",
+            "conclusion"
+          ]
+        },
+        {
+          "name": "style",
+          "type": "enum",
+          "values": [
+            "arxiv",
+            "cvpr",
+            "neurips",
+            "generic"
+          ],
+          "optional": true,
+          "default": "arxiv"
+        }
+      ],
+      "outputs": [
+        {
+          "path": "manuscript/main.tex"
+        },
+        {
+          "path": "manuscript/sections/"
+        }
+      ],
+      "legacy_hooks": [
+        "scope-required",
+        "citation-guard",
+        "evidence-consistency",
+        "latex-compile"
+      ],
+      "policies": [
+        "scope",
+        "evidence-integrity"
+      ],
+      "roles": [
+        {
+          "id": "writing-reviewer",
+          "mode": "latex-editor",
+          "tier": "fast"
+        },
+        {
+          "id": "evidence-reviewer",
+          "mode": "evidence-auditor",
+          "tier": "standard"
+        },
+        {
+          "id": "code-reviewer",
+          "mode": "methodology-reviewer",
+          "tier": "standard"
+        }
+      ],
+      "retention": {}
+    },
+    {
+      "legacy_id": "paper-check",
+      "workflow": "paper",
+      "action": "check",
+      "inputs": [],
+      "outputs": [
+        {
+          "path": ".evidraft/manuscript/paper_check_report.md"
+        }
+      ],
+      "legacy_hooks": [
+        "citation-guard",
+        "evidence-consistency",
+        "latex-compile"
+      ],
+      "policies": [
+        "evidence-integrity"
+      ],
+      "roles": [
+        {
+          "id": "evidence-reviewer",
+          "mode": "evidence-auditor",
+          "tier": "standard"
+        },
+        {
+          "id": "code-reviewer",
+          "mode": "methodology-reviewer",
+          "tier": "standard"
+        },
+        {
+          "id": "writing-reviewer",
+          "mode": "latex-editor",
+          "tier": "fast"
+        },
+        {
+          "id": "evidence-reviewer",
+          "mode": "consistency-checker",
+          "tier": "fast"
+        }
+      ],
+      "retention": {}
+    },
+    {
+      "legacy_id": "paper-venue",
+      "workflow": "paper",
+      "action": "venue",
+      "inputs": [
+        {
+          "name": "venue",
+          "type": "enum",
+          "values": [
+            "arxiv",
+            "cvpr",
+            "iccv",
+            "eccv",
+            "neurips",
+            "icml",
+            "iclr",
+            "emnlp",
+            "acl",
+            "aaai",
+            "ieee",
+            "acm-generic",
+            "generic"
+          ],
+          "optional": false
+        },
+        {
+          "name": "anonymize",
+          "type": "boolean",
+          "optional": true,
+          "default": true
+        },
+        {
+          "name": "out_dir",
+          "type": "path",
+          "optional": true,
+          "default": "submissions/<venue>/"
+        }
+      ],
+      "outputs": [
+        {
+          "path": "submissions/<venue>/main.tex"
+        },
+        {
+          "path": "submissions/<venue>/sections/"
+        },
+        {
+          "path": "submissions/<venue>/references.bib"
+        },
+        {
+          "path": "submissions/<venue>/MANIFEST.md"
+        }
+      ],
+      "legacy_hooks": [
+        "latex-compile",
+        "citation-guard",
+        "evidence-consistency"
+      ],
+      "policies": [
+        "evidence-integrity"
+      ],
+      "roles": [
+        {
+          "id": "writing-reviewer",
+          "mode": "latex-editor",
+          "tier": "fast"
+        },
+        {
+          "id": "evidence-reviewer",
+          "mode": "evidence-auditor",
+          "tier": "standard"
+        }
+      ],
+      "retention": {}
+    },
+    {
+      "legacy_id": "patent-init",
+      "workflow": "patent",
+      "action": "init",
+      "inputs": [
+        {
+          "name": "project_type",
+          "type": "enum",
+          "values": [
+            "patent",
+            "mixed"
+          ],
+          "optional": true,
+          "default": "patent"
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "jurisdiction",
+          "type": "enum",
+          "values": [
+            "US",
+            "EP",
+            "CN",
+            "JP",
+            "PCT",
+            "OTHER"
+          ],
+          "optional": true,
+          "default": "US"
+        }
+      ],
+      "outputs": [
+        {
+          "path": ".evidraft/project.yaml"
+        },
+        {
+          "path": ".evidraft/patent/invention_disclosure.md"
+        },
+        {
+          "path": ".evidraft/patent/invention_candidates.md"
+        },
+        {
+          "path": ".evidraft/patent/prior_art_map.md"
+        },
+        {
+          "path": ".evidraft/patent/claim_chart.md"
+        }
+      ],
+      "legacy_hooks": [
+        "sensitive-file-guard"
+      ],
+      "policies": [
+        "workspace-safety"
+      ],
+      "roles": [],
+      "retention": {}
+    },
+    {
+      "legacy_id": "patent-scout",
+      "workflow": "patent",
+      "action": "scout",
+      "inputs": [],
+      "outputs": [
+        {
+          "path": ".evidraft/patent/invention_candidates.md"
+        },
+        {
+          "path": ".evidraft/evidence/evidence.jsonl"
+        }
+      ],
+      "legacy_hooks": [
+        "scope-required",
+        "evidence-consistency",
+        "sensitive-file-guard"
+      ],
+      "policies": [
+        "scope",
+        "evidence-integrity",
+        "workspace-safety"
+      ],
+      "roles": [
+        {
+          "id": "code-reviewer",
+          "mode": "codebase-analyst",
+          "tier": "standard"
+        },
+        {
+          "id": "patent-reviewer",
+          "mode": "patent-engineer",
+          "tier": "deep"
+        },
+        {
+          "id": "patent-reviewer",
+          "mode": "novelty-critic",
+          "tier": "deep"
+        }
+      ],
+      "retention": {}
+    },
+    {
+      "legacy_id": "patent-prior-art",
+      "workflow": "patent",
+      "action": "prior-art",
+      "inputs": [
+        {
+          "name": "seed_patents",
+          "type": "list",
+          "optional": true
+        },
+        {
+          "name": "seed_papers",
+          "type": "list",
+          "optional": true
+        }
+      ],
+      "outputs": [
+        {
+          "path": ".evidraft/patent/prior_art_map.md"
+        },
+        {
+          "path": ".evidraft/patent/claim_chart.md"
+        }
+      ],
+      "legacy_hooks": [
+        "evidence-consistency"
+      ],
+      "policies": [
+        "evidence-integrity"
+      ],
+      "roles": [
+        {
+          "id": "researcher",
+          "mode": "literature-reviewer",
+          "tier": "standard"
+        },
+        {
+          "id": "patent-reviewer",
+          "mode": "patent-engineer",
+          "tier": "deep"
+        },
+        {
+          "id": "patent-reviewer",
+          "mode": "novelty-critic",
+          "tier": "deep"
+        }
+      ],
+      "retention": {}
+    },
+    {
+      "legacy_id": "patent-disclosure",
+      "workflow": "patent",
+      "action": "disclosure",
+      "inputs": [
+        {
+          "name": "candidate_id",
+          "type": "string",
+          "optional": true,
+          "description": "C-001 etc. If omitted, work on every candidate."
+        }
+      ],
+      "outputs": [
+        {
+          "path": ".evidraft/patent/invention_disclosure.md"
+        }
+      ],
+      "legacy_hooks": [
+        "citation-guard",
+        "evidence-consistency",
+        "sensitive-file-guard"
+      ],
+      "policies": [
+        "evidence-integrity",
+        "workspace-safety"
+      ],
+      "roles": [
+        {
+          "id": "patent-reviewer",
+          "mode": "patent-engineer",
+          "tier": "deep"
+        },
+        {
+          "id": "code-reviewer",
+          "mode": "methodology-reviewer",
+          "tier": "standard"
+        },
+        {
+          "id": "evidence-reviewer",
+          "mode": "evidence-auditor",
+          "tier": "standard"
+        }
+      ],
+      "retention": {}
+    },
+    {
+      "legacy_id": "patent-claims",
+      "workflow": "patent",
+      "action": "claims",
+      "inputs": [
+        {
+          "name": "candidate_id",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "independent_count",
+          "type": "integer",
+          "optional": true,
+          "default": 1
+        },
+        {
+          "name": "dependent_count",
+          "type": "integer",
+          "optional": true,
+          "default": 6
+        }
+      ],
+      "outputs": [
+        {
+          "path": ".evidraft/patent/claims.md"
+        },
+        {
+          "path": ".evidraft/patent/claims_parsed.json"
+        },
+        {
+          "path": ".evidraft/patent/claim_chart.md"
+        },
+        {
+          "path": ".evidraft/patent/claim_chart-<ts>.json"
+        }
+      ],
+      "legacy_hooks": [
+        "scope-required",
+        "citation-guard",
+        "evidence-consistency"
+      ],
+      "policies": [
+        "scope",
+        "evidence-integrity"
+      ],
+      "roles": [
+        {
+          "id": "patent-reviewer",
+          "mode": "claim-drafter",
+          "tier": "deep"
+        },
+        {
+          "id": "patent-reviewer",
+          "mode": "patent-engineer",
+          "tier": "deep"
+        },
+        {
+          "id": "patent-reviewer",
+          "mode": "novelty-critic",
+          "tier": "deep"
+        },
+        {
+          "id": "evidence-reviewer",
+          "mode": "evidence-auditor",
+          "tier": "standard"
+        }
+      ],
+      "retention": {}
+    },
+    {
+      "legacy_id": "patent-review",
+      "workflow": "patent",
+      "action": "review",
+      "inputs": [],
+      "outputs": [
+        {
+          "path": ".evidraft/patent/patent_review_report.md"
+        }
+      ],
+      "legacy_hooks": [
+        "evidence-consistency"
+      ],
+      "policies": [
+        "evidence-integrity"
+      ],
+      "roles": [
+        {
+          "id": "patent-reviewer",
+          "mode": "patent-engineer",
+          "tier": "deep"
+        },
+        {
+          "id": "patent-reviewer",
+          "mode": "claim-drafter",
+          "tier": "deep"
+        },
+        {
+          "id": "patent-reviewer",
+          "mode": "novelty-critic",
+          "tier": "deep"
+        },
+        {
+          "id": "code-reviewer",
+          "mode": "methodology-reviewer",
+          "tier": "standard"
+        },
+        {
+          "id": "evidence-reviewer",
+          "mode": "evidence-auditor",
+          "tier": "standard"
+        },
+        {
+          "id": "evidence-reviewer",
+          "mode": "consistency-checker",
+          "tier": "fast"
+        }
+      ],
+      "retention": {}
+    },
+    {
+      "legacy_id": "polish",
+      "workflow": "polish",
+      "action": "run",
+      "inputs": [
+        {
+          "name": "target",
+          "type": "path",
+          "description": "File or directory to polish (e.g. manuscript/sections/introduction.tex or manuscript/sections/)."
+        },
+        {
+          "name": "section",
+          "type": "string",
+          "optional": true,
+          "description": "Narrow the polish to a single LaTeX section, matched by \\section{...} title."
+        },
+        {
+          "name": "mode",
+          "type": "enum",
+          "values": [
+            "interactive",
+            "all",
+            "none"
+          ],
+          "optional": true,
+          "default": "interactive",
+          "description": "interactive = per-hunk accept/reject; all = apply every hunk that passes evidence-preserve; none = dry run (log + report only, no in-place edit)."
+        },
+        {
+          "name": "max_delta_ratio",
+          "type": "number",
+          "optional": true,
+          "default": 0.35,
+          "description": "Hard ceiling on (changed-tokens / total-tokens) per hunk. Above this, the hunk is rejected as too aggressive."
+        }
+      ],
+      "outputs": [
+        {
+          "path": "<target>",
+          "description": "Rewritten target file in place (only in mode=interactive after acceptance, or mode=all)."
+        },
+        {
+          "path": ".evidraft/style/humanize-<ts>.log",
+          "description": "Unified diff between original and rewrite, annotated per-hunk with the rule(s) that fired."
+        },
+        {
+          "path": ".evidraft/style/humanize-<ts>.report.md",
+          "description": "Plain-English change report: banned-phrase counts before/after, evidence-diff verdict, ethics statement."
+        }
+      ],
+      "legacy_hooks": [
+        "scope-required",
+        "citation-guard",
+        "evidence-consistency",
+        "humanize-evidence-preserve"
+      ],
+      "policies": [
+        "scope",
+        "evidence-integrity"
+      ],
+      "roles": [
+        {
+          "id": "writing-reviewer",
+          "mode": "prose-polisher",
+          "tier": "standard"
+        },
+        {
+          "id": "evidence-reviewer",
+          "mode": "evidence-auditor",
+          "tier": "standard"
+        }
+      ],
+      "retention": {
+        "keep_last": 30,
+        "max_age_days": 90
+      }
+    },
+    {
+      "legacy_id": "xreview",
+      "workflow": "xreview",
+      "action": "run",
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "enum",
+          "values": [
+            "codex",
+            "claude-bare",
+            "opencode"
+          ],
+          "description": "Which external coding agent to delegate to."
+        },
+        {
+          "name": "target",
+          "type": "path",
+          "description": "File the external agent should review."
+        },
+        {
+          "name": "persona",
+          "type": "string",
+          "description": "EviDraft agent id whose body is rendered as the prompt (e.g. novelty-critic, methodology-reviewer)."
+        },
+        {
+          "name": "schema",
+          "type": "path",
+          "optional": true,
+          "description": "Optional JSON schema the external agent should conform its output to."
+        },
+        {
+          "name": "extra_context",
+          "type": "string",
+          "optional": true,
+          "description": "Short free-text addendum appended to the rendered persona prompt."
+        }
+      ],
+      "outputs": [
+        {
+          "path": ".evidraft/reviews/<agent>-<persona>-<ts>.md",
+          "description": "Markdown review file produced from the external agent's structured output."
+        },
+        {
+          "path": ".evidraft/reviews/.last.yaml",
+          "description": "Index of the most recent xreview invocation (agent, persona, target, output_path, ts, tokens, cost_usd)."
+        }
+      ],
+      "legacy_hooks": [
+        "scope-required",
+        "sensitive-file-guard",
+        "external-write-zone"
+      ],
+      "policies": [
+        "scope",
+        "workspace-safety"
+      ],
+      "roles": [],
+      "retention": {
+        "keep_last": 50,
+        "max_age_days": 180
+      }
+    }
+  ]
+}

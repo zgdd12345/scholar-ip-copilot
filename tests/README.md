@@ -1,63 +1,39 @@
-# tests/
+# Test suite
 
-Executable pytest suite. **58 tests** across **5 test files**; `make verify` re-renders + runs everything in under a second.
-
-## Run
+Run the complete suite from the project virtual environment:
 
 ```bash
 source .venv/bin/activate
-python -m pytest tests/        # 58 passed
+python -m pytest tests/
+python -m ruff check .
 ```
 
-## Layout
+The suite is organized by v2 contract rather than generated-file counts:
 
-```
-tests/
-├── README.md                           this file
-├── test_adapter_conformance.py         15 structural invariants (A-O) across claude-code / codex-cli / opencode; 26 parametrised cases
-├── test_loader_skill_bundles.py        _shared/loader.py contract — one-skill-per-dir discovery, frontmatter survival
-├── test_manifest_version.py            plugin.yaml manifest_version + the migrate.py 0.0.0 -> 1.0.0 framework
-├── test_retention_prune.py             retention: TTL + keep_last prune semantics
-├── test_schema_fixtures.py             JSON-schema validity of every YAML under tests/fixtures/schemas/
-├── fixtures/
-│   ├── adapter_invariants/
-│   │   └── expected_counts.json        drift catcher — commands/agents/skills/hooks counts the conformance suite asserts against the source tree
-│   ├── schemas/                        positive + negative schema-validation fixtures (`*__valid.yaml`, `*__invalid.yaml`)
-│   ├── cv-detection-paper.md           pointer at the cv-detection-paper example dir
-│   └── patent-disclosure.md            pointer at the patent-disclosure example dir
-└── integration/
-    └── README.md                       end-to-end fixtures live under examples/, not here
-```
+| Module | Coverage |
+|---|---|
+| `test_v2_contract_mapping.py` | Frozen 22-to-7 migration matrix and legacy behavior contract |
+| `test_v2_workflow_source.py` | Seven workflow schemas, actions, roles, policies, and operation IDs |
+| `test_v2_capabilities.py` | Private capability index, source links, and rendered links |
+| `test_v2_core.py` | Migration transactions, locking, evidence, snapshots, policies, and retention |
+| `test_v2_renderer.py` | Shared IR and three-host golden rendering |
+| `test_v2_adapter_cli.py` | Thin adapter CLI equivalence and dry-run behavior |
+| `test_v2_install.py` | Ownership-safe cleanup and exact seven-entry installation |
+| `test_v2_release_surface.py` | Version, manifest, console scripts, and removed v1 source surface |
+| `test_v2_e2e.py` | Reading-list, full paper, and full patent fixtures across all hosts |
+| `test_schema_fixtures.py` | Positive and negative project/legacy migration fixtures |
 
-## Conformance invariants (A-L)
+Tests derive public entry names from workflow contracts and require exactly seven on
+Claude Code, Codex, and OpenCode. Private stages, six roles, three policies, and
+capabilities must render without becoming discoverable entries.
 
-`tests/test_adapter_conformance.py` renders the plugin against each adapter into a temp dir and asserts structural invariants that survive ordinary content edits but catch regressions:
+The v1 contract JSON under `fixtures/v2/` is immutable migration input. It preserves old
+parameters, defaults, outputs, policies, role behavior, and retention without retaining
+the old authoring tree as a runtime surface.
 
-| Letter | Invariant | Scope |
-|---|---|---|
-| A | file-count | each source artefact maps to expected rendered file(s) per adapter |
-| B | frontmatter survival | emitted frontmatter equals source values |
-| C | retention preamble | `## Pre-run cleanup` appears IFF source declares `retention:` (symmetric) |
-| D | no MCP references (ratchet) | no new file may mention deprecated `*-mcp` names; baseline empty after 2026-05 cleanup |
-| E | required skills | every `../skills/<X>/SKILL.md` referenced by a command exists in source and renders |
-| F | subagent dispatch | commands with non-empty `subagents:` render a `## Dispatch plan` + name each subagent |
-| G | executable hooks | rendered `hooks/hooks.json` plus 3 executable `.sh` scripts |
-| H | per-agent dispatch hints | every agent declares `model:` (one of haiku/sonnet/opus/inherit); `effort:` set when model pinned |
-| I | skill-bundle propagation | every non-`SKILL.md` sibling under a source skill ships to every host |
-| J | source-tree link integrity | every relative `[text](path)` link in source resolves to a file |
-| K | rendered-tree link integrity | same as J but on rendered output — catches adapter path-flattening bugs J cannot see |
-| L | frontmatter doc refs | every `references[].doc:` in source YAML resolves to a file or directory |
-| M | command-hook opt-out sidecar | 3 tests: claude-code adapter projects per-command `hooks:` allowlists into `hooks/command-hooks.json`; runtime smoke verifies `_lib.sh` opt-out + concurrency + no project-tree pollution (bash + jq required); codex-cli adapter projects the same source field as zero/N `## Guardrails` bullets in the rendered command body |
-| N | scope-required per-command default | runtime smoke against rendered `scope-required.sh`: writers (paper-draft / patent-claims / polish) default block, analysers (paper-idea / patent-scout / deepresearch) default warn, `project.yaml.hooks.scope_required` overrides project-wide (bash required) |
-| O | state-file GC | runtime smoke against rendered `_lib.sh`: `record_active_command` lazy-sweeps orphan `<project-hash>/<session>/active-cmd` files older than 30 days, throttled to once per 7 days via a `.last-gc` sentinel; `SCHOLAR_IP_GC_DISABLE=1` short-circuits (bash + jq required) |
+Schema fixtures under `fixtures/schemas/` include v1 compatibility cases intentionally;
+their old terminology is test data, not current user-facing configuration guidance.
 
-## How `expected_counts.json` works
-
-Two kinds of state live in `fixtures/adapter_invariants/expected_counts.json`:
-
-1. **Source-derivable counts** (`commands`, `agents`, `skills`, `hooks`, `templates_root_dirs`, `retention_commands`) — drift catchers. Adding or removing a source artefact requires a deliberate, PR-visible bump.
-2. **Ratchet state** (`_mcp_legacy_baseline`) — not re-derivable. Tracks which rendered files still mention legacy `*-mcp` server names so invariant D can fail closed when a new file regresses, but accept the current baseline. After the 2026-05 cleanup the baseline is empty.
-
-## End-to-end fixtures live under `examples/`
-
-The `examples/` directory at the repo root contains worked-example projects — populated `.evidraft/` trees demonstrating the audit / review / claim-chart outputs. The conformance suite does **not** consume them directly; they are visual regression references for humans and are referenced by the schema-validation fixtures here.
+The three contracts under `fixtures/e2e/` execute through `integration/v2_flow.py`.
+They verify declared output contracts, evidence allocation, project format migration,
+and the seven-entry surface on every host.

@@ -1,6 +1,6 @@
 # paper-project template
 
-This directory is a **template**, not a working project. `/scholar:paper-init`
+This directory is a **template**, not a working project. The `paper init` action
 materialises this tree (without overwriting existing files) into the user's
 project root.
 
@@ -42,7 +42,7 @@ The default `\documentclass` is plain `article` with `graphicx`, `amsmath`,
 `amssymb`, `booktabs`, `hyperref`, and `natbib`. There is no venue-specific
 class file in this template.
 
-When the user is ready to submit, `/scholar:paper-venue <venue>` converts this
+When the user is ready to submit, `paper venue <venue>` converts this
 manuscript into the target venue's template (CVPR, NeurIPS, ICCV, ECCV, ICML,
 ICLR, EMNLP, ACL, AAAI, IEEEtran, ACM-generic, ...). Keeping the draft style
 stable until submission time decouples writing from publication-target churn.
@@ -53,4 +53,4 @@ stable until submission time decouples writing from publication-target churn.
 - Every number cites a row in `.evidraft/experiments/result_analysis.md`.
 - Every code claim cites a `file_path` (+ line range) via
   `.evidraft/code/method_to_code.md`.
-- `citation-guard` and `evidence-consistency` hooks enforce the above.
+- The `evidence-integrity` policy enforces the above before publish-class actions.

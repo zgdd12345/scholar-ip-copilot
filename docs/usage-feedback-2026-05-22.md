@@ -2,6 +2,10 @@
 
 Date: 2026-05-22
 
+> Historical v1 dogfood record. Command names, hooks, and source paths below are retained
+> as observed evidence and are not EviDraft 2.0 interfaces. See
+> [architecture.md](architecture.md) for the current workflow model.
+
 This note records product and implementation feedback from a hands-on trial of the
 paper workflow for the topic "Harness Engineering for Reliable AI Coding Agents".
 The run exercised:

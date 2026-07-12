@@ -1,0 +1,7 @@
+workflow: research
+actions:
+  - reading-list
+outputs:
+  reading-list:
+    - .evidraft/notes/<topic-slug>-<date>.md
+evidence_count: 0

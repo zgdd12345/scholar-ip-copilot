@@ -1,4 +1,8 @@
-# Reference Analysis
+# Reference Analysis (v1 historical input)
+
+This document records the design sources used by the v1 command, agent, and skill model.
+The identifiers below are historical; EviDraft 2.0 exposes seven action-based workflows.
+See [`architecture.md`](architecture.md) for the current design.
 
 > The projects below shaped EviDraft's command set, agent roster, and data model. We borrow architecture and command design. We do **not** copy code unless the license permits and provenance is preserved. Every recommendation here is an *idea-level* reference, not a code import.
 

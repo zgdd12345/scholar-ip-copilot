@@ -1,46 +1,28 @@
-# `@scholar-ip/core`
+# Core schemas
 
-Platform-neutral schemas and (planned) helpers shared by every adapter, MCP server, and plugin file.
+`packages/core/schemas/` is the repository-facing schema set. Runtime implementation
+lives in the installable `src/evidraft/` package; this directory is not a second core.
 
-## Layout
+All schemas use JSON Schema Draft 2020-12:
 
-```
-packages/core/
-├── README.md
-├── schemas/
-│   ├── project.schema.json    # .evidraft/project.yaml
-│   ├── evidence.schema.json   # one line of evidence.jsonl
-│   ├── paper.schema.json      # manuscript metadata
-│   ├── patent.schema.json     # invention disclosure + claim chart metadata
-│   └── command.schema.json    # platform-neutral command / agent / skill / hook
-└── src/
-    └── (planned) python helpers: validate.py, evidence_io.py
-```
-
-## Schemas
-
-All schemas are JSON Schema Draft 2020-12.
-
-| Schema | Files governed |
+| Schema | Governs |
 |---|---|
-| `project.schema.json` | `.evidraft/project.yaml` |
-| `evidence.schema.json` | each JSON object in `.evidraft/evidence/evidence.jsonl` |
-| `paper.schema.json` | manuscript metadata stored alongside `manuscript/` |
-| `patent.schema.json` | patent metadata stored alongside `.evidraft/patent/` |
-| `command.schema.json` | the **frontmatter** of every command / agent / skill / hook file under `plugins/scholar-ip/` |
+| `plugin.schema.json` | EviDraft 2.0 product manifest |
+| `workflow.schema.json` | Seven workflow action contracts |
+| `project.schema.json` | `.evidraft/project.yaml` with `format_version: 2` |
+| `evidence.schema.json` | Each append-only evidence JSONL record |
+| `paper.schema.json` | Paper metadata |
+| `patent.schema.json` | Patent metadata |
+| `command.schema.json` | Legacy v1 fixtures used by migration-contract tests only |
 
-## Validation (planned, v0.2)
+The deterministic runtime provides migration, workflow preflight/finalize, evidence
+append/resolve, content-addressed snapshots, render, and ownership-safe install commands:
 
 ```bash
-python -m packages.core.validate \
-    --project .evidraft/project.yaml \
-    --evidence .evidraft/evidence/evidence.jsonl
+.venv/bin/evidraft --help
+.venv/bin/evidraft --root /path/to/project migrate
+.venv/bin/evidraft --root /path/to/project workflow preflight paper.draft
 ```
 
-For the MVP, the schemas are reference documents and adapters can lint against them when generating outputs.
-
-## Why JSON Schema
-
-- Host-agnostic: same schemas verified by python, node, or rust adapters.
-- IDE friendly: YAML editors can pull schemas via `yaml-language-server: $schema`.
-- Reusable in MCP servers as input/output contracts.
+The wheel embeds runtime copies of project, evidence, and workflow schemas under
+`src/evidraft/schemas/` so console scripts also work outside the repository.

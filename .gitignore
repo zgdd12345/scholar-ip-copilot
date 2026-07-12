@@ -4,6 +4,8 @@
 .codex
 .opencode
 .agents/skills/
+.agents/.*.evidraft.lock
+.agents/.*.evidraft-transaction/
 .claude-plugin/
 # Python
 __pycache__/

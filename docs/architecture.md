@@ -1,266 +1,116 @@
 # Architecture
 
-`scholar-ip-copilot` is a layered system. The **core** is a set of platform-neutral schemas and workflow definitions. Each **adapter** translates that core into a specific coding-agent host's plugin format. Retrieval, parsing, and computation ship as **skills** that call the host's built-in `WebSearch` / `WebFetch` / `Bash`; **MCP servers** are reserved for v0.3+ as an optional offline / deterministic backend.
+EviDraft 2.0 has one source model, one deterministic Python core, and one renderer.
+Claude Code, Codex, and OpenCode are host profiles rather than separate implementations.
 
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                        User's project workspace                          │
-│   codebase + experiments/ + manuscript/ + .evidraft/ (evidence store)    │
-└────────────────────────────────────▲─────────────────────────────────────┘
-                                     │ files / outputs
-┌──────────────────────────────────────────────────────────────────────────┐
-│  Plugin layer  (plugins/scholar-ip/)                                     │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
-│  │ commands │  │  agents  │  │  skills  │  │  hooks   │  │templates │    │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘    │
-│       └──────┬──────┴─────────────┴─────────────┴─────────────┘          │
-│              │  authored against core schemas                            │
-└──────────────┼───────────────────────────────────────────────────────────┘
-               │
-┌──────────────▼───────────────────────────────────────────────────────────┐
-│  Core layer  (packages/core/)                                            │
-│  - JSON schemas: project / evidence / paper / patent / command           │
-│  - (planned) python helpers for evidence I/O                             │
-└──────────────┬───────────────────────────────────────────────────────────┘
-               │
-   ┌───────────┴──────────────┬────────────────────┬───────────────────┐
-   ▼                          ▼                    ▼                   ▼
-┌────────────────┐   ┌──────────────────┐   ┌───────────────┐   ┌───────────┐
-│ Claude Code    │   │ Codex CLI        │   │ OpenCode      │   │  Future   │
-│ adapter        │   │ adapter          │   │ adapter       │   │  hosts    │
-│ (.claude/...)  │   │ (.codex/prompts/ │   │ (.opencode/   │   │           │
-│                │   │  + .agents/      │   │  commands/    │   │           │
-│                │   │  skills/)        │   │  agents/      │   │           │
-│                │   │                  │   │  skills/)     │   │           │
-└────────────────┘   └──────────────────┘   └───────────────┘   └───────────┘
+## Source model
 
-┌──────────────────────────────────────────────────────────────────────────┐
-│  (optional, v0.3+) MCP backends — alt impls of skills above              │
-└──────────────────────────────────────────────────────────────────────────┘
+```text
+plugins/scholar-ip/
+├── plugin.yaml
+├── workflows/                 seven public routers
+│   └── <workflow>/
+│       ├── workflow.yaml      action contract
+│       └── stages/*.md        on-demand LLM procedure
+├── roles/roles.yaml           six semantic roles and modes
+├── policies/policy.yaml       three executable policies
+├── capabilities/              private reference material
+└── templates/                 project artefact templates
 ```
 
----
+The public routers are `using`, `scope`, `research`, `paper`, `patent`, `polish`,
+and `xreview`. The workflow YAML is the contract. Every action declares its inputs,
+defaults, outputs, policies, roles, retention, and procedure. Routers perform action
+selection and project-state checks; they load a stage body only after selecting it.
 
-## 1. Core layer (`packages/core/`)
+Capabilities are private. They provide reference material to stages but are not
+registered as host skills, so their trigger language cannot compete with public routers.
 
-The contract of the system. Anything authored downstream must conform.
+## Roles and tiers
 
-### Schemas
+The six roles are:
 
-| Schema | Purpose |
+- `researcher`
+- `evidence-reviewer`
+- `code-reviewer`
+- `experiment-reviewer`
+- `writing-reviewer`
+- `patent-reviewer`
+
+A workflow role assignment includes a mode and a semantic tier. Modes preserve the
+specialised behavior of the v1 agents without creating another public entity. Tiers are
+`fast`, `standard`, and `deep`; Claude maps them to Haiku, Sonnet, and Opus. Other hosts
+use their nearest supported capability.
+
+Roles return findings to the workflow aggregator. They do not write shared output files
+concurrently.
+
+## Policies
+
+Only three policy IDs are executable:
+
+| Policy | Responsibility |
 |---|---|
-| `plugin.schema.json` | top-level `plugin.yaml` — id / manifest_version / adapters / safety policy |
-| `project.schema.json` | `.evidraft/project.yaml` — project type, status, artefact paths, evidence rules, scope/style/reviewers/lit_deep |
-| `evidence.schema.json` | each line of `.evidraft/evidence/evidence.jsonl` |
-| `paper.schema.json` | manuscript metadata (sections, target venue, authors) |
-| `patent.schema.json` | invention disclosure + claim chart metadata |
-| `command.schema.json` | the platform-neutral command/agent/skill/hook definition consumed by adapters |
+| `workspace-safety` | Project-root confinement, sensitive paths, and operation write zones |
+| `scope` | `block`, `warn`, or `pass` by canonical operation ID and approved scope state |
+| `evidence-integrity` | Evidence identity, verification, supersession, snapshots, and publish gates |
 
-### Why a `command.schema.json`
+Canonical scope operations include `paper.draft`, `patent.claims`, `polish.run`,
+`paper.idea`, `patent.scout`, and `research.deep`. Host hooks can enforce an additional
+boundary, but the Python policy result is authoritative and host-independent.
 
-Every adapter (Claude Code, Codex CLI, OpenCode) wants its own file format. Instead of writing commands three times we author them **once** in a structure that the adapter renders:
+## Deterministic core
 
-```yaml
-id: paper-init
-title: "Initialize an EviDraft paper project"
-kind: command            # command | agent | skill | hook
-inputs:                  # what the user/host can pass in
-  - name: project_type
-    type: enum[paper, patent, mixed]
-    optional: true
-outputs:                  # what lands on disk
-  - path: ".evidraft/project.yaml"
-  - path: "manuscript/"
-allowed_tools: [Read, Write, Edit, Bash:git*, Glob, Grep]
-forbidden_tools: [Bash:rm -rf*]
-references: [evidence-rules, sensitive-file-guard]
-prompt: |
-  ... agent instructions ...
-```
+`src/evidraft/` owns the operations that must not depend on model judgment:
 
-Adapters read this and emit `.md` / `.toml` / `.json` files for their host.
+- v1-to-v2 project migration;
+- workflow preflight and retention finalization;
+- evidence append and resolve;
+- content-addressed web snapshots;
+- shared policy evaluation;
+- atomic writes and ownership-aware rendering.
 
----
+Retrieval, critique, experiment interpretation, patent reasoning, and prose generation
+remain LLM responsibilities. The core validates their structured inputs and outputs.
 
-## 2. Plugin layer (`plugins/scholar-ip/`)
+## Migration and concurrency
 
-The user-facing surface. Files are authored to be readable both by humans and by an adapter renderer.
+Project data uses `format_version: 2`; a missing value means v1. Before the first write,
+the core acquires an owner-aware migration lock, checks capacity, records a journal,
+backs up every modified file, validates a complete temporary result, and atomically
+replaces the originals. A failed transaction restores its backup. A completed migration
+is idempotent.
 
-| Folder | Contents |
-|---|---|
-| `commands/` | 21 files: `/scholar:using`, `/scholar:paper-*`, `/scholar:patent-*` — agent instructions, one per slash command |
-| `agents/` | 15 specialist subagents (literature-reviewer, codebase-analyst, novelty-critic, brainstormer, consistency-checker, deep-research-orchestrator, paper-critic, prose-polisher, screener, …) |
-| `skills/` | 25 reusable how-tos that any command/agent can pull in (literature-review, evidence-check, latex-writing, …) |
-| `hooks/` | 7 guardrail specs (citation-guard, evidence-consistency, external-write-zone, humanize-evidence-preserve, latex-compile, scope-required, sensitive-file-guard) plus 3 executable `.sh` scripts (citation-guard, scope-required, session-start) and the `_lib.sh` helper |
-| `templates/` | `paper-project/` and `patent-project/` — scaffolded on `/scholar:paper-init` and `/scholar:patent-init` |
+Evidence append uses an exclusive cross-process lock and a single writer. IDs are stable
+and monotonic; `supersedes` must refer to a valid acyclic history. Invalid legacy rows
+are preserved in quarantine and block publish-class operations until resolved.
 
-Authoring rules:
+Snapshot identity is `sha256(raw_body)`. Migration retains URL-hash files and adds the
+content-addressed copy before updating evidence paths.
 
-1. Every command file is self-contained: a host (CC, Codex) can hand it to an LLM as a single prompt and the workflow runs.
-2. Every command references its **inputs / outputs / allowed_tools / hooks**.
-3. Strong-claim verbs (SOTA, first, significant, outperform) are forbidden unless a citation/evidence id is supplied — see `hooks/citation-guard.md`.
-4. Skills follow a **bundle pattern**: each `skills/<id>/` directory is treated as a unit. `SKILL.md` is the entry; sibling files (`references/*.md`, `assets/*`, `scripts/*`) propagate to every rendered host output via `packages/adapters/_shared/bundle.py`. The heavy-weight `skills/deep-literature-review/` skill uses this to host 12 on-demand `references/` files (one per pipeline stage + 6 cross-cutting) so the agent's working context loads only the stage it is running.
+## Rendering
 
----
+`src/evidraft/render.py` loads the seven workflow contracts into a shared IR and applies
+one of three host profiles:
 
-## 3. Adapter layer (`packages/adapters/`)
-
-Adapters are small generators. Each one:
-
-1. reads `plugins/scholar-ip/`,
-2. validates against `packages/core/schemas/command.schema.json`,
-3. writes a host-specific tree.
-
-| Adapter | Output |
-|---|---|
-| `claude_code/` | `<dest>/commands/*.md`, `<dest>/agents/*.md`, `<dest>/skills/*/SKILL.md`, plus Claude Code `hooks` declared in plugin.json (3 executable hooks ship: citation-guard, scope-required, session-start). |
-| `codex_cli/` | Codex prompt/workflow files under `.codex/prompts/` + `.codex/plugins/`, plus a sync of skill bundles into `.agents/skills/scholar-skill-<id>/` (Codex's actual skill-discovery directory). Subagents Codex cannot represent are inlined into the parent prompt; cross-skill links into `references/` are rewritten by `_command_skill_body` (invariant K). |
-| `opencode/` | `.opencode/commands/*.md`, `.opencode/agents/*.md`, `.opencode/skills/<id>/...` with bundle propagation. Hooks are **not** rendered — they would need to be JS modules under `.opencode/plugins/`. |
-
-This keeps platform churn out of the plugin author's life.
-
-### Per-command hook opt-out across adapters
-
-A command may declare `hooks: []` (lite-mode marker, e.g. `/scholar:reading-list`) or `hooks: [a, b]` (paper-mode allowlist) in its source frontmatter. The same source field is projected differently per host because each host has a different hook surface:
-
-| Host | Hook surface | What `hooks: []` does | Enforced where |
-|---|---|---|---|
-| `claude_code` | Executable `.sh` via `hooks/hooks.json` | Runtime gate: PostToolUse hooks consult `hooks/command-hooks.json` (adapter-emitted sidecar) and skip when the active command's allowlist is empty. State for the "active command" lives outside the project tree under `$XDG_STATE_HOME/scholar-ip` (or `$TMPDIR/scholar-ip`), keyed by project hash + session id. | `_lib.sh::hook_disabled_by_command` |
-| `codex_cli` | `## Guardrails` text block inlined into the rendered command body | No runtime gate exists. The adapter projects `hooks: [...]` as one bullet per hook id under `## Guardrails`; `hooks: []` renders zero bullets, so the model never sees the audit-chain language. | The model honours the rendered prompt |
-| `opencode` | Not rendered (hooks would require JS modules under `.opencode/plugins/`) | No projection. Lite-mode discipline lives entirely in the command body. | The model honours the command body |
-
-Test invariant M in `tests/test_adapter_conformance.py` gates the Claude Code sidecar shape, its runtime semantics (via a bash subprocess against the rendered `_lib.sh`), and the Codex Guardrails projection.
-
----
-
-## 4. MCP layer (`packages/mcp/`)
-
-MCP servers are **reserved for v0.3+**; v0.1 / v0.2 ship retrieval and tooling as skills that use the host's built-in `WebSearch`, `WebFetch`, and `Bash`. The `packages/mcp/` directory holds only a README documenting the migration and how to opt back in to an MCP backend later.
-
-### Skill replacement (former MCP stub → v0.2 skill)
-
-| Former MCP stub | Replacement skill (v0.2, host-native) |
-|---|---|
-| `scholar-search-mcp` | `plugins/scholar-ip/skills/scholar-search/` |
-| `bib-manager-mcp` | `plugins/scholar-ip/skills/bib-manager/` |
-| `latex-build-mcp` | `plugins/scholar-ip/skills/latex-build/` |
-| `code-intel-mcp` | `plugins/scholar-ip/skills/code-intel/` |
-| `experiment-mcp` | `plugins/scholar-ip/skills/experiment-analysis/` (already existed) |
-| `patent-search-mcp` | `plugins/scholar-ip/skills/patent-search/` |
-| `external-agent-mcp` | `plugins/scholar-ip/skills/external-agent-bridge/` (already existed) |
-
-Each replacement skill is the **contract**. A v0.3+ MCP server, if added, is one possible backend that satisfies that contract — used when offline operation, deterministic CI, or rate-limit isolation matters.
-
----
-
-## 5. Evidence store (`.evidraft/`)
-
-The single source of truth for downstream drafts. Layout:
-
-```
-.evidraft/
-├── project.yaml                       project type, status, artefact paths, rules
-├── evidence/
-│   └── evidence.jsonl                 one record per literature / experiment / code / patent / note claim
-├── literature/
-│   ├── references.bib                 canonical BibTeX
-│   └── matrix.md                      paper × method × dataset × result × gap matrix
-├── ideas/
-│   ├── novelty_matrix.md
-│   ├── risk_matrix.md
-│   └── experiment_to_validate.md
-├── code/
-│   ├── repo_summary.md
-│   ├── method_to_code.md
-│   └── paper_code_audit.md
-├── experiments/
-│   ├── result_analysis.md
-│   └── tables/                        LaTeX tables ready to \input
-└── patent/                            (only when project_type ∈ patent / mixed)
-    ├── invention_disclosure.md
-    ├── invention_candidates.md
-    ├── prior_art_map.md
-    ├── claim_chart.md
-    ├── claims.md
-    └── patent_review_report.md
-```
-
-Every record in `evidence/evidence.jsonl` carries:
-
-```json
-{
-  "id": "ev_0001",
-  "type": "paper|experiment|code|patent|note",
-  "source_kind": "paper|blog|engineering_report|docs|tutorial|spec",
-  "source": "...",
-  "claim": "...",
-  "support": "...",
-  "citation_key": "...",
-  "file_path": "...",
-  "line_range": "...",
-  "confidence": "high|medium|low",
-  "verified": true
-}
-```
-
-`source_kind` is optional and defaults to `paper`. Non-paper kinds within `type=paper` (blog / engineering_report / docs / tutorial / spec) MUST carry a `file_path` pointing at a local `.evidraft/literature/snapshots/<sha1>.md` snapshot — live URL line numbers are not stable. The `snapshots/` tree is durable evidence backing (no TTL, no auto-delete); see [`data-model.md`](data-model.md) for the full schema and `plugins/scholar-ip/skills/scholar-search/SKILL.md` §Tier 2 for refresh semantics.
-
----
-
-## 6. Workflows
-
-Workflows are linear sequences of commands gated by hooks.
-
-### Paper — arXiv-first
-
-The default manuscript style is **arXiv neutral** (single-column or two-column with a vanilla `\documentclass{article}` preamble). Venue-specific conversion (CVPR, NeurIPS, ICCV, ECCV, ICML, ICLR, EMNLP, ACL, AAAI, IEEEtran, ACM …) is a deliberate late step driven by `skills/venue-formatting/` and `/scholar:paper-venue`. This keeps the writing loop decoupled from the publication target.
-
-```
-paper-init ─► paper-lit ─► paper-idea ─┐
-                                       ▼
-                       paper-code-audit ┐
-                                        │
-                       paper-experiment ┤
-                                        ▼
-                              paper-draft ─► paper-check ─► paper-venue (submission-time)
-                                        ▲
-                              paper-review (related work, parallel)
-```
-
-### Patent — 技术交底书 first
-
-The primary deliverable is the **技术交底书 (Technical Invention Disclosure, TID)** in `.evidraft/patent/invention_disclosure.md`. Draft claims and claim chart are advisory artefacts to help an attorney, **not** filed text.
-
-```
-patent-init ─► patent-scout ─► patent-prior-art ─► patent-disclosure (TID, primary) ─► patent-claims (advisory) ─► patent-review
-```
-
-Both workflows can run side by side on the same project (project_type: `mixed`).
-
----
-
-## 7. Safety / guardrails
-
-Hooks enforce the principles in `README.md`. They live in `plugins/scholar-ip/hooks/` as authoritative markdown specs; adapters may also emit executable hook scripts.
-
-| Hook | Trigger | Behaviour |
+| Host | Public form | Role projection |
 |---|---|---|
-| `citation-guard` | writing related_work / intro / abstract / draft | Reject strong claim verbs (SOTA, novel, first, significant, outperform, state-of-the-art) without a `citation_key` or `evidence_id`. Executable `.sh` shipped to Claude Code. |
-| `evidence-consistency` | writing paper / patent draft | Every literature claim must trace to `evidence.jsonl`; every number must trace to `experiments/`; every code claim must trace to `code/method_to_code.md`. Advisory spec. |
-| `external-write-zone` | `/scholar:xreview` subagent writes | Lock external-agent output to `.evidraft/reviews/`; reject writes outside the zone. Advisory spec. |
-| `humanize-evidence-preserve` | `/scholar:polish` rewrites | Block any hunk that touches a numeric literal, `\cite{}` key, `ev_NNNN` marker, registered named entity, or empirical hedging adverb. Advisory spec. |
-| `latex-compile` | `.tex` modified | Run `latexmk` (or stubbed interface). Parse errors, suggest fixes. Advisory spec. |
-| `scope-required` | gated `/scholar:*` invocations | Refuse `/scholar:paper-idea`, `/scholar:patent-scout`, `/scholar:paper-draft`, `/scholar:patent-claims`, `/scholar:deepresearch`, `/scholar:polish` if no fresh `.evidraft/scope/<date>-<slug>.md` exists. Executable `.sh` shipped to Claude Code. |
-| `sensitive-file-guard` | read of `.env`, `secrets/`, `credentials.json`, `*.pem`, `*.key` | Deny by default; require explicit user confirmation. Advisory spec. |
+| Claude Code | `/scholar:<workflow> [action]` | native agent files and model tiers |
+| Codex | `$scholar-<workflow> [action]` | private role data loaded by router |
+| OpenCode | `/scholar-<workflow> [action]` | native subagent files where supported |
 
-Hooks are advisory in MVP — they are described in the plugin and adapters wire them into host hook systems where available.
+Render output is assembled through atomic file replacement. The renderer records every
+owned path in `.evidraft-render-manifest.json`; later runs remove only prior owned paths.
+User-created files with similar names are not selected by a wildcard.
 
----
+## Stable project outputs
 
-## 8. What MVP does and doesn't
+The refactor changes invocation and authoring structure, not project artefact locations.
+Evidence and audits remain under `.evidraft/`, manuscripts under `manuscript/`, and
+venue packages under `submissions/`. See [data-model.md](data-model.md).
 
-See [`roadmap.md`](roadmap.md). Short version:
+## Package boundary
 
-**MVP does**: workflow skeleton, prompts, schemas, adapters for Claude Code + Codex CLI + OpenCode, two templates, three examples, 12 conformance invariants (A–L) gating the renderer.
-
-**MVP doesn't**: semantic code index, web UI, offline / deterministic backends. Online retrieval, PDF fetch, and LaTeX compilation are delivered through v0.2 host-native skills (`WebSearch` / `WebFetch` / `Bash:latexmk*`); MCP backends for those same skills are reserved for v0.3+.
+The installable package is `src/evidraft/`. Four console scripts are published:
+`evidraft`, `evidraft-claude-code`, `evidraft-codex-cli`, and `evidraft-opencode`.
+The three host scripts are thin wrappers over the same renderer.

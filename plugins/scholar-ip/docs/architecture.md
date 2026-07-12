@@ -1,0 +1,117 @@
+# Architecture
+
+EviDraft 2.0 has one source model, one deterministic Python core, and one renderer.
+Claude Code, Codex, and OpenCode are host profiles rather than separate implementations.
+
+## Source model
+
+```text
+plugins/scholar-ip/
+├── plugin.yaml
+├── workflows/                 seven public routers
+│   └── <workflow>/
+│       ├── workflow.yaml      action contract
+│       └── stages/*.md        on-demand LLM procedure
+├── roles/roles.yaml           six semantic roles and modes
+├── policies/policy.yaml       three executable policies
+├── capabilities/              private reference material
+└── templates/                 project artefact templates
+```
+
+The public routers are `using`, `scope`, `research`, `paper`, `patent`, `polish`,
+and `xreview`. The workflow YAML is the contract. Every action declares its inputs,
+defaults, outputs, policies, roles, retention, and procedure. Routers perform action
+selection and project-state checks; they load a stage body only after selecting it.
+
+Capabilities are private. They provide reference material to stages but are not
+registered as host skills, so their trigger language cannot compete with public routers.
+
+## Roles and tiers
+
+The six roles are:
+
+- `researcher`
+- `evidence-reviewer`
+- `code-reviewer`
+- `experiment-reviewer`
+- `writing-reviewer`
+- `patent-reviewer`
+
+A workflow role assignment includes a mode and a semantic tier. Modes preserve the
+specialised behavior of the v1 agents without creating another public entity. Tiers are
+`fast`, `standard`, and `deep`; Claude maps them to Haiku, Sonnet, and Opus. Other hosts
+use their nearest supported capability.
+
+Roles return findings to the workflow aggregator. They do not write shared output files
+concurrently.
+
+## Policies
+
+Only three policy IDs are executable:
+
+| Policy | Responsibility |
+|---|---|
+| `workspace-safety` | Project-root confinement, sensitive paths, and operation write zones |
+| `scope` | `block`, `warn`, or `pass` by canonical operation ID and approved scope state |
+| `evidence-integrity` | Evidence identity, verification, supersession, snapshots, and publish gates |
+
+Canonical scope operations include `paper.draft`, `patent.claims`, `polish.run`,
+`paper.idea`, `patent.scout`, and `research.deep`. Host hooks can enforce an additional
+boundary, but the Python policy result is authoritative and host-independent.
+
+## Deterministic core
+
+`src/evidraft/` owns the operations that must not depend on model judgment:
+
+- v1-to-v2 project migration;
+- workflow preflight and retention finalization;
+- evidence append and resolve;
+- content-addressed web snapshots;
+- shared policy evaluation;
+- atomic writes and ownership-aware rendering.
+
+Retrieval, critique, experiment interpretation, patent reasoning, and prose generation
+remain LLM responsibilities. The core validates their structured inputs and outputs.
+
+## Migration and concurrency
+
+Project data uses `format_version: 2`; a missing value means v1. Before the first write,
+the core acquires an owner-aware migration lock, checks capacity, records a journal,
+backs up every modified file, validates a complete temporary result, and atomically
+replaces the originals. A failed transaction restores its backup. A completed migration
+is idempotent.
+
+Evidence append uses an exclusive cross-process lock and a single writer. IDs are stable
+and monotonic; `supersedes` must refer to a valid acyclic history. Invalid legacy rows
+are preserved in quarantine and block publish-class operations until resolved.
+
+Snapshot identity is `sha256(raw_body)`. Migration retains URL-hash files and adds the
+content-addressed copy before updating evidence paths.
+
+## Rendering
+
+`src/evidraft/render.py` loads the seven workflow contracts into a shared IR and applies
+one of three host profiles:
+
+| Host | Public form | Role projection |
+|---|---|---|
+| Claude Code | `/scholar:<workflow> [action]` | native agent files and model tiers |
+| Codex | `$scholar-<workflow> [action]` | private role data loaded by router |
+| OpenCode | `/scholar-<workflow> [action]` | native subagent files where supported |
+
+Render output is assembled through atomic file replacement. The renderer records every
+owned path in `.evidraft-render-manifest.json`; later runs remove only prior owned paths.
+User-created files with similar names are not selected by a wildcard.
+
+## Stable project outputs
+
+The refactor changes invocation and authoring structure, not project artefact locations.
+Evidence and audits remain under `.evidraft/`, manuscripts under `manuscript/`, and
+venue packages under `submissions/`. See [data-model.md](data-model.md).
+
+## Package boundary
+
+The installable package is `src/evidraft/`. Four console scripts are published:
+`evidraft`, `evidraft-claude-code`, `evidraft-codex-cli`, and `evidraft-opencode`.
+The three host scripts are thin wrappers over the same renderer.
+

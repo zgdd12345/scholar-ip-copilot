@@ -1,50 +1,25 @@
-# EviDraft -> OpenCode adapter
+# OpenCode host profile
 
-Status: **planned (v0.2).**
-
-The v0.1 adapter is a deliberate stub: it loads `plugins/scholar-ip/`,
-validates every frontmatter doc against
-`packages/core/schemas/command.schema.json`, and prints a friendly
-"not yet implemented" banner. That way you can already lint the plugin
-source against the contract OpenCode will consume.
-
-## Intended output shape (v0.2 target)
-
-```
-<out>/                            # e.g. ~/your-project/.opencode/plugins/scholar-ip/
-├── plugin.toml                   # OpenCode plugin manifest
-├── commands/<id>.md              # OpenCode slash command files
-├── agents/<id>.md                # OpenCode subagent files (if supported)
-├── skills/<id>/SKILL.md          # OpenCode skill folders (if supported)
-└── hooks/<id>.{md,sh,py}         # OpenCode hook files
-```
-
-The exact schema is pinned to the OpenCode plugin spec at v0.2 time —
-see the upstream OpenCode plugin docs for the source of truth.
-
-## Why not just symlink the Claude Code output?
-
-OpenCode's frontmatter keys, tool naming, and hook semantics differ from
-Claude Code's. Specifically we expect to need:
-
-- a TOML manifest instead of JSON
-- a different `tools:` namespace (e.g. `read,write,bash:git` vs Claude's
-  `Read,Write,Bash:git*`)
-- a different hook trigger vocabulary
-
-So the renderer will be its own translation layer, not a shim.
-
-## CLI (v0.1: lint-only)
+OpenCode is a stable v2 renderer target, not a lint-only stub:
 
 ```bash
-python -m packages.adapters.opencode.generate \
-    --plugin plugins/scholar-ip \
-    --out /tmp/scholar-ip-opencode
+.venv/bin/evidraft-opencode \
+  --plugin plugins/scholar-ip \
+  --out .opencode
 ```
 
-Exit code is `0` when validation passes, `1` when there are schema errors.
+Use `--dry-run` to validate and list output without changing the destination.
 
-## Roadmap
+## Public interface
 
-See `docs/roadmap.md` for the milestone in which OpenCode rendering becomes
-real.
+OpenCode receives exactly seven workflow commands: `/scholar-using`, `/scholar-scope`,
+`/scholar-research`, `/scholar-paper`, `/scholar-patent`, `/scholar-polish`, and
+`/scholar-xreview`. Action workflows use the form `/scholar-paper draft`.
+
+The six semantic roles render as host subagents where supported. Private stages,
+policies, and capabilities are copied for on-demand router loading and do not become
+public commands.
+
+OpenCode uses its nearest available models for `fast`, `standard`, and `deep`. Workflow
+inputs, defaults, outputs, policy decisions, and retention are identical to Claude Code
+and Codex.

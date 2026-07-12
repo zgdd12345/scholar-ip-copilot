@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scholar-ip-copilot"
-version = "0.0.1"
+version = "2.0.0"
 description = "EviDraft — evidence-grounded academic and patent copilot for codebases, experiments, literature, LaTeX papers, and invention disclosures."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -41,18 +41,25 @@ mcp = [
 ]
 
 [project.scripts]
+evidraft = "evidraft.cli:main"
 evidraft-claude-code = "packages.adapters.claude_code.generate:main"
 evidraft-codex-cli = "packages.adapters.codex_cli.generate:main"
+evidraft-opencode = "packages.adapters.opencode.generate:main"
 
 [tool.setuptools.packages.find]
-where = ["packages"]
+where = ["src", "."]
+include = ["evidraft*", "packages*"]
+namespaces = true
+
+[tool.setuptools.package-data]
+evidraft = ["schemas/*.json"]
 
 [tool.pytest.ini_options]
 # Add the repo root to sys.path so tests can import `packages.adapters.*`
 # (the canonical dotted path used throughout the codebase and in
 # `[project.scripts]` entry points). pytest 9 no longer prepends cwd
 # automatically when test files live outside an installed package.
-pythonpath = ["."]
+pythonpath = [".", "src"]
 testpaths = ["tests"]
 
 [tool.ruff]

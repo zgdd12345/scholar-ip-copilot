@@ -1,6 +1,6 @@
 # Repository summary
 
-Populate via `/scholar:paper-code-audit` (or refreshed by hand). Keep this skeleton's
+Populate via `workflow:paper.code-audit` (or refreshed by hand). Keep this skeleton's
 section headers stable — downstream commands read by heading.
 
 ## Languages

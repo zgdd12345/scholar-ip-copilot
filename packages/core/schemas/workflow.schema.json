@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scholar-ip-copilot/schemas/workflow.schema.json",
+  "title": "EviDraft v2 workflow source",
+  "type": "object",
+  "required": ["id", "description", "actions"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "description": {"type": "string", "minLength": 1},
+    "actions": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[a-z][a-z0-9-]*$"},
+      "additionalProperties": {"$ref": "#/$defs/action"}
+    }
+  },
+  "$defs": {
+    "input": {
+      "type": "object",
+      "required": ["name", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string"},
+        "type": {
+          "type": "string",
+          "enum": ["string", "boolean", "integer", "number", "enum", "path", "list"]
+        },
+        "values": {"type": "array"},
+        "optional": {"type": "boolean"},
+        "default": {},
+        "description": {"type": "string"}
+      }
+    },
+    "output": {
+      "type": "object",
+      "required": ["path"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "description": {"type": "string"}
+      }
+    },
+    "role": {
+      "type": "object",
+      "required": ["id", "mode", "tier"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "enum": [
+            "researcher",
+            "evidence-reviewer",
+            "code-reviewer",
+            "experiment-reviewer",
+            "writing-reviewer",
+            "patent-reviewer"
+          ]
+        },
+        "mode": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+        "tier": {"type": "string", "enum": ["fast", "standard", "deep"]}
+      }
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "directory": {"type": "string", "minLength": 1},
+        "pattern": {"type": "string", "minLength": 1},
+        "keep_last": {"type": "integer", "minimum": 1},
+        "max_age_days": {"type": "integer", "minimum": 1}
+      }
+    },
+    "action": {
+      "type": "object",
+      "required": [
+        "legacy_id",
+        "procedure",
+        "inputs",
+        "defaults",
+        "outputs",
+        "policies",
+        "roles",
+        "retention"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "legacy_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+        "procedure": {
+          "type": "string",
+          "pattern": "^stages/[a-z][a-z0-9-]*\\.md$"
+        },
+        "inputs": {"type": "array", "items": {"$ref": "#/$defs/input"}},
+        "defaults": {"type": "object"},
+        "outputs": {"type": "array", "items": {"$ref": "#/$defs/output"}},
+        "policies": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["workspace-safety", "scope", "evidence-integrity"]
+          }
+        },
+        "roles": {"type": "array", "items": {"$ref": "#/$defs/role"}},
+        "retention": {"$ref": "#/$defs/retention"}
+      }
+    }
+  }
+}

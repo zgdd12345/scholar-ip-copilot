@@ -1,7 +1,7 @@
 id: scholar
-manifest_version: "1.0.0"
+manifest_version: "2.0.0"
 name: EviDraft
-version: 0.0.1
+version: "2.0.0"
 description: >
   Evidence-grounded academic and patent copilot for codebases, experiments,
   literature, LaTeX papers, and invention disclosures.
@@ -10,104 +10,58 @@ homepage: https://github.com/scholar-ip-copilot/scholar-ip-copilot
 authors:
   - name: scholar-ip-copilot contributors
 
-# Authoring folders — adapters walk these to render host-specific output.
+# V2 source-of-truth. Host-specific paths and syntax live in renderer profiles.
 entrypoints:
-  commands:  commands/
-  agents:    agents/
-  skills:    skills/
-  hooks:     hooks/
+  workflows: workflows/
+  roles: roles/roles.yaml
+  policies: policies/policy.yaml
+  capabilities: capabilities/
   templates: templates/
 
-# Project type matrix (used by /scholar:paper-init and /scholar:patent-init).
-project_types:
-  - paper
-  - patent
-  - mixed
+project_types: [paper, patent, mixed]
 
-# Adapter registry. Status reflects MVP coverage in this repository.
 adapters:
   - id: claude-code
-    status: mvp
+    status: stable
     out: .claude/plugins/scholar-ip/
   - id: codex-cli
-    status: mvp
-    out: .codex/prompts/scholar-ip/
+    status: stable
+    out: .codex/plugins/scholar/
   - id: opencode
-    status: planned
-    out: .opencode/plugins/scholar-ip/
+    status: stable
+    out: .opencode/
 
-# Safety policy applied by adapters wherever the host supports it.
-safety:
-  forbidden_paths:
-    - .env
-    - "**/.env*"
-    - secrets/
-    - credentials.json
-    - "**/*.pem"
-    - "**/*.key"
-    - "**/id_rsa*"
-  forbidden_tool_patterns:
-    - "Bash:rm -rf*"
-    - "Bash:sudo*"
-  default_allowed_tools:
-    - Read
-    - Glob
-    - Grep
-    - Edit
-    - Write
-    - "Bash:git*"
-    - "Bash:ls*"
-    - "Bash:cat*"
-    - "Bash:latexmk*"
+mcp_servers: []
 
-mcp_servers: []  # MCP layer reserved for v0.3+; v0.2 uses host-native skills
-
-# Quick-reference command order.
-# Paper default style is arXiv-neutral; /scholar:paper-venue converts at submission time.
-# Patent primary deliverable is the 技术交底书 / Technical Invention Disclosure (TID).
-# /scholar:using is the meta orientation entry (loads the using-scholar-ip-copilot skill).
-# /scholar:brainstorming is a hard precondition for any creative command (scope-required hook).
+# The only public interface. Actions are omitted for direct-entry workflows.
 workflows:
-  meta:
-    - /scholar:using                # orientation; safe to run any time
-    - /scholar:using-deep-research  # single entry to the PRISMA-style deep lit review workflow
-    - /scholar:brainstorming        # scope clarification; precondition for paper-idea, patent-scout, draft, claims, deepresearch, polish
-  notes:                            # lite-mode personal literature research; no project init, no bib, no audit
-    - /scholar:reading-list         # single markdown reading list at .evidraft/notes/<slug>-<date>.md
-  paper:
-    - /scholar:paper-init
-    - /scholar:paper-lit            # light single-pass literature; for heavy use /scholar:deepresearch
-    - /scholar:deepresearch         # heavyweight 6-stage literature review (optional)
-    - /scholar:paper-idea
-    - /scholar:paper-code-audit
-    - /scholar:paper-experiment
-    - /scholar:paper-review
-    - /scholar:paper-draft
-    - /scholar:paper-check
-    - /scholar:polish               # Williams-style humanize, mandatory diff log (optional)
-    - /scholar:paper-venue          # submission-time, optional
-  patent:
-    - /scholar:patent-init
-    - /scholar:patent-scout
-    - /scholar:patent-prior-art
-    - /scholar:patent-disclosure    # primary deliverable: 技术交底书 / TID
-    - /scholar:patent-claims        # advisory artefact
-    - /scholar:patent-review
-  shared:
-    - /scholar:xreview              # external-agent review (codex | claude-bare | opencode); writes .evidraft/reviews/
+  - id: using
+    actions: []
+  - id: scope
+    actions: []
+  - id: research
+    actions: [guide, reading-list, deep]
+  - id: paper
+    actions: [init, lit, idea, code-audit, experiment, review, draft, check, venue]
+  - id: patent
+    actions: [init, scout, prior-art, disclosure, claims, review]
+  - id: polish
+    actions: []
+  - id: xreview
+    actions: []
 
-# Naming convention.
 naming:
-  invocation: "scholar:<cmd>"       # what the user types, e.g. /scholar:paper-init
-  filename:   "<cmd>.md"            # filesystem-safe; namespace is implicit from plugin id
-  meta_entry: /scholar:using        # loads skills/using-scholar-ip-copilot/SKILL.md
-  rationale: >
-    Mirrors superpowers:<skill> convention. Filenames stay bare so Windows
-    filesystems and shells handle them without quoting.
+  claude: "/scholar:<workflow> [action]"
+  codex: "$scholar-<workflow> [action]"
+  opencode: "/scholar-<workflow> [action]"
 
-# Style and submission defaults.
+output_contracts:
+  evidence_root: .evidraft/
+  manuscript_root: manuscript/
+  submission_root: submissions/
+
 paper_defaults:
-  draft_style: arxiv         # arxiv neutral by default
+  draft_style: arxiv
   supported_venues:
     - arxiv
     - cvpr
@@ -124,11 +78,5 @@ paper_defaults:
     - generic
 
 patent_defaults:
-  primary_deliverable: invention_disclosure   # 技术交底书 / TID
-  jurisdictions:
-    - US
-    - EP
-    - CN
-    - JP
-    - PCT
-    - OTHER
+  primary_deliverable: invention_disclosure
+  jurisdictions: [US, EP, CN, JP, PCT, OTHER]

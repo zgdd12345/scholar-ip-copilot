@@ -1,0 +1,51 @@
+id: polish
+description: Polish manuscript prose while preserving evidence and citations.
+actions:
+  run:
+    legacy_id: polish
+    procedure: stages/run.md
+    defaults: {mode: interactive, max_delta_ratio: 0.35}
+    inputs:
+    - name: target
+      type: path
+      description: File or directory to polish (e.g. manuscript/sections/introduction.tex or manuscript/sections/).
+    - name: section
+      type: string
+      optional: true
+      description: Narrow the polish to a single LaTeX section, matched by \section{...} title.
+    - name: mode
+      type: enum
+      values:
+      - interactive
+      - all
+      - none
+      optional: true
+      default: interactive
+      description: interactive = per-hunk accept/reject; all = apply every hunk that passes evidence-preserve; none = dry run (log + report only, no in-place edit).
+    - name: max_delta_ratio
+      type: number
+      optional: true
+      default: 0.35
+      description: Hard ceiling on (changed-tokens / total-tokens) per hunk. Above this, the hunk is rejected as too aggressive.
+    outputs:
+    - path: <target>
+      description: Rewritten target file in place (only in mode=interactive after acceptance, or mode=all).
+    - path: .evidraft/style/humanize-<ts>.log
+      description: Unified diff between original and rewrite, annotated per-hunk with the rule(s) that fired.
+    - path: .evidraft/style/humanize-<ts>.report.md
+      description: 'Plain-English change report: banned-phrase counts before/after, evidence-diff verdict, ethics statement.'
+    policies:
+    - scope
+    - evidence-integrity
+    roles:
+    - id: writing-reviewer
+      mode: prose-polisher
+      tier: standard
+    - id: evidence-reviewer
+      mode: evidence-auditor
+      tier: standard
+    retention:
+      directory: .evidraft/style
+      pattern: humanize-*
+      keep_last: 30
+      max_age_days: 90

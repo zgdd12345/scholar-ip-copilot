@@ -1,20 +1,71 @@
 name: ci
+
 on:
   push:
     branches: [master, main]
   pull_request:
+
 permissions:
   contents: read
+
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  release-gates:
+    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-      - run: python -m venv .venv
-      - run: .venv/bin/pip install --upgrade pip
-      - run: .venv/bin/pip install -e ".[dev]"
-      - run: .venv/bin/pytest tests/ -v
-      - run: .venv/bin/python -m packages.adapters.opencode.generate --plugin plugins/scholar-ip --out /tmp/oc --dry-run
+          python-version: ${{ matrix.python-version }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Create project environment
+        run: python -m venv .venv
+      - name: Install development dependencies
+        run: |
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -e ".[dev]" build
+
+      - name: Ruff
+        run: .venv/bin/python -m ruff check src packages tests
+      - name: Full pytest suite
+        run: .venv/bin/python -m pytest tests/ -v
+
+      - name: Install official Claude Code validator
+        run: npm install --global @anthropic-ai/claude-code
+      - name: Render Claude plugin
+        run: >-
+          .venv/bin/evidraft-claude-code
+          --plugin plugins/scholar-ip
+          --out .claude/plugins/scholar-ip
+      - name: Official plugin validator
+        run: claude plugin validate .claude/plugins/scholar-ip
+
+      - name: Build wheel
+        run: |
+          rm -rf dist build *.egg-info src/*.egg-info packages/*.egg-info
+          .venv/bin/python -m build --wheel --outdir dist
+          .venv/bin/python -c 'import pathlib,zipfile; p=next(pathlib.Path("dist").glob("*.whl")); n=set(zipfile.ZipFile(p).namelist()); required={"evidraft/schemas/workflow.schema.json"}; forbidden={"packages/adapters/_shared/loader.py","packages/adapters/_shared/bundle.py","packages/core/src/__init__.py","packages/core/src/migrate.py"}; assert required <= n, required-n; assert not forbidden & n, forbidden & n'
+      - name: Clean-install wheel and smoke all console scripts outside repository
+        shell: bash
+        run: |
+          python -m venv "$RUNNER_TEMP/evidraft-smoke"
+          "$RUNNER_TEMP/evidraft-smoke/bin/python" -m pip install "$GITHUB_WORKSPACE"/dist/*.whl
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/evidraft-smoke/bin/evidraft" --help
+          "$RUNNER_TEMP/evidraft-smoke/bin/evidraft-claude-code" --help
+          "$RUNNER_TEMP/evidraft-smoke/bin/evidraft-codex-cli" --help
+          "$RUNNER_TEMP/evidraft-smoke/bin/evidraft-opencode" --help
+          cp -R "$GITHUB_WORKSPACE/plugins/scholar-ip" "$RUNNER_TEMP/scholar-ip"
+          "$RUNNER_TEMP/evidraft-smoke/bin/evidraft-claude-code" --plugin "$RUNNER_TEMP/scholar-ip" --out "$RUNNER_TEMP/claude"
+          "$RUNNER_TEMP/evidraft-smoke/bin/evidraft-codex-cli" --plugin "$RUNNER_TEMP/scholar-ip" --out "$RUNNER_TEMP/codex"
+          "$RUNNER_TEMP/evidraft-smoke/bin/evidraft-opencode" --plugin "$RUNNER_TEMP/scholar-ip" --out "$RUNNER_TEMP/opencode"
+          "$RUNNER_TEMP/evidraft-smoke/bin/python" -c 'import os,pathlib; r=pathlib.Path(os.environ["RUNNER_TEMP"]); assert len(list((r/"claude/commands").glob("*.md"))) == 7; assert len(list((r/"codex/skills").glob("scholar-*/SKILL.md"))) == 7; assert len(list((r/"opencode/commands").glob("scholar-*.md"))) == 7'

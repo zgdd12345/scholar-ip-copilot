@@ -1,0 +1,43 @@
+id: xreview
+description: Delegate a bounded review pass to an external coding agent.
+actions:
+  run:
+    legacy_id: xreview
+    procedure: stages/run.md
+    defaults: {}
+    inputs:
+    - name: agent
+      type: enum
+      values:
+      - codex
+      - claude-bare
+      - opencode
+      description: Which external coding agent to delegate to.
+    - name: target
+      type: path
+      description: File the external agent should review.
+    - name: persona
+      type: string
+      description: EviDraft role mode whose full private spec is rendered as the prompt (e.g. novelty-critic, methodology-reviewer).
+    - name: schema
+      type: path
+      optional: true
+      description: Optional JSON schema the external agent should conform its output to.
+    - name: extra_context
+      type: string
+      optional: true
+      description: Short free-text addendum appended to the rendered persona prompt.
+    outputs:
+    - path: .evidraft/reviews/<agent>-<persona>-<ts>.md
+      description: Markdown review file produced from the external agent's structured output.
+    - path: .evidraft/reviews/.last.yaml
+      description: Index of the most recent xreview invocation (agent, persona, target, output_path, ts, tokens, cost_usd).
+    policies:
+    - scope
+    - workspace-safety
+    roles: []
+    retention:
+      directory: .evidraft/reviews
+      pattern: '*.md'
+      keep_last: 50
+      max_age_days: 180

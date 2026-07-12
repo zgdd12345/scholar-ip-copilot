@@ -1,6 +1,6 @@
 # Patent review report
 
-Populate via `/scholar:patent-review`. Each reviewer role contributes one H2 section
+Populate via `workflow:patent.review`. Each reviewer role contributes one H2 section
 with findings, severity, and recommended action.
 
 ## Summary

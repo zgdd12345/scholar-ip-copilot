@@ -1,6 +1,8 @@
-# Development & Optimization Status
+# Historical v1 optimization record
 
-Living record of the progressive-disclosure refactor work stream and the infrastructure that made it possible. Each item is marked **✅ DONE**, **🚧 IN FLIGHT**, **⏳ PLANNED**, or **❄️ DEFERRED / OUT OF SCOPE**. Pointers to the actual commits / files are inline so future maintainers can trace why each piece exists.
+This document preserves the progressive-disclosure work that preceded EviDraft 2.0.
+Paths, counts, commands, agents, hooks, and loader behavior below describe v1 and are not
+current interfaces. See [architecture.md](architecture.md) for the active design.
 
 ## Overview
 

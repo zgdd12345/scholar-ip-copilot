@@ -1,11 +1,9 @@
-"""EviDraft -> Codex CLI prompt/workflow adapter (MVP)."""
-
-__all__ = ["load_plugin", "render", "validate", "main"]
+"""EviDraft to Codex CLI adapter."""
 
 
-def __getattr__(name: str):  # pragma: no cover
-    if name in __all__:
-        from . import generate as _g
+def main(argv=None):
+    from .generate import main as _main
 
-        return getattr(_g, name)
-    raise AttributeError(name)
+    return _main(argv)
+
+__all__ = ["main"]

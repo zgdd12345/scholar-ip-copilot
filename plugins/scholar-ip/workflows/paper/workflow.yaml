@@ -1,0 +1,305 @@
+id: paper
+description: Route the complete evidence-backed paper lifecycle.
+actions:
+  init:
+    legacy_id: paper-init
+    procedure: stages/init.md
+    defaults: {project_type: paper}
+    inputs:
+    - name: project_type
+      type: enum
+      values:
+      - paper
+      - patent
+      - mixed
+      optional: true
+      default: paper
+    - name: title
+      type: string
+      optional: true
+    - name: field
+      type: string
+      optional: true
+    - name: target_venue
+      type: string
+      optional: true
+    outputs:
+    - path: .evidraft/project.yaml
+    - path: .evidraft/evidence/evidence.jsonl
+    - path: .evidraft/literature/references.bib
+    - path: manuscript/main.tex
+    - path: manuscript/sections/
+    policies:
+    - workspace-safety
+    roles: []
+    retention: {}
+  lit:
+    legacy_id: paper-lit
+    procedure: stages/lit.md
+    defaults: {draft_outline: false}
+    inputs:
+    - name: topic
+      type: string
+      optional: true
+    - name: seed_pdfs
+      type: list
+      optional: true
+    - name: seed_bibtex
+      type: path
+      optional: true
+    - name: draft_outline
+      type: boolean
+      optional: true
+      default: false
+      description: 'When true, also write a method-family outline to .evidraft/literature/related_work_outline.md. This is a lightweight survey aid for ad-hoc review requests — NOT a PRISMA review and not the `related_work.draft.md` produced by workflow:research.deep Stage 6.
+
+        '
+    outputs:
+    - path: .evidraft/literature/references.bib
+    - path: .evidraft/literature/matrix.md
+    - path: .evidraft/evidence/evidence.jsonl
+    - path: .evidraft/literature/related_work_outline.md
+    - path: .evidraft/literature/lit_run.yaml
+    policies:
+    - evidence-integrity
+    roles:
+    - id: researcher
+      mode: literature-reviewer
+      tier: standard
+    - id: evidence-reviewer
+      mode: evidence-auditor
+      tier: standard
+    retention: {}
+  idea:
+    legacy_id: paper-idea
+    procedure: stages/idea.md
+    defaults: {}
+    inputs:
+    - name: seed_idea
+      type: string
+      optional: true
+    outputs:
+    - path: .evidraft/ideas/novelty_matrix.md
+    - path: .evidraft/ideas/risk_matrix.md
+    - path: .evidraft/ideas/experiment_to_validate.md
+    policies:
+    - scope
+    - evidence-integrity
+    roles:
+    - id: researcher
+      mode: literature-reviewer
+      tier: standard
+    - id: code-reviewer
+      mode: codebase-analyst
+      tier: standard
+    - id: patent-reviewer
+      mode: novelty-critic
+      tier: deep
+    retention: {}
+  code-audit:
+    legacy_id: paper-code-audit
+    procedure: stages/code-audit.md
+    defaults: {claims_source: novelty_matrix}
+    inputs:
+    - name: claims_source
+      type: enum
+      values:
+      - novelty_matrix
+      - draft_method
+      - manual_list
+      optional: true
+      default: novelty_matrix
+    outputs:
+    - path: .evidraft/code/repo_summary.md
+    - path: .evidraft/code/method_to_code.md
+    - path: .evidraft/code/paper_code_audit.md
+    policies:
+    - evidence-integrity
+    - workspace-safety
+    roles:
+    - id: code-reviewer
+      mode: codebase-analyst
+      tier: standard
+    - id: code-reviewer
+      mode: methodology-reviewer
+      tier: standard
+    - id: evidence-reviewer
+      mode: evidence-auditor
+      tier: standard
+    retention: {}
+  experiment:
+    legacy_id: paper-experiment
+    procedure: stages/experiment.md
+    defaults: {results_dir: experiments/}
+    inputs:
+    - name: results_dir
+      type: path
+      optional: true
+      default: experiments/
+    outputs:
+    - path: .evidraft/experiments/result_analysis.md
+    - path: .evidraft/experiments/tables/
+    - path: .evidraft/evidence/evidence.jsonl
+    policies:
+    - evidence-integrity
+    roles:
+    - id: experiment-reviewer
+      mode: experiment-analyst
+      tier: standard
+    - id: evidence-reviewer
+      mode: evidence-auditor
+      tier: standard
+    retention: {}
+  review:
+    legacy_id: paper-review
+    procedure: stages/review.md
+    defaults: {target_section: related_work, target_length: 1.5 pages, format: tex}
+    inputs:
+    - name: target_section
+      type: enum
+      values:
+      - related_work
+      - survey
+      optional: true
+      default: related_work
+    - name: target_length
+      type: string
+      optional: true
+      default: 1.5 pages
+    - name: format
+      type: enum
+      values:
+      - tex
+      - md
+      optional: true
+      default: tex
+      description: 'Output format. `tex` (default) writes `manuscript/sections/<target_section>.tex` ready for inclusion in `main.tex`. `md` writes `.evidraft/literature/<target_section>.md` as Pandoc-style markdown (`[@citation_key]` inline citations) — useful when the venue doesn''t need LaTeX or for a markdown preview before committing to LaTeX. Both formats share the same outline step (`.evidraft/literature/related_work_outline.md`) and the same evidence-store discipline (policy:evidence-integrity applies to both). Switching format does NOT re-run the outline or the auditors when those are already current.
+
+        '
+    outputs:
+    - path: manuscript/sections/related_work.tex
+    - path: .evidraft/literature/related_work.md
+    - path: .evidraft/literature/related_work_outline.md
+    policies:
+    - evidence-integrity
+    roles:
+    - id: researcher
+      mode: literature-reviewer
+      tier: standard
+    - id: evidence-reviewer
+      mode: evidence-auditor
+      tier: standard
+    - id: evidence-reviewer
+      mode: consistency-checker
+      tier: fast
+    retention: {}
+  draft:
+    legacy_id: paper-draft
+    procedure: stages/draft.md
+    defaults:
+      sections: [introduction, related_work, method, experiments, conclusion]
+      style: arxiv
+    inputs:
+    - name: sections
+      type: list
+      optional: true
+      default:
+      - introduction
+      - related_work
+      - method
+      - experiments
+      - conclusion
+    - name: style
+      type: enum
+      values:
+      - arxiv
+      - cvpr
+      - neurips
+      - generic
+      optional: true
+      default: arxiv
+    outputs:
+    - path: manuscript/main.tex
+    - path: manuscript/sections/
+    policies:
+    - scope
+    - evidence-integrity
+    roles:
+    - id: writing-reviewer
+      mode: latex-editor
+      tier: fast
+    - id: evidence-reviewer
+      mode: evidence-auditor
+      tier: standard
+    - id: code-reviewer
+      mode: methodology-reviewer
+      tier: standard
+    retention: {}
+  check:
+    legacy_id: paper-check
+    procedure: stages/check.md
+    defaults: {}
+    inputs: []
+    outputs:
+    - path: .evidraft/manuscript/paper_check_report.md
+    policies:
+    - evidence-integrity
+    roles:
+    - id: evidence-reviewer
+      mode: evidence-auditor
+      tier: standard
+    - id: code-reviewer
+      mode: methodology-reviewer
+      tier: standard
+    - id: writing-reviewer
+      mode: latex-editor
+      tier: fast
+    - id: evidence-reviewer
+      mode: consistency-checker
+      tier: fast
+    retention: {}
+  venue:
+    legacy_id: paper-venue
+    procedure: stages/venue.md
+    defaults: {anonymize: true, out_dir: submissions/<venue>/}
+    inputs:
+    - name: venue
+      type: enum
+      values:
+      - arxiv
+      - cvpr
+      - iccv
+      - eccv
+      - neurips
+      - icml
+      - iclr
+      - emnlp
+      - acl
+      - aaai
+      - ieee
+      - acm-generic
+      - generic
+      optional: false
+    - name: anonymize
+      type: boolean
+      optional: true
+      default: true
+    - name: out_dir
+      type: path
+      optional: true
+      default: submissions/<venue>/
+    outputs:
+    - path: submissions/<venue>/main.tex
+    - path: submissions/<venue>/sections/
+    - path: submissions/<venue>/references.bib
+    - path: submissions/<venue>/MANIFEST.md
+    policies:
+    - evidence-integrity
+    roles:
+    - id: writing-reviewer
+      mode: latex-editor
+      tier: fast
+    - id: evidence-reviewer
+      mode: evidence-auditor
+      tier: standard
+    retention: {}

@@ -1,6 +1,6 @@
 # Prior art map
 
-Populate via `/scholar:patent-prior-art`. One section per invention candidate. For each
+Populate via `workflow:patent.prior-art`. One section per invention candidate. For each
 candidate, list the prior-art references found and the overlap with the
 candidate's core idea.
 

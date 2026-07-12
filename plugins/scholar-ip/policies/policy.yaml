@@ -1,0 +1,55 @@
+policies:
+  workspace-safety:
+    description: Keep all operations inside the project root and protect sensitive paths.
+    always:
+      root_confinement:
+        base: project-root
+        reject_absolute: true
+        reject_parent_traversal: true
+      sensitive_path_deny:
+        - .env
+        - '**/.env'
+        - '**/.env.*'
+        - secrets/**
+        - credentials.json
+        - '**/*.pem'
+        - '**/*.key'
+        - '**/id_rsa*'
+    project_extension: safety.forbidden_paths
+    tool_access:
+      default_allowed_tools:
+        - Read
+        - Glob
+        - Grep
+        - Edit
+        - Write
+        - 'Bash:git*'
+        - 'Bash:ls*'
+        - 'Bash:cat*'
+        - 'Bash:latexmk*'
+      forbidden_tool_patterns:
+        - 'Bash:rm -rf*'
+        - 'Bash:sudo*'
+    operation_write_zones:
+      xreview.run:
+        - .evidraft/reviews/**
+        - .evidraft/reviews/.tmp/**
+  scope:
+    description: Require a current scope artefact before high-impact creative operations.
+    operations:
+      block:
+        - paper.draft
+        - patent.claims
+        - polish.run
+      warn:
+        - paper.idea
+        - patent.scout
+        - research.deep
+      pass: all other operation IDs
+  evidence-integrity:
+    description: Require resolvable, verified, non-superseded evidence for publishable claims.
+    enforcement: block
+    requirements:
+      - Resolve citation and evidence identifiers against the project stores.
+      - Reject supersession cycles and unverified evidence.
+      - Preserve citations and evidence identifiers during rewrites.

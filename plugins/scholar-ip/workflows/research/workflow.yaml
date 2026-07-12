@@ -1,0 +1,125 @@
+id: research
+description: Route lightweight guidance, reading lists, and deep literature research.
+actions:
+  guide:
+    legacy_id: using-deep-research
+    procedure: stages/guide.md
+    defaults: {}
+    inputs:
+    - name: topic
+      type: string
+      optional: true
+      description: Optional research topic; the skill will propose the right command sequence based on it.
+    outputs: []
+    policies: []
+    roles: []
+    retention: {}
+  reading-list:
+    legacy_id: reading-list
+    procedure: stages/reading-list.md
+    defaults: {max: 20}
+    inputs:
+    - name: topic
+      type: string
+      optional: false
+      description: 'The search topic / question. Used verbatim as the query and slugged for the output filename.
+
+        '
+    - name: max
+      type: integer
+      optional: true
+      default: 20
+      description: Maximum number of candidates to consider (before verification rejects).
+    - name: out
+      type: path
+      optional: true
+      description: 'Override the default output path. Default: .evidraft/notes/<topic-slug>-<UTC-date>.md
+
+        '
+    outputs:
+    - path: .evidraft/notes/<topic-slug>-<date>.md
+    policies: []
+    roles:
+    - id: researcher
+      mode: literature-reviewer
+      tier: standard
+    retention: {}
+  deep:
+    legacy_id: deepresearch
+    procedure: stages/deep.md
+    defaults:
+      breadth: 6
+      depth: 2
+      providers: [arxiv, semantic-scholar, openalex]
+      mode: full
+    inputs:
+    - name: topic
+      type: string
+      optional: true
+      description: Free-text research focus. Falls back to project.yaml.topic when omitted.
+    - name: breadth
+      type: integer
+      optional: true
+      default: 6
+      description: Maximum sub-queries per fan-out at every stage.
+    - name: depth
+      type: integer
+      optional: true
+      default: 2
+      description: Recursion depth for follow-up queries (citations / references).
+    - name: providers
+      type: list
+      optional: true
+      default:
+      - arxiv
+      - semantic-scholar
+      - openalex
+      description: Ordered retrieval backends consumed by capability:scholar-search. Records `source` per row; never blends silently.
+    - name: mode
+      type: enum
+      values:
+      - fast
+      - full
+      optional: true
+      default: full
+      description: '`fast` halves breadth+depth and skips per-paper SWOT; `full` runs all 6 stages.'
+    - name: resume_from
+      type: enum
+      values:
+      - frame
+      - retrieve
+      - screen
+      - cluster
+      - critique
+      - synthesise
+      optional: true
+      description: Skip all earlier stages and resume at the named stage.
+    outputs:
+    - path: .evidraft/literature/plan.yaml
+    - path: .evidraft/literature/candidates.jsonl
+    - path: .evidraft/literature/screening_log.csv
+    - path: .evidraft/literature/clusters.yaml
+    - path: .evidraft/literature/evidence_map.json
+    - path: .evidraft/literature/critique/
+    - path: .evidraft/literature/related_work.draft.md
+    - path: .evidraft/literature/citation_audit.json
+    policies:
+    - scope
+    - evidence-integrity
+    roles:
+    - id: researcher
+      mode: deep-research-orchestrator
+      tier: deep
+    - id: researcher
+      mode: screener
+      tier: fast
+    - id: researcher
+      mode: paper-critic
+      tier: standard
+    - id: researcher
+      mode: literature-reviewer
+      tier: standard
+    - id: evidence-reviewer
+      mode: evidence-auditor
+      tier: standard
+    retention: {}

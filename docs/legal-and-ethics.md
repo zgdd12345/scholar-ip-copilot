@@ -4,7 +4,7 @@ EviDraft assists, it does not replace. Two areas need explicit framing.
 
 ## 1. Patent outputs are attorney-reviewable, not legal advice
 
-The `/patent-*` commands produce:
+The `patent` workflow actions produce:
 
 - an **invention disclosure** suitable for handing to a registered patent agent or attorney;
 - **draft claims** with a `claim_chart.md` that traces each element to specification text and source code;
@@ -21,7 +21,7 @@ Every patent artefact ends with a "Needs attorney review" checklist. The plugin 
 
 ## 2. Paper outputs are draft material, not guaranteed publishable
 
-The `/paper-*` commands produce:
+The `paper` workflow actions produce:
 
 - a LaTeX draft built from the evidence store,
 - a `paper_code_audit.md` that classifies each claim as `CONFIRMED` / `PARTIAL` / `MISSING` / `MISMATCH` / `NOT_AUDITABLE`,
@@ -29,19 +29,21 @@ The `/paper-*` commands produce:
 
 What they explicitly **do not** do:
 
-- fabricate citations or experiment numbers (evidence consistency hook),
-- claim novelty without evidence (citation guard),
+- fabricate citations or experiment numbers (blocked by `evidence-integrity`),
+- claim novelty without evidence (blocked by `evidence-integrity`),
 - submit anywhere on the user's behalf.
 
 ## 3. Evidence discipline
 
 The plugin treats the following as **hard rules**, not preferences:
 
-1. **No strong claim without citation.** Verbs like *novel*, *first*, *outperform*, *significant*, *state-of-the-art* require a `citation_key` or `evidence_id` (`hooks/citation-guard.md`).
-2. **No number without source.** A figure in the draft must trace to a row in `experiments/` (`hooks/evidence-consistency.md`).
-3. **No code claim without trace.** Statements about what the code does must point to `file_path` + line range (`hooks/evidence-consistency.md`).
+1. **No strong claim without citation.** Verbs like *novel*, *first*, *outperform*, *significant*, and *state-of-the-art* require a verified evidence record.
+2. **No number without source.** A figure in the draft must trace to an experiment row.
+3. **No code claim without trace.** Statements about code must point to `file_path` and a line range.
 
-Hooks default to **block**. Users can downgrade to **warn** in `.evidraft/project.yaml` under `rules`, but the plugin records the downgrade in `paper_check_report.md`.
+`evidence-integrity` blocks publish-class actions when required evidence is unresolved,
+unverified, quarantined, or superseded. Host hooks may add another boundary, but they do
+not replace or weaken the deterministic policy result.
 
 ## 4. Sensitive files
 
@@ -52,12 +54,15 @@ By default the plugin refuses to read:
 - `credentials.json`
 - `*.pem`, `*.key`
 
-If a workflow truly needs one of these, the user must explicitly approve a single, scoped read. See `hooks/sensitive-file-guard.md`.
+Workflow preflight blocks these paths. Provide a sanitized, non-sensitive export inside
+the project when relevant information is required; the `workspace-safety` policy remains
+authoritative on every host.
 
 ## 5. Data handling
 
-- EviDraft processes everything locally unless a user explicitly enables an MCP server that calls an external service.
-- MCP servers under `packages/mcp/` are stubs in MVP and must declare their data flows in their own README.
+- The deterministic core and renderer process local files and have no MCP dependency.
+- Retrieval actions may access external literature or patent services when the user runs
+  them; the selected host is responsible for presenting and enforcing network access.
 - No telemetry is shipped from this plugin.
 
 ## 6. Third-party references
@@ -67,7 +72,7 @@ This project draws design ideas from many upstream plugins (see `reference-analy
 - the upstream license permits redistribution under MIT-compatible terms, and
 - the file is placed under a `THIRD_PARTY/` directory with the original license file alongside.
 
-At v0.1, no third-party source is vendored.
+At version 2.0.0, no third-party source is vendored.
 
 ## 7. Authorship and IP
 

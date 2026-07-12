@@ -1,0 +1,51 @@
+workflow: paper
+actions:
+  - init
+  - lit
+  - idea
+  - code-audit
+  - experiment
+  - review
+  - draft
+  - check
+  - venue
+outputs:
+  init:
+    - .evidraft/project.yaml
+    - .evidraft/evidence/evidence.jsonl
+    - .evidraft/literature/references.bib
+    - manuscript/main.tex
+    - manuscript/sections/
+  lit:
+    - .evidraft/literature/references.bib
+    - .evidraft/literature/matrix.md
+    - .evidraft/evidence/evidence.jsonl
+    - .evidraft/literature/related_work_outline.md
+    - .evidraft/literature/lit_run.yaml
+  idea:
+    - .evidraft/ideas/novelty_matrix.md
+    - .evidraft/ideas/risk_matrix.md
+    - .evidraft/ideas/experiment_to_validate.md
+  code-audit:
+    - .evidraft/code/repo_summary.md
+    - .evidraft/code/method_to_code.md
+    - .evidraft/code/paper_code_audit.md
+  experiment:
+    - .evidraft/experiments/result_analysis.md
+    - .evidraft/experiments/tables/
+    - .evidraft/evidence/evidence.jsonl
+  review:
+    - manuscript/sections/related_work.tex
+    - .evidraft/literature/related_work.md
+    - .evidraft/literature/related_work_outline.md
+  draft:
+    - manuscript/main.tex
+    - manuscript/sections/
+  check:
+    - .evidraft/manuscript/paper_check_report.md
+  venue:
+    - submissions/<venue>/main.tex
+    - submissions/<venue>/sections/
+    - submissions/<venue>/references.bib
+    - submissions/<venue>/MANIFEST.md
+evidence_count: 2

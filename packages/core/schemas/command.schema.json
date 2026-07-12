@@ -20,7 +20,7 @@
     "description": { "type": "string" },
     "primary_deliverable": {
       "type": "boolean",
-      "description": "Marks the command as the primary deliverable for its phase (e.g., /scholar:patent-disclosure produces the TID)."
+      "description": "Legacy v1 marker for the primary deliverable of a phase."
     },
     "inputs": {
       "type": "array",

@@ -1,6 +1,6 @@
 # Result analysis
 
-Populate via `/scholar:paper-experiment`. One row per number that may appear in the
+Populate via `workflow:paper.experiment`. One row per number that may appear in the
 manuscript. `Source` must point to a file:row/col so the number can be
 re-derived; `Evidence id` links to `../evidence/evidence.jsonl`.
 
@@ -9,7 +9,7 @@ re-derived; `Evidence id` links to `../evidence/evidence.jsonl`.
 
 ## Figure suggestions
 
-Listed by `/scholar:paper-experiment`. One bullet per figure, with the data source and
+Listed by `workflow:paper.experiment`. One bullet per figure, with the data source and
 the message the figure should communicate.
 
 - TODO

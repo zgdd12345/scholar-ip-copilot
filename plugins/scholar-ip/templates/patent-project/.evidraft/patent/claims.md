@@ -1,6 +1,6 @@
 # Draft claims (advisory)
 
-Populate via `/scholar:patent-claims`. Each claim has an id (`c1`, `c2`, ...), a kind
+Populate via `workflow:patent.claims`. Each claim has an id (`c1`, `c2`, ...), a kind
 (`independent` / `dependent`), and — for dependent claims — a `depends_on`
 pointer to its parent claim id. Elements within an independent claim should be
 broken out so the claim chart can attribute spec / code / prior-art support

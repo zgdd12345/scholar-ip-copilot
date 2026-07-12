@@ -1,6 +1,6 @@
 # Literature matrix
 
-Populate via `/scholar:paper-lit`. One row per paper. `Paper (citation_key)` must match a
+Populate via `workflow:paper.lit`. One row per paper. `Paper (citation_key)` must match a
 key in `references.bib`. `Evidence ids` link to records in
 `../evidence/evidence.jsonl`.
 

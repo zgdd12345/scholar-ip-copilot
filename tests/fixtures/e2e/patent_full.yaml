@@ -1,0 +1,31 @@
+workflow: patent
+actions:
+  - init
+  - scout
+  - prior-art
+  - disclosure
+  - claims
+  - review
+outputs:
+  init:
+    - .evidraft/project.yaml
+    - .evidraft/patent/invention_disclosure.md
+    - .evidraft/patent/invention_candidates.md
+    - .evidraft/patent/prior_art_map.md
+    - .evidraft/patent/claim_chart.md
+  scout:
+    - .evidraft/patent/invention_candidates.md
+    - .evidraft/evidence/evidence.jsonl
+  prior-art:
+    - .evidraft/patent/prior_art_map.md
+    - .evidraft/patent/claim_chart.md
+  disclosure:
+    - .evidraft/patent/invention_disclosure.md
+  claims:
+    - .evidraft/patent/claims.md
+    - .evidraft/patent/claims_parsed.json
+    - .evidraft/patent/claim_chart.md
+    - .evidraft/patent/claim_chart-<ts>.json
+  review:
+    - .evidraft/patent/patent_review_report.md
+evidence_count: 2

@@ -1,6 +1,7 @@
 # EviDraft project descriptor — patent template.
 # Validated against packages/core/schemas/project.schema.json.
-# /scholar:patent-init will fill in title, field, and inventors at scaffold time.
+# workflow:patent.init fills in title, field, and inventors at scaffold time.
+format_version: 2
 project_type: patent
 title: "TODO: invention title"
 field: ""
@@ -21,11 +22,9 @@ rules:
   require_experiment_source_for_numbers: true
   require_code_trace_for_code_claims: true
   allow_unverified_claims: false
-hooks:
-  citation_guard: enabled
-  evidence_consistency: enabled
-  latex_compile: enabled
-  sensitive_file_guard: enabled
+scope:
+  required: true
+  staleness_days: 14
 # Primary patent deliverable: 技术交底书 / Technical Invention Disclosure (TID)
 # at .evidraft/patent/invention_disclosure.md. Draft claims and claim charts
 # are advisory artefacts, not filed text.

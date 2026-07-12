@@ -1,6 +1,6 @@
 # patent-project template
 
-This directory is a **template**, not a working project. `/scholar:patent-init`
+This directory is a **template**, not a working project. The `patent init` action
 materialises this tree (without overwriting existing files) into the user's
 project root.
 
@@ -13,8 +13,8 @@ project root.
     evidence/evidence.jsonl               append-only evidence store
     patent/
       invention_disclosure.md             primary deliverable: 技术交底书 / TID
-      invention_candidates.md             candidates from /scholar:patent-scout
-      prior_art_map.md                    prior art from /scholar:patent-prior-art
+      invention_candidates.md             candidates from patent.scout
+      prior_art_map.md                    prior art from patent.prior-art
       claim_chart.md                      element-by-element traceability
       claims.md                           draft claims (advisory, not filed text)
       patent_review_report.md             multi-role review output
@@ -27,7 +27,7 @@ patent artefact. It is a structured technical write-up handed to a registered
 patent agent / attorney as the input for drafting a real patent application.
 
 Each candidate in the TID uses the 13 bilingual (English + 中文) subsections
-required by `/scholar:patent-disclosure`:
+required by the `patent disclosure` action:
 
 1. Title (技术名称)
 2. Field of the invention (技术领域)

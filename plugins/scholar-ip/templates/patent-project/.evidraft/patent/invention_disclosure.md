@@ -5,7 +5,7 @@
 > patent application. It is **not** a filed application, **not** legal advice,
 > and **not** itself a patent.
 >
-> Populate via `/scholar:patent-disclosure`. One H2 section per invention candidate
+> Populate via `workflow:patent.disclosure`. One H2 section per invention candidate
 > from `invention_candidates.md`. The 13 required subsections below are the
 > per-candidate TID structure (jurisdiction-agnostic; works for US / EP /
 > CN-CNIPA / JP / PCT).
@@ -69,7 +69,7 @@ TODO
 
 <!-- Specific, testable, technical statements. Every advantage MUST cite an
      evidence id. Advantages without evidence are dropped by
-     /scholar:patent-disclosure. -->
+     workflow:patent.disclosure. -->
 
 | Advantage | Evidence id | Notes |
 |-----------|-------------|-------|

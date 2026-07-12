@@ -1,73 +1,39 @@
-# EviDraft adapters
+# Host adapters
 
-Each adapter under this folder is a small Python module that reads the
-platform-neutral plugin at `plugins/scholar-ip/` and renders it into a
-host-specific layout. Author once, render many.
+The three adapter modules are compatibility console-entry wrappers over
+`evidraft.render.render_plugin`. Workflow loading, validation, host projection, atomic
+writes, and ownership cleanup live in the shared renderer.
 
-## Adapter matrix
+| Host | Console script | Destination | Public syntax |
+|---|---|---|---|
+| Claude Code | `evidraft-claude-code` | `.claude/plugins/scholar-ip/` | `/scholar:<workflow> [action]` |
+| Codex | `evidraft-codex-cli` | `.codex/plugins/scholar/` | `$scholar-<workflow> [action]` |
+| OpenCode | `evidraft-opencode` | `.opencode/` | `/scholar-<workflow> [action]` |
 
-| Adapter | Module | Status | Output target | CLI |
-|---|---|---|---|---|
-| Claude Code | `packages.adapters.claude_code.generate` | First-class | `.claude/plugins/scholar-ip/` | `python -m packages.adapters.claude_code.generate --plugin plugins/scholar-ip --out <dest>` |
-| Codex CLI | `packages.adapters.codex_cli.generate` | First-class (flattened, commands + skills land under `skills/`) | `.codex/plugins/scholar/` | `python -m packages.adapters.codex_cli.generate --plugin plugins/scholar-ip --out <dest>` |
-| OpenCode | `packages.adapters.opencode.generate` | First-class (commands renamed `scholar-<id>` since OpenCode has no slash-namespacing) | `.opencode/{commands,agents,skills}/` | `python -m packages.adapters.opencode.generate --plugin plugins/scholar-ip --out <dest>` |
+Each wrapper accepts the same options:
 
-## Common API
-
-Each `generate.py` exposes the same four entry points:
-
-| Function | Purpose |
-|---|---|
-| `load_plugin(plugin_dir)` | Parse `plugin.yaml` + every `*.md` frontmatter under `commands/ agents/ skills/ hooks/`. |
-| `validate(plugin, schema_path)` | Validate every frontmatter doc against `packages/core/schemas/command.schema.json`. Uses `jsonschema` if available, else a minimal required-fields check. Returns a list of error strings. |
-| `render(plugin, out_dir)` | Write the host-specific tree. Returns the list of paths written. |
-| `main()` | CLI entry: `--plugin <path>` `--out <path>` `[--dry-run]`. |
-
-Shared modules under `_shared/`:
-- `loader.py` — YAML/frontmatter parser; one-skill-per-directory discovery via `_load_skill_dir` (records `bundle_dir` on each `FrontmatterDoc`).
-- `bundle.py` — `copy_skill_bundle(doc, dest_skill_dir)` propagates every non-`SKILL.md` sibling (e.g. `references/`, `assets/`, `scripts/`) from the source bundle into each adapter's rendered skill directory, preserving sub-paths. All three adapters call this after writing their `SKILL.md`.
-
-## CLI options (all adapters)
-
-```
---plugin PATH    path to plugins/scholar-ip
---out PATH       destination directory
---dry-run        print files that would be written; do not write
---schema PATH    override path to command.schema.json
+```text
+--plugin PATH    host-neutral source plugin
+--out PATH       destination root
+--dry-run        validate and list output without modifying the destination
 ```
 
-## Quick start
+Examples:
 
 ```bash
-# 1. dry-run any adapter
-python -m packages.adapters.claude_code.generate \
-    --plugin plugins/scholar-ip \
-    --out /tmp/scholar-ip-cc \
-    --dry-run
-
-# 2. render Claude Code plugin into your project
-python -m packages.adapters.claude_code.generate \
-    --plugin plugins/scholar-ip \
-    --out ~/your-project/.claude/plugins/scholar-ip
-
-# 3. render Codex CLI plugin into your project
-python -m packages.adapters.codex_cli.generate \
-    --plugin plugins/scholar-ip \
-    --out ~/your-project/.codex/plugins/scholar
-
-# 4. render OpenCode plugin (auto-discovered from .opencode/{commands,agents,skills}/)
-python -m packages.adapters.opencode.generate \
-    --plugin plugins/scholar-ip \
-    --out ~/your-project/.opencode
-
-# Or render all three at once:
-make render
+.venv/bin/evidraft-claude-code --plugin plugins/scholar-ip --out /tmp/evidraft-claude
+.venv/bin/evidraft-codex-cli --plugin plugins/scholar-ip --out /tmp/evidraft-codex
+.venv/bin/evidraft-opencode --plugin plugins/scholar-ip --out /tmp/evidraft-opencode
 ```
 
-## Dependencies
+All profiles expose seven workflow entries and copy stages, roles, policies, and
+capabilities as private resources. Host profiles may change invocation syntax and model
+projection; they may not change action contracts, policy results, retention, or project
+output paths.
 
-- Python 3.10+
-- `pyyaml`
-- `jsonschema` (optional — adapters degrade gracefully if missing)
+Every render records owned files in `.evidraft-render-manifest.json`. Subsequent renders
+remove only paths in that manifest or exact known v1-owned paths. Similar user-created
+names are never selected through a wildcard.
 
-No network, no shell-out, no other runtime dependencies.
+The installable implementation is under `src/evidraft/`; adapter modules must remain thin
+and must not acquire a second loader or renderer.
