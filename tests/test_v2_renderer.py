@@ -68,6 +68,17 @@ def test_render_copies_installable_templates_manifest_and_schemas(
     assert (private / "README.md").is_file()
 
 
+@pytest.mark.parametrize("host", list(Host))
+def test_render_copies_native_paper_explanation_resources(tmp_path: Path, host: Host) -> None:
+    out = tmp_path / host.value
+    render_plugin(PLUGIN_ROOT, out, host)
+    private = out / (
+        "skills/.evidraft-private" if host is Host.CODEX else "private"
+    )
+    assert (private / "capabilities/research/paper-explanation/spec.md").is_file()
+    assert (private / "roles/modes/paper-explainer.md").is_file()
+
+
 @pytest.mark.parametrize("missing", ["workflows/patent", "capabilities", "templates"])
 def test_renderer_rejects_incomplete_v2_ir_before_output(
     tmp_path: Path, missing: str

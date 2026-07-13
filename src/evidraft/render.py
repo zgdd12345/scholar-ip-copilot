@@ -140,8 +140,8 @@ def _validate_plugin_source(plugin_root: Path) -> dict[str, Workflow]:
         for role in roles.values()
         for mode in role.get("modes", [])
     }
-    if set(mode_specs) != declared_modes or len(declared_modes) != 15:
-        raise ValueError("v2 source must map exactly 15 role modes to private specs")
+    if set(mode_specs) != declared_modes or len(declared_modes) != 16:
+        raise ValueError("v2 source must map exactly 16 role modes to private specs")
     for mode, spec in mode_specs.items():
         metadata, _body = _split_frontmatter(spec.read_text(encoding="utf-8"))
         if metadata.get("id") != mode:
@@ -157,8 +157,8 @@ def _validate_plugin_source(plugin_root: Path) -> dict[str, Workflow]:
         (capability_root / "index.yaml").read_text(encoding="utf-8")
     )
     capabilities = capability_index.get("capabilities", {})
-    if capability_index.get("format_version") != 2 or len(capabilities) != 25:
-        raise ValueError("v2 source must map exactly 25 private capabilities")
+    if capability_index.get("format_version") != 2 or len(capabilities) != 26:
+        raise ValueError("v2 source must map exactly 26 private capabilities")
     for entry in capabilities.values():
         spec = capability_root / str(entry["spec"])
         if not spec.is_file():

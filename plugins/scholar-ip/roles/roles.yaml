@@ -22,6 +22,7 @@ tiers:
       claim-drafter: modes/claim-drafter.md
       deep-research-orchestrator: modes/deep-research-orchestrator.md
       novelty-critic: modes/novelty-critic.md
+      paper-explainer: modes/paper-explainer.md
       patent-engineer: modes/patent-engineer.md
 roles:
   researcher:
@@ -32,6 +33,7 @@ roles:
       - deep-research-orchestrator
       - literature-reviewer
       - paper-critic
+      - paper-explainer
       - screener
   evidence-reviewer:
     description: Audits citations, evidence records, supersession, and consistency.

@@ -19,6 +19,7 @@ EXPECTED_GROUPS = {
         "brainstorming",
         "deep-literature-review",
         "literature-review",
+        "paper-explanation",
         "patent-search",
         "scholar-search",
         "using-deep-research",
@@ -82,7 +83,7 @@ def _bundle_sha256(root: Path) -> str:
     return digest.hexdigest()
 
 
-def test_capability_index_maps_all_legacy_skills_into_seven_groups() -> None:
+def test_capability_index_maps_all_private_capabilities_into_seven_groups() -> None:
     entries = _capability_index()
     actual: dict[str, set[str]] = {group: set() for group in EXPECTED_GROUPS}
 
@@ -94,7 +95,7 @@ def test_capability_index_maps_all_legacy_skills_into_seven_groups() -> None:
         assert entry["spec"] == f"{entry['group']}/{capability_id}/spec.md"
 
     assert actual == EXPECTED_GROUPS
-    assert len(entries) == 25
+    assert len(entries) == 26
 
 
 def test_private_capability_bundles_match_the_normalized_v2_content_hashes() -> None:
@@ -104,6 +105,20 @@ def test_private_capability_bundles_match_the_normalized_v2_content_hashes() -> 
         private_root = CAPABILITIES / entry["group"] / capability_id
         assert (private_root / "spec.md").is_file()
         assert _bundle_sha256(private_root) == entry["bundle_sha256"]
+
+
+def test_paper_explanation_preserves_the_approved_research_and_collision_contract() -> None:
+    spec = CAPABILITIES / "research" / "paper-explanation" / "spec.md"
+    normalized = " ".join(spec.read_text(encoding="utf-8").split())
+
+    assert (
+        "Search results are candidate discovery only; a canonical page must be opened "
+        "and checked before inclusion."
+    ) in normalized
+    assert (
+        "An existing non-empty output file is never overwritten silently. "
+        "The action offers:"
+    ) in normalized
 
 
 def test_capability_tree_exposes_no_host_discoverable_skill_files() -> None:

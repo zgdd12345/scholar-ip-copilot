@@ -32,6 +32,10 @@ EXPECTED = {
     "novelty-critic": ("patent-reviewer", "deep", 4, 4, 3, 5),
     "patent-engineer": ("patent-reviewer", "deep", 5, 5, 6, 5),
 }
+NATIVE_EXPECTED = {
+    "paper-explainer": ("researcher", "deep", 7, 7, 7, 7),
+}
+ALL_EXPECTED = EXPECTED | NATIVE_EXPECTED
 MODE_SPEC_SHA256 = {
     "brainstormer": "b2f65c91e2b869fcd76514233f8cece9aa6207c1a1f52fe9ac448e796cc4e161",
     "claim-drafter": "0360dd644d24a4c84a1c8b4d9cab1feb07393fce1af053f7ce8b30544f5ba4e3",
@@ -79,10 +83,10 @@ def _mode_index() -> dict[str, tuple[str, str, str]]:
     return indexed
 
 
-def test_roles_map_exactly_fifteen_unique_modes_to_private_specs() -> None:
+def test_roles_map_exactly_sixteen_unique_modes_to_private_specs() -> None:
     index = _mode_index()
 
-    assert set(index) == set(EXPECTED)
+    assert set(index) == set(ALL_EXPECTED)
     assert {role for role, _, _ in index.values()} == {
         "researcher",
         "evidence-reviewer",
@@ -91,7 +95,7 @@ def test_roles_map_exactly_fifteen_unique_modes_to_private_specs() -> None:
         "writing-reviewer",
         "patent-reviewer",
     }
-    for mode, (expected_role, expected_tier, *_counts) in EXPECTED.items():
+    for mode, (expected_role, expected_tier, *_counts) in ALL_EXPECTED.items():
         role, tier, spec = index[mode]
         assert (role, tier) == (expected_role, expected_tier)
         assert spec == f"modes/{mode}.md"
@@ -99,7 +103,7 @@ def test_roles_map_exactly_fifteen_unique_modes_to_private_specs() -> None:
 
 
 def test_mode_specs_preserve_v1_tools_and_semantic_sections() -> None:
-    for mode, (*_mapping, responsibilities, constraints, checklist, tools) in EXPECTED.items():
+    for mode, (*_mapping, responsibilities, constraints, checklist, tools) in ALL_EXPECTED.items():
         metadata, body = _frontmatter(ROLES_ROOT / "modes" / f"{mode}.md")
         assert metadata["id"] == mode
         assert metadata["allowed_tools"]
@@ -175,7 +179,7 @@ def test_renderer_copies_all_mode_specs_privately(tmp_path: Path, host: Host) ->
     )
 
     modes = sorted((private / "roles" / "modes").glob("*.md"))
-    assert {path.stem for path in modes} == set(EXPECTED)
+    assert {path.stem for path in modes} == set(ALL_EXPECTED)
     assert not list((private / "roles").rglob("SKILL.md"))
 
     agents = sorted((out / "agents").glob("*.md")) if (out / "agents").exists() else []
