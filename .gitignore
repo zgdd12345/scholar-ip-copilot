@@ -6,6 +6,7 @@
 .agents/skills/
 .agents/.*.evidraft.lock
 .agents/.*.evidraft-transaction/
+.worktrees/
 .claude-plugin/
 # Python
 __pycache__/
