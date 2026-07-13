@@ -32,6 +32,7 @@ from evidraft.core import (  # noqa: E402
     workflow_preflight,
 )
 from evidraft.cli import main as cli_main  # noqa: E402
+import evidraft  # noqa: E402
 import evidraft.core as core_module  # noqa: E402
 
 
@@ -722,6 +723,44 @@ def test_projectless_note_preflight_preserves_default_workspace_safety(tmp_path:
             target_paths=["private/paper.md"],
         )
     assert yaml.safe_load(project.read_text(encoding="utf-8"))["format_version"] == 2
+
+
+def test_prepare_output_preflights_and_creates_only_the_safe_parent(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert hasattr(core_module, "workflow_prepare_output")
+    assert evidraft.workflow_prepare_output is core_module.workflow_prepare_output
+    target = Path(".evidraft/notes/paper-explanations/paper.md")
+
+    result = core_module.workflow_prepare_output(tmp_path, "research.explain", target)
+
+    assert result.scope == "pass"
+    assert (tmp_path / target.parent).is_dir()
+    assert not (tmp_path / target).exists()
+    assert not (tmp_path / ".evidraft/project.yaml").exists()
+    for unsafe in (".env.local", "../outside.md"):
+        with pytest.raises(PreflightError, match="sensitive|project root"):
+            core_module.workflow_prepare_output(tmp_path, "research.explain", unsafe)
+
+    cli_target = ".evidraft/notes/paper-explanations/cli-paper.md"
+    assert (
+        cli_main(
+            [
+                "--root",
+                str(tmp_path),
+                "workflow",
+                "prepare-output",
+                "research.explain",
+                "--target",
+                cli_target,
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["operation"] == "research.explain"
+    assert payload["scope"] == "pass"
+    assert not (tmp_path / cli_target).exists()
 
 
 def test_resolve_requires_verified_evidence_and_follows_supersedes(tmp_path: Path) -> None:

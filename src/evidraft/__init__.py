@@ -18,6 +18,7 @@ from .core import (
     scope_policy,
     store_snapshot,
     workflow_finalize,
+    workflow_prepare_output,
     workflow_preflight,
 )
 
@@ -37,5 +38,6 @@ __all__ = [
     "scope_policy",
     "store_snapshot",
     "workflow_finalize",
+    "workflow_prepare_output",
     "workflow_preflight",
 ]

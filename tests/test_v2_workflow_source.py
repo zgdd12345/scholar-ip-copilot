@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from fnmatch import fnmatchcase
 from pathlib import Path
 from pathlib import PurePosixPath
 import re
@@ -437,8 +438,17 @@ def test_research_explain_stage_enforces_the_complete_executable_contract() -> N
         "[abstract-only]",
     ):
         assert label in normalized_stage
-    assert stage.index("workflow preflight research.explain") < stage.index("`mkdir -p`")
-    assert stage.index("`mkdir -p`") < stage.index("writes exactly one Markdown note")
+    prepare = (
+        "evidraft workflow prepare-output research.explain "
+        "--target <resolved-output>"
+    )
+    assert prepare in stage
+    assert "mkdir -p" not in stage
+    allowed_tools = _load_yaml(PLUGIN_ROOT / "policies" / "policy.yaml")["policies"][
+        "workspace-safety"
+    ]["tool_access"]["default_allowed_tools"]
+    assert any(fnmatchcase(f"Bash:{prepare}", pattern) for pattern in allowed_tools)
+    assert stage.index(prepare) < stage.index("writes exactly one Markdown note")
     assert "source full text or mandatory external retrieval failed" in normalized_stage
     assert "report the action as incomplete" in normalized_stage
 

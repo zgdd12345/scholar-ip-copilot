@@ -24,12 +24,11 @@ contracts for this stage.
    `reuse` keeps it and stops; `augment` preserves it and selects a unique dated sibling
    (adding a numeric suffix on collision); `overwrite` requires explicit user
    confirmation. Recommend `augment` for refreshed related-work requests.
-5. Run `evidraft workflow preflight research.explain --target <resolved-output>` with the
-   final concrete collision-safe path. Never pass an unresolved placeholder.
-6. After preflight succeeds, create the resolved output's parent directory with
-   `mkdir -p` on `<resolved-output-parent>`. This is the only directory scaffolding
-   allowed; do not create `.evidraft/project.yaml`. Complete this step before the final
-   write.
+5. Run `evidraft workflow prepare-output research.explain --target <resolved-output>`
+   with the final concrete collision-safe path. Never pass an unresolved placeholder.
+   This deterministic command applies workspace preflight to that one target and creates
+   only its confined parent directory; it does not create the output file or
+   `.evidraft/project.yaml`. Complete it before the final write.
 
 ## Phase 2: Map the source paper
 

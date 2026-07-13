@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
+from fnmatch import fnmatchcase
 from pathlib import Path
 
 import pytest
@@ -157,9 +158,41 @@ def test_claude_agents_union_only_their_registered_mode_tools(tmp_path: Path) ->
     assert researcher["tools"][: len(defaults)] == defaults
     assert researcher["tools"][-2:] == ["WebSearch", "WebFetch"]
     assert len(researcher["tools"]) == len(set(researcher["tools"]))
-    assert not set(workspace_safety["forbidden_tool_patterns"]) & set(researcher["tools"])
+    assert not any(
+        fnmatchcase(tool, pattern)
+        for tool in researcher["tools"]
+        for pattern in workspace_safety["forbidden_tool_patterns"]
+    )
     assert "WebSearch" not in experiment_reviewer["tools"]
     assert "WebFetch" not in experiment_reviewer["tools"]
+
+
+def test_renderer_validates_mode_tools_and_filters_forbidden_globs(tmp_path: Path) -> None:
+    plugin = tmp_path / "plugin"
+    shutil.copytree(PLUGIN_ROOT, plugin)
+    mode = plugin / "roles" / "modes" / "paper-explainer.md"
+    text = mode.read_text(encoding="utf-8")
+    text = text.replace(
+        "allowed_tools: [Read, Glob, Grep, Write, Edit, WebSearch, WebFetch]",
+        "allowed_tools: [Read, Glob, Grep, Write, Edit, WebSearch, WebFetch, 'Bash:sudo now']",
+    )
+    mode.write_text(text, encoding="utf-8")
+
+    out = tmp_path / "claude"
+    render_plugin(plugin, out, Host.CLAUDE)
+    researcher = yaml.safe_load(
+        (out / "agents" / "researcher.md").read_text().split("---", 2)[1]
+    )
+    assert "Bash:sudo now" not in researcher["tools"]
+
+    text = mode.read_text(encoding="utf-8")
+    text = text.replace(
+        "allowed_tools: [Read, Glob, Grep, Write, Edit, WebSearch, WebFetch, 'Bash:sudo now']",
+        "allowed_tools: WebSearch",
+    )
+    mode.write_text(text, encoding="utf-8")
+    with pytest.raises(ValueError, match="allowed_tools.*list"):
+        render_plugin(plugin, tmp_path / "invalid", Host.CLAUDE)
 
 
 def test_claude_router_projects_each_action_tier_to_dispatch_model(tmp_path: Path) -> None:

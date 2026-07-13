@@ -27,6 +27,7 @@ policies:
         - 'Bash:ls*'
         - 'Bash:cat*'
         - 'Bash:latexmk*'
+        - 'Bash:evidraft workflow prepare-output*'
       forbidden_tool_patterns:
         - 'Bash:rm -rf*'
         - 'Bash:sudo*'

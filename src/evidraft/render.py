@@ -147,6 +147,13 @@ def _validate_plugin_source(plugin_root: Path) -> dict[str, Workflow]:
         metadata, _body = _split_frontmatter(spec.read_text(encoding="utf-8"))
         if metadata.get("id") != mode:
             raise ValueError(f"role mode spec id mismatch: {spec}")
+        allowed_tools = metadata.get("allowed_tools")
+        if (
+            not isinstance(allowed_tools, list)
+            or not allowed_tools
+            or not all(isinstance(tool, str) and tool for tool in allowed_tools)
+        ):
+            raise ValueError(f"role mode allowed_tools must be a non-empty list[str]: {spec}")
     policy_path = plugin_root / "policies" / "policy.yaml"
     policy = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
     if not isinstance(policy, dict) or not isinstance(policy.get("policies"), dict):

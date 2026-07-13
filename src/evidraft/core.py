@@ -1009,6 +1009,21 @@ def workflow_preflight(
     return PreflightResult(operation=operation, scope=policy, warnings=tuple(warnings))
 
 
+def workflow_prepare_output(
+    root: Path | str,
+    operation: str,
+    target_path: Path | str,
+) -> PreflightResult:
+    """Preflight one output and create only its confined parent directory."""
+    root = Path(root).resolve()
+    result = workflow_preflight(root, operation, target_paths=[target_path])
+    target = _resolve_within(root, target_path, label="target path")
+    if target == root:
+        raise PreflightError("target path must name an output inside the project root")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    return result
+
+
 def _latest_scope_file(scope_dir: Path) -> Path | None:
     files = list(scope_dir.glob("*.md")) if scope_dir.is_dir() else []
     if not files:

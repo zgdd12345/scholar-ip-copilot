@@ -13,6 +13,7 @@ from .core import (
     resolve_evidence,
     store_snapshot,
     workflow_finalize,
+    workflow_prepare_output,
     workflow_preflight,
 )
 from .install import sync_codex_skills
@@ -32,6 +33,9 @@ def build_parser() -> argparse.ArgumentParser:
     preflight.add_argument("--read-target", action="append", default=[])
     preflight.add_argument("--target", action="append", default=[])
     preflight.add_argument("--evidence-id", action="append", default=[])
+    prepare_output = workflow_commands.add_parser("prepare-output")
+    prepare_output.add_argument("operation")
+    prepare_output.add_argument("--target", required=True)
     finalize = workflow_commands.add_parser("finalize")
     finalize.add_argument("--directory", required=True)
     finalize.add_argument("--pattern", default="*")
@@ -75,6 +79,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             target_paths=args.target,
             evidence_ids=args.evidence_id,
         )
+        print(
+            json.dumps(
+                {"operation": result.operation, "scope": result.scope, "warnings": result.warnings}
+            )
+        )
+    elif args.command == "workflow" and args.workflow_command == "prepare-output":
+        result = workflow_prepare_output(args.root, args.operation, args.target)
         print(
             json.dumps(
                 {"operation": result.operation, "scope": result.scope, "warnings": result.warnings}
