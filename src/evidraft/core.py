@@ -24,6 +24,9 @@ import yaml
 FORMAT_VERSION = 2
 PUBLISH_OPERATIONS = frozenset({"paper.draft", "patent.claims", "polish.run"})
 WARN_SCOPE_OPERATIONS = frozenset({"paper.idea", "patent.scout", "research.deep"})
+_PROJECTLESS_NOTE_OPERATIONS = frozenset(
+    {"research.reading-list", "research.explain"}
+)
 DEFAULT_SENSITIVE_PATTERNS = (
     ".env",
     "**/.env*",
@@ -923,11 +926,14 @@ def workflow_preflight(
 ) -> PreflightResult:
     """Enforce executable workspace, scope, and evidence-integrity policies."""
     root = Path(root).resolve()
-    try:
-        _ensure_v2(root)
-    except (EvidenceError, MigrationError) as exc:
-        raise PreflightError(f"project migration failed before preflight: {exc}") from exc
-    project = _load_project(_internal_path(root, "project.yaml", PreflightError))
+    project_path = _internal_path(root, "project.yaml", PreflightError)
+    project: Mapping[str, object] = {}
+    if project_path.is_file() or operation not in _PROJECTLESS_NOTE_OPERATIONS:
+        try:
+            _ensure_v2(root)
+        except (EvidenceError, MigrationError) as exc:
+            raise PreflightError(f"project migration failed before preflight: {exc}") from exc
+        project = _load_project(project_path)
     safety = project.get("safety", {})
     custom_patterns = safety.get("forbidden_paths", []) if isinstance(safety, dict) else []
     if not isinstance(custom_patterns, list) or not all(

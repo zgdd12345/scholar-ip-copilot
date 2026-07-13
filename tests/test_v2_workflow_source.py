@@ -386,3 +386,58 @@ def test_research_explain_declares_the_native_paper_note_contract() -> None:
         {"id": "researcher", "mode": "literature-reviewer", "tier": "standard"},
     ]
     assert action["retention"] == {}
+
+
+def test_research_explain_stage_enforces_the_complete_executable_contract() -> None:
+    stage = (
+        WORKFLOW_ROOT / "research" / "stages" / "explain.md"
+    ).read_text(encoding="utf-8")
+    normalized_stage = " ".join(stage.split())
+    assert "# workflow:research.explain" in stage
+    for heading in (
+        "## Phase 1: Resolve source and output",
+        "## Phase 2: Map the source paper",
+        "## Phase 3: Run bounded analysis work streams",
+        "## Phase 4: Synthesize the academic note",
+        "## Phase 5: Validate and report",
+        "## Constraints",
+        "## Done criteria",
+    ):
+        assert heading in stage
+    for heading in (
+        "## 1. Paper identity and one-sentence takeaway",
+        "## 2. Research problem and background",
+        "## 3. Core contributions",
+        "## 4. Method walkthrough",
+        "## 5. Key equations and symbol-by-symbol explanations",
+        "## 6. Experimental setup and results",
+        "## 7. Limitations, failure modes, and conclusion boundaries",
+        "## 8. Reproduction notes",
+        "## 9. Similar methods",
+        "## 10. Subsequent improvements and latest related methods",
+        "## 11. Learning-check questions",
+        "## 12. Sources and verification record",
+    ):
+        assert heading in stage
+    for collision_choice in ("`reuse`", "`augment`", "`overwrite`"):
+        assert collision_choice in stage
+    assert "Only `paper-explainer` may write the final note" in normalized_stage
+    assert "neither worker may race" in normalized_stage
+    assert "Mandatory external research cannot be disabled" in normalized_stage
+    assert "three to five verified similar" in normalized_stage
+    assert "three to five verified subsequent" in normalized_stage
+    for label in (
+        "[Paper section 3.2]",
+        "[Equation 4]",
+        "[Figure 2]",
+        "[Table 1]",
+        "[External: citation]",
+        "[External: official-code]",
+        "[Interpretation]",
+        "[abstract-only]",
+    ):
+        assert label in normalized_stage
+    assert stage.index("workflow preflight research.explain") < stage.index("`mkdir -p`")
+    assert stage.index("`mkdir -p`") < stage.index("writes exactly one Markdown note")
+    assert "source full text or mandatory external retrieval failed" in normalized_stage
+    assert "report the action as incomplete" in normalized_stage

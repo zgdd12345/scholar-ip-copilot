@@ -26,6 +26,10 @@ contracts for this stage.
    confirmation. Recommend `augment` for refreshed related-work requests.
 5. Run `evidraft workflow preflight research.explain --target <resolved-output>` with the
    final concrete collision-safe path. Never pass an unresolved placeholder.
+6. After preflight succeeds, create the resolved output's parent directory with
+   `mkdir -p` on `<resolved-output-parent>`. This is the only directory scaffolding
+   allowed; do not create `.evidraft/project.yaml`. Complete this step before the final
+   write.
 
 ## Phase 2: Map the source paper
 

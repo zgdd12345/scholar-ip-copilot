@@ -689,6 +689,41 @@ def test_preflight_migrates_v1_before_the_action_can_write(tmp_path: Path) -> No
     assert yaml.safe_load(project.read_text(encoding="utf-8"))["format_version"] == 2
 
 
+def test_projectless_note_preflight_preserves_default_workspace_safety(tmp_path: Path) -> None:
+    explanation = workflow_preflight(
+        tmp_path,
+        "research.explain",
+        target_paths=[".evidraft/notes/paper-explanations/paper.md"],
+    )
+    reading_list = workflow_preflight(
+        tmp_path,
+        "research.reading-list",
+        target_paths=[".evidraft/notes/topic-2026-07-13.md"],
+    )
+
+    assert explanation.scope == reading_list.scope == "pass"
+    assert not (tmp_path / ".evidraft/project.yaml").exists()
+    with pytest.raises(PreflightError, match="sensitive"):
+        workflow_preflight(tmp_path, "research.explain", target_paths=[".env.local"])
+    with pytest.raises(PreflightError, match="project root"):
+        workflow_preflight(tmp_path, "research.explain", target_paths=["../outside.md"])
+    with pytest.raises(PreflightError, match="project migration"):
+        workflow_preflight(tmp_path, "paper.lit", target_paths=["notes/lit.md"])
+
+    descriptor_root = tmp_path / "descriptor-project"
+    project = _write_project(
+        descriptor_root,
+        _project_doc(safety={"forbidden_paths": ["private/**"]}),
+    )
+    with pytest.raises(PreflightError, match="sensitive"):
+        workflow_preflight(
+            descriptor_root,
+            "research.explain",
+            target_paths=["private/paper.md"],
+        )
+    assert yaml.safe_load(project.read_text(encoding="utf-8"))["format_version"] == 2
+
+
 def test_resolve_requires_verified_evidence_and_follows_supersedes(tmp_path: Path) -> None:
     _write_project(tmp_path, _project_doc(format_version=2))
     first = append_evidence(tmp_path, _evidence_record(verified=False))
