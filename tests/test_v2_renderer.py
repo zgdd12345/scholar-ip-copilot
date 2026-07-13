@@ -29,11 +29,11 @@ def _public_entries(root: Path, host: Host) -> set[str]:
     }
 
 
-def test_load_workflows_exposes_seven_entries_and_twenty_two_actions() -> None:
+def test_load_workflows_exposes_seven_entries_and_twenty_three_actions() -> None:
     workflows = load_workflows(PLUGIN_ROOT)
 
     assert set(workflows) == PUBLIC_IDS
-    assert sum(len(workflow.actions) for workflow in workflows.values()) == 22
+    assert sum(len(workflow.actions) for workflow in workflows.values()) == 23
 
 
 def test_three_host_profiles_declare_only_host_specific_projection() -> None:

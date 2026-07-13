@@ -46,6 +46,7 @@ EXPECTED_OPERATIONS = (
 PUBLIC_WORKFLOWS = frozenset(
     {"using", "scope", "research", "paper", "patent", "polish", "xreview"}
 )
+NATIVE_ACTIONS_BY_WORKFLOW = {"research": {"explain"}}
 CONTRACT_FIELDS = (
     "legacy_id",
     "inputs",
@@ -258,7 +259,10 @@ def test_v2_workflow_exposes_exact_action_set(workflow: str) -> None:
     assert document.get("id") == workflow
     actions = document.get("actions")
     assert isinstance(actions, dict), f"{workflow}.actions must be a mapping"
-    assert set(actions) == _expected_actions_by_workflow()[workflow]
+    assert set(actions) == (
+        _expected_actions_by_workflow()[workflow]
+        | NATIVE_ACTIONS_BY_WORKFLOW.get(workflow, set())
+    )
 
 
 @pytest.mark.parametrize("expected", MAPPINGS, ids=_case_id)

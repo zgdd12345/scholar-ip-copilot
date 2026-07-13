@@ -48,6 +48,11 @@ ROUTES = {
     "polish": {"run": "polish"},
     "xreview": {"run": "xreview"},
 }
+NATIVE_ACTIONS = {"research": {"explain": "paper-explain"}}
+
+
+def _all_actions(workflow_id: str) -> dict[str, str]:
+    return ROUTES[workflow_id] | NATIVE_ACTIONS.get(workflow_id, {})
 
 ROLE_IDS = {
     "researcher",
@@ -183,13 +188,15 @@ def test_seven_workflows_validate_and_cover_each_legacy_command_once() -> None:
         workflow = _load_yaml(WORKFLOW_ROOT / workflow_id / "workflow.yaml")
         jsonschema.validate(workflow, schema)
         assert workflow["id"] == workflow_id
-        assert set(workflow["actions"]) == set(expected_actions)
+        assert set(workflow["actions"]) == set(_all_actions(workflow_id))
 
-        for action_id, legacy_id in expected_actions.items():
+        for action_id, operation_id in _all_actions(workflow_id).items():
             action = workflow["actions"][action_id]
             assert set(action) == ACTION_KEYS
-            assert action["legacy_id"] == legacy_id
+            assert action["legacy_id"] == operation_id
             assert action["procedure"] == f"stages/{action_id}.md"
+
+        for action_id, legacy_id in expected_actions.items():
             seen.append(legacy_id)
 
     expected_legacy = {legacy_id for actions in ROUTES.values() for legacy_id in actions.values()}
@@ -222,17 +229,17 @@ def test_inline_local_spec_paths_resolve_from_the_stage_directory() -> None:
                 f"{stage.relative_to(REPO_ROOT)} has unresolved inline spec path "
                 f"{relative}"
             )
-    assert len(paths) == 54
+    assert len(paths) == 56
 
 
 def test_router_skills_are_short_and_load_only_the_selected_stage() -> None:
-    for workflow_id, actions in ROUTES.items():
+    for workflow_id in ROUTES:
         skill = (WORKFLOW_ROOT / workflow_id / "SKILL.md").read_text(encoding="utf-8")
         assert len(skill.split()) <= 250
         assert "workflow.yaml" in skill
         assert "selected action" in skill.lower()
         assert "only" in skill.lower()
-        for action_id in actions:
+        for action_id in _all_actions(workflow_id):
             assert f"`{action_id}`" in skill
             assert f"stages/{action_id}.md" in skill
 
@@ -354,10 +361,28 @@ def test_actions_reference_only_declared_roles_policies_and_tiers() -> None:
 
     for workflow_id in ROUTES:
         workflow = _load_yaml(WORKFLOW_ROOT / workflow_id / "workflow.yaml")
-        for action in workflow["actions"].values():
+        for action_id in _all_actions(workflow_id):
+            action = workflow["actions"][action_id]
             assert set(action["policies"]) <= POLICY_IDS
             for assignment in action["roles"]:
                 role_id, tier = MODE_ASSIGNMENTS[assignment["mode"]]
                 assert assignment["id"] == role_id
                 assert assignment["tier"] == tier
                 assert assignment["mode"] in roles[role_id]["modes"]
+
+
+def test_research_explain_declares_the_native_paper_note_contract() -> None:
+    action = _load_yaml(WORKFLOW_ROOT / "research" / "workflow.yaml")["actions"]["explain"]
+    assert action["legacy_id"] == "paper-explain"
+    assert action["defaults"] == {"mode": "graduate"}
+    assert [item["name"] for item in action["inputs"]] == ["source", "mode", "out"]
+    assert action["inputs"][1]["values"] == ["beginner", "graduate", "reviewer"]
+    assert action["outputs"] == [
+        {"path": ".evidraft/notes/paper-explanations/<paper-slug>.md"}
+    ]
+    assert action["policies"] == []
+    assert action["roles"] == [
+        {"id": "researcher", "mode": "paper-explainer", "tier": "deep"},
+        {"id": "researcher", "mode": "literature-reviewer", "tier": "standard"},
+    ]
+    assert action["retention"] == {}

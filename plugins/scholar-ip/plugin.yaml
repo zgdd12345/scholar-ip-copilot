@@ -40,7 +40,7 @@ workflows:
   - id: scope
     actions: []
   - id: research
-    actions: [guide, reading-list, deep]
+    actions: [guide, reading-list, explain, deep]
   - id: paper
     actions: [init, lit, idea, code-audit, experiment, review, draft, check, venue]
   - id: patent

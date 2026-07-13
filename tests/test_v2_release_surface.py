@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_WORKFLOWS = {
     "using": [],
     "scope": [],
-    "research": ["guide", "reading-list", "deep"],
+    "research": ["guide", "reading-list", "explain", "deep"],
     "paper": [
         "init",
         "lit",

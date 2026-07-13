@@ -22,7 +22,7 @@ _WORKFLOW_SCHEMA = Path(__file__).resolve().parent / "schemas" / "workflow.schem
 EXPECTED_ACTIONS = {
     "using": {"run"},
     "scope": {"run"},
-    "research": {"guide", "reading-list", "deep"},
+    "research": {"guide", "reading-list", "explain", "deep"},
     "paper": {"init", "lit", "idea", "code-audit", "experiment", "review", "draft", "check", "venue"},
     "patent": {"init", "scout", "prior-art", "disclosure", "claims", "review"},
     "polish": {"run"},

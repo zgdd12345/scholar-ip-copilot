@@ -44,6 +44,36 @@ actions:
       mode: literature-reviewer
       tier: standard
     retention: {}
+  explain:
+    legacy_id: paper-explain
+    procedure: stages/explain.md
+    defaults: {mode: graduate}
+    inputs:
+    - name: source
+      type: string
+      optional: false
+      description: Local PDF path, arXiv identifier or URL, DOI, or paper URL.
+    - name: mode
+      type: enum
+      values: [beginner, graduate, reviewer]
+      optional: true
+      default: graduate
+      description: Explanation emphasis; every mode retains the complete note schema.
+    - name: out
+      type: path
+      optional: true
+      description: Override .evidraft/notes/paper-explanations/<paper-slug>.md.
+    outputs:
+    - path: .evidraft/notes/paper-explanations/<paper-slug>.md
+    policies: []
+    roles:
+    - id: researcher
+      mode: paper-explainer
+      tier: deep
+    - id: researcher
+      mode: literature-reviewer
+      tier: standard
+    retention: {}
   deep:
     legacy_id: deepresearch
     procedure: stages/deep.md

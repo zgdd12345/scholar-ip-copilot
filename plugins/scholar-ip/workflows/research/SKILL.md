@@ -12,8 +12,8 @@ Run deterministic workflow preflight before writes and finalize after the stage 
 
 - `guide`: load `stages/guide.md`.
 - `reading-list`: load `stages/reading-list.md`.
+- `explain`: load `stages/explain.md`.
 - `deep`: load `stages/deep.md`.
 
 If no action is supplied and this workflow has multiple actions, show the valid action
 names and stop. For a single-action workflow, default to `run`.
-
