@@ -6,6 +6,7 @@
 .agents/skills/
 .agents/.*.evidraft.lock
 .agents/.*.evidraft-transaction/
+.superpowers/
 .worktrees/
 .claude-plugin/
 # Python
