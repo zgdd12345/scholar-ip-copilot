@@ -192,7 +192,8 @@ identify a single identifiable paper rather than a topic or research direction.
 - `workflow:using.run` remains read-only: recommend and confirm before invoking.
 - If the request is ambiguous between papers, methods, projects, or research
   directions, resolve or ask for the specific paper first.
-- Route an entire research direction to `workflow:research.deep`, not explain.
+- Route an entire research direction to `workflow:research.deep`, not
+  `workflow:research.explain`.
 
 1. **Read intent first.** If the user's request involves literature work (调研 / 综述 / "look up X" / "find papers on Y") **without** explicit mention of a paper section, patent, venue, or submission, ask ONE intent-clarifying question before any recommendation:
 

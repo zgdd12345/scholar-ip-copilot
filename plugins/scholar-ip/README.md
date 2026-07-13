@@ -22,8 +22,12 @@ Invocation syntax is host-specific:
 ```text
 Claude Code  /scholar:paper draft
 Codex        $scholar-paper draft
+Codex        $scholar-research explain papers/attention-is-all-you-need.pdf --mode graduate
 OpenCode     /scholar-paper draft
 ```
+
+The `research explain` action writes its academic note to
+`.evidraft/notes/paper-explanations/<paper-slug>.md`.
 
 The removed v1 command names are not compatibility aliases. Use the workflow/action
 form above.
