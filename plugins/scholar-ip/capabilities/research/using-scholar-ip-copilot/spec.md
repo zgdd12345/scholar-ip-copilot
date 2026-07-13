@@ -89,11 +89,12 @@ The plugin **refuses** to make strong claims without citable evidence, and refus
 | `workflow:using.run` | This entry — orientation. Read-only. |
 | `workflow:research.guide` | Orientation for the heavy 6-stage `workflow:research.deep` workflow: the prereqs (`paper-init` + `brainstorming`) that unblock `policy:scope`, the scope-stub fast-path, the breadth / depth budget knobs, the 6-stage artefact map, and the four failure modes. Read-only. |
 
-### Lite (1) — personal literature research, no project required
+### Lite (2) — personal literature research, no project required
 
 | Command | What it does |
 |---|---|
 | `workflow:research.reading-list` | Single markdown reading list at `.evidraft/notes/<slug>-<date>.md`. No BibTeX, no `evidence.jsonl`, no audit chain. For personal reference reading. Every entry is `WebFetch`-verified; failed verifications are rejected, not silently downgraded. |
+| `workflow:research.explain` | Full-text explanation of a single paper, with mandatory verified related methods and one academic Markdown note at `.evidraft/notes/paper-explanations/<paper-slug>.md`. No project scaffold required. |
 
 ### Paper (9) — arXiv-neutral draft, venue chosen at submission time
 
@@ -175,6 +176,23 @@ workflow:patent.init
 The deterministic kernel evaluates policies in that order during preflight and finalize. `capability:latex-build` is an action procedure used by paper checks and venue conversion, not a fourth policy. Host hooks may repeat these checks as an extra defence, but the shared policy result is authoritative across hosts.
 
 ## What to do on first interaction
+
+### Single-paper explanation routing
+
+Apply this branch before the general literature-intent question below. These cases
+identify a single identifiable paper rather than a topic or research direction.
+
+- If the user supplies a local PDF, arXiv identifier/URL, DOI, or paper URL and
+  asks to explain, analyse, close-read, interpret equations, critique, or
+  produce an academic reading note, recommend `workflow:research.explain`.
+- If the user names one uniquely identifiable paper with the same intent,
+  recommend `workflow:research.explain`.
+- Recognise equivalent Chinese intent semantically, including 解释论文, 讲解论文,
+  精读, 公式分析, and 学术阅读笔记.
+- `workflow:using.run` remains read-only: recommend and confirm before invoking.
+- If the request is ambiguous between papers, methods, projects, or research
+  directions, resolve or ask for the specific paper first.
+- Route an entire research direction to `workflow:research.deep`, not explain.
 
 1. **Read intent first.** If the user's request involves literature work (调研 / 综述 / "look up X" / "find papers on Y") **without** explicit mention of a paper section, patent, venue, or submission, ask ONE intent-clarifying question before any recommendation:
 

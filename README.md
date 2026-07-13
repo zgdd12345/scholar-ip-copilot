@@ -28,6 +28,7 @@ Examples:
 
 ```text
 /scholar:research deep "retrieval augmented code generation"
+$scholar-research explain papers/attention-is-all-you-need.pdf --mode graduate
 $scholar-paper draft
 /scholar-patent claims
 ```
@@ -38,7 +39,7 @@ The complete action map is:
 |---|---|
 | `using` | direct |
 | `scope` | direct |
-| `research` | `guide`, `reading-list`, `deep` |
+| `research` | `guide`, `reading-list`, `explain`, `deep` |
 | `paper` | `init`, `lit`, `idea`, `code-audit`, `experiment`, `review`, `draft`, `check`, `venue` |
 | `patent` | `init`, `scout`, `prior-art`, `disclosure`, `claims`, `review` |
 | `polish` | direct |
@@ -72,6 +73,7 @@ Important outputs include:
 | Action | Primary outputs |
 |---|---|
 | `research reading-list` | `.evidraft/notes/<slug>-<date>.md` |
+| `research explain` | `.evidraft/notes/paper-explanations/<paper-slug>.md` |
 | `research deep` | `.evidraft/literature/{plan.yaml,candidates.jsonl,screening_log.csv,clusters.yaml,evidence_map.json,related_work.draft.md,citation_audit.json}` |
 | `paper init` | `.evidraft/project.yaml`, evidence store, bibliography, `manuscript/main.tex` |
 | `paper code-audit` | `.evidraft/code/{repo_summary.md,method_to_code.md,paper_code_audit.md}` |

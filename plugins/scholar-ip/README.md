@@ -11,7 +11,7 @@ Exactly seven workflows are public:
 |---|---|
 | `using` | direct entry |
 | `scope` | direct entry |
-| `research` | `guide`, `reading-list`, `deep` |
+| `research` | `guide`, `reading-list`, `explain`, `deep` |
 | `paper` | `init`, `lit`, `idea`, `code-audit`, `experiment`, `review`, `draft`, `check`, `venue` |
 | `patent` | `init`, `scout`, `prior-art`, `disclosure`, `claims`, `review` |
 | `polish` | direct entry |
