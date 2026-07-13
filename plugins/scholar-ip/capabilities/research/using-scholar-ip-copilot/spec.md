@@ -13,7 +13,7 @@ triggers:
   - "user asks 'what can this plugin do?' or 'how do I use this?'"
   - "before any workflow:<id> is invoked for the first time in a session"
 provides:
-  - "complete command map (22 commands across meta / lite / paper / patent / phase-2)"
+  - "complete command map (23 current actions: 22 frozen v1 mappings plus one native v2 action)"
   - "workflow ordering for paper and patent phases"
   - "evidence-grounded discipline overview"
   - "gating-policy reference"

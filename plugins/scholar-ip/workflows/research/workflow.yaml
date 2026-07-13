@@ -1,5 +1,5 @@
 id: research
-description: Route lightweight guidance, reading lists, and deep literature research.
+description: Route lightweight guidance, reading lists, single-paper explanation, and deep literature research.
 actions:
   guide:
     legacy_id: using-deep-research

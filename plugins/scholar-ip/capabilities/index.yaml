@@ -7,7 +7,7 @@ capabilities:
   patent-search: {group: research, spec: research/patent-search/spec.md, bundle_sha256: 02816d4604c05fc95cf26fd2d2b64eba6a580dd089ffaa19d11be3f20e2ebaf8}
   scholar-search: {group: research, spec: research/scholar-search/spec.md, bundle_sha256: f087d3d19313ef1a3e6d1cc073d507e8c68199c1c5204e4b1394a65780106a32}
   using-deep-research: {group: research, spec: research/using-deep-research/spec.md, bundle_sha256: 499e7d03aa2d1abf5bf2c59d960ce26d1603b4182c9222caa090e6829913c918}
-  using-scholar-ip-copilot: {group: research, spec: research/using-scholar-ip-copilot/spec.md, bundle_sha256: 380dc4c9b63f9956d7bf3c352105dd0a042cf53656cc1fd534169d15d1d89503}
+  using-scholar-ip-copilot: {group: research, spec: research/using-scholar-ip-copilot/spec.md, bundle_sha256: 23b5bf7b34a69790de089d859238cab6592233b007acf52a1b44fc9ca3761068}
   bib-audit: {group: evidence, spec: evidence/bib-audit/spec.md, bundle_sha256: ac165db7f25c4ab6873c4a14f8b9bbd3cbc88e22b5c5765392dff0c3c03334bd}
   bib-manager: {group: evidence, spec: evidence/bib-manager/spec.md, bundle_sha256: 2515913e860a70d4e3d27ffc62b304bda53bcf64af66ca4d66ecb3eabe8fddbd}
   evidence-check: {group: evidence, spec: evidence/evidence-check/spec.md, bundle_sha256: dc50a6ec7c1c82595155b82e8f42a3f21c3c73beecc51ea0a15a8e1f76e18b6f}

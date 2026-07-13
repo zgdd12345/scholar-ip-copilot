@@ -42,8 +42,9 @@ location and distinguish author statements from explainer interpretation.
 
 ## Phase 3: Run bounded analysis work streams
 
-1. Resolve and share the verified paper identity, full-text location, selected mode,
-   concrete output path, and collision decision before dispatch.
+1. Resolve the verified paper identity, full-text location, selected mode, concrete
+   output path, collision decision, and bounded external query scope before dispatch.
+   Share the concrete output path and collision decision only with `paper-explainer`.
 2. Assign full-text source mapping, equation analysis, and final synthesis to the
    `paper-explainer` deep role.
 3. Assign mandatory related-work retrieval to the `literature-reviewer` standard role.
@@ -57,6 +58,22 @@ location and distinguish author statements from explainer interpretation.
 5. Open a canonical source for every included external candidate and verify title and
    authorship. Reject candidates that cannot be verified. Retain each query, provider,
    cutoff date, rejection reason, and the evidence scope of any abstract-only result.
+
+### Literature-reviewer dispatch contract
+
+The `literature-reviewer` dispatch input MUST contain only the verified source metadata
+and bounded query scope. It MUST NOT contain `out`, `<resolved-output>`, the resolved
+final output path, the collision decision, or any `.evidraft/notes/` path. This keeps the
+legacy lite-mode path condition from granting output-file ownership to the external
+research work stream.
+
+For this dispatch, `literature-reviewer` is return-only: it must not create or modify any
+file. It returns only a structured verified evidence payload to `paper-explainer` with
+the queries, providers, execution-date cutoff, rejected candidates and reasons, and each
+included candidate's title, authors, year, canonical link, relationship to the source,
+concrete methodological difference, evidence label, and available evidence scope.
+`paper-explainer` is the sole final-note writer and the only role that receives the
+resolved output path.
 
 ## Phase 4: Synthesize the academic note
 

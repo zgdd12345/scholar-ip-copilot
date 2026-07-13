@@ -139,6 +139,29 @@ def test_rendered_agents_use_host_frontmatter(tmp_path: Path, host: Host) -> Non
         assert metadata["permission"]["bash"]["sudo*"] == "deny"
 
 
+def test_claude_agents_union_only_their_registered_mode_tools(tmp_path: Path) -> None:
+    out = tmp_path / "claude"
+    render_plugin(PLUGIN_ROOT, out, Host.CLAUDE)
+
+    researcher = yaml.safe_load(
+        (out / "agents" / "researcher.md").read_text().split("---", 2)[1]
+    )
+    experiment_reviewer = yaml.safe_load(
+        (out / "agents" / "experiment-reviewer.md").read_text().split("---", 2)[1]
+    )
+    workspace_safety = yaml.safe_load(
+        (PLUGIN_ROOT / "policies" / "policy.yaml").read_text()
+    )["policies"]["workspace-safety"]["tool_access"]
+
+    defaults = workspace_safety["default_allowed_tools"]
+    assert researcher["tools"][: len(defaults)] == defaults
+    assert researcher["tools"][-2:] == ["WebSearch", "WebFetch"]
+    assert len(researcher["tools"]) == len(set(researcher["tools"]))
+    assert not set(workspace_safety["forbidden_tool_patterns"]) & set(researcher["tools"])
+    assert "WebSearch" not in experiment_reviewer["tools"]
+    assert "WebFetch" not in experiment_reviewer["tools"]
+
+
 def test_claude_router_projects_each_action_tier_to_dispatch_model(tmp_path: Path) -> None:
     out = tmp_path / "claude"
     render_plugin(PLUGIN_ROOT, out, Host.CLAUDE)

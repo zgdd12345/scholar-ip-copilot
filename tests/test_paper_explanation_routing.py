@@ -1,6 +1,8 @@
 import re
 from pathlib import Path
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN = ROOT / "plugins" / "scholar-ip"
@@ -58,3 +60,23 @@ def test_public_docs_list_explain_and_its_note_output() -> None:
         assert "`guide`, `reading-list`, `explain`, `deep`" in text
         assert command in text
         assert output in text
+
+
+def test_using_and_research_metadata_describe_the_native_explain_action() -> None:
+    using = PLUGIN / "capabilities/research/using-scholar-ip-copilot/spec.md"
+    using_metadata = yaml.safe_load(using.read_text(encoding="utf-8").split("---", 2)[1])
+    command_map = next(
+        item for item in using_metadata["provides"] if "command map" in item
+    )
+    research_workflow = yaml.safe_load(
+        (PLUGIN / "workflows/research/workflow.yaml").read_text(encoding="utf-8")
+    )
+    research_router = PLUGIN / "workflows/research/SKILL.md"
+    router_metadata = yaml.safe_load(
+        research_router.read_text(encoding="utf-8").split("---", 2)[1]
+    )
+
+    assert "23 current actions" in command_map
+    assert "22 frozen v1 mappings" in command_map
+    assert "single-paper explanation" in research_workflow["description"]
+    assert "single-paper explanation" in router_metadata["description"]

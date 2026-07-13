@@ -1,6 +1,6 @@
 ---
 name: scholar-research
-description: Route lightweight guidance, reading lists, and deep literature research.
+description: Route lightweight guidance, reading lists, single-paper explanation, and deep literature research.
 ---
 
 # Research workflow router

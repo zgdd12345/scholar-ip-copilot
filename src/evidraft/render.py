@@ -8,6 +8,7 @@ import shutil
 import tempfile
 from dataclasses import dataclass
 from enum import Enum
+from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any
 
@@ -257,6 +258,7 @@ def _role_body(
     role: dict[str, Any],
     profile: HostProfile,
     workspace_safety: dict[str, Any],
+    mode_specs: dict[str, Path],
 ) -> str:
     modes = ", ".join(f"`{mode}`" for mode in role.get("modes", []))
     body = (
@@ -274,7 +276,21 @@ def _role_body(
     if profile.host is Host.CLAUDE:
         extra["name"] = role_id
         extra["model"] = "inherit"
-        extra["tools"] = list(workspace_safety["tool_access"]["default_allowed_tools"])
+        tool_access = workspace_safety["tool_access"]
+        forbidden = tool_access["forbidden_tool_patterns"]
+        tools = list(tool_access["default_allowed_tools"])
+        for mode in role.get("modes", []):
+            metadata, _body = _split_frontmatter(
+                mode_specs[str(mode)].read_text(encoding="utf-8")
+            )
+            tools.extend(metadata.get("allowed_tools", []))
+        extra["tools"] = list(
+            dict.fromkeys(
+                tool
+                for tool in tools
+                if not any(fnmatchcase(str(tool), pattern) for pattern in forbidden)
+            )
+        )
     elif profile.host is Host.OPENCODE:
         extra["mode"] = "subagent"
         extra["permission"] = {"bash": {"rm -rf*": "deny", "sudo*": "deny"}}
@@ -368,6 +384,7 @@ def _stage_render(plugin_root: Path, stage_root: Path, host: Host) -> list[Path]
     profile = HOST_PROFILES[host]
     workflows = load_workflows(plugin_root)
     roles = _load_roles(plugin_root)
+    mode_specs = _load_mode_specs(plugin_root)
     workspace_safety = _load_policies(plugin_root)["workspace-safety"]
     for workflow in workflows.values():
         body = _router_body(workflow, profile, workspace_safety)
@@ -402,7 +419,7 @@ def _stage_render(plugin_root: Path, stage_root: Path, host: Host) -> list[Path]
             _write_text(
                 stage_root,
                 Path("agents") / f"{role_id}.md",
-                _role_body(role_id, role, profile, workspace_safety),
+                _role_body(role_id, role, profile, workspace_safety, mode_specs),
             )
 
     if host is Host.CLAUDE:

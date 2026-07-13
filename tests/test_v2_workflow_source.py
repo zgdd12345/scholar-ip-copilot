@@ -441,3 +441,34 @@ def test_research_explain_stage_enforces_the_complete_executable_contract() -> N
     assert stage.index("`mkdir -p`") < stage.index("writes exactly one Markdown note")
     assert "source full text or mandatory external retrieval failed" in normalized_stage
     assert "report the action as incomplete" in normalized_stage
+
+
+def test_research_explain_external_research_is_return_only_with_one_note_owner() -> None:
+    stage = (WORKFLOW_ROOT / "research" / "stages" / "explain.md").read_text(
+        encoding="utf-8"
+    )
+    reviewer = (
+        PLUGIN_ROOT / "roles" / "modes" / "literature-reviewer.md"
+    ).read_text(encoding="utf-8")
+    dispatch = re.search(
+        r"(?ms)^### Literature-reviewer dispatch contract\s*$\n"
+        r"(?P<body>.*?)(?=^#{2,3}\s|\Z)",
+        stage,
+    )
+    lite_mode = re.search(
+        r"(?ms)^## Lite-mode contract .*?$\n(?P<body>.*?)(?=^##\s|\Z)",
+        reviewer,
+    )
+
+    assert dispatch is not None
+    assert lite_mode is not None
+    assert "dispatcher's output path lives under `.evidraft/notes/`" in lite_mode.group(0)
+    assert "The only file you create or modify" in lite_mode.group("body")
+
+    contract = " ".join(dispatch.group("body").split())
+    assert "MUST NOT contain `out`, `<resolved-output>`, the resolved final output path" in contract
+    assert "any `.evidraft/notes/` path" in contract
+    assert "only the verified source metadata and bounded query scope" in contract
+    assert "must not create or modify any file" in contract
+    assert "returns only a structured verified evidence payload" in contract
+    assert "`paper-explainer` is the sole final-note writer" in contract
