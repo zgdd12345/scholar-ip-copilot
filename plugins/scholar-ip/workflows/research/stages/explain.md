@@ -106,6 +106,10 @@ Calculate the pre-synthesis status deterministically from terminal graph results
   required audit failed, or synthesis cannot satisfy the evidence or output contract.
   A mandatory task that returns partial is incomplete, not partial.
 
+`complete` requires A1 `status: complete` and `blocking: false` in reviewer mode.
+`partial` requires A1 `status: complete` and `blocking: false` in reviewer mode.
+`blocking: true` on A1 always produces `incomplete`.
+
 An `I0` terminal failure writes no note. A mandatory external-research failure may
 continue only to a prominently marked incomplete source-analysis draft. Every partial
 or incomplete note includes a status banner, failed task IDs, both attempt reasons,

@@ -521,6 +521,22 @@ def test_research_explain_retry_and_status_contract_is_deterministic() -> None:
     ) in normalized
 
 
+def test_research_explain_a1_blocking_state_determines_terminal_status() -> None:
+    documents = (
+        WORKFLOW_ROOT / "research/stages/explain.md",
+        PLUGIN_ROOT / "capabilities/research/paper-explanation/spec.md",
+    )
+    for document in documents:
+        normalized = " ".join(document.read_text(encoding="utf-8").split())
+        assert (
+            "`complete` requires A1 `status: complete` and `blocking: false` in reviewer mode."
+        ) in normalized
+        assert (
+            "`partial` requires A1 `status: complete` and `blocking: false` in reviewer mode."
+        ) in normalized
+        assert "`blocking: true` on A1 always produces `incomplete`." in normalized
+
+
 def test_research_explain_refuses_monolithic_fallback_and_keeps_one_writer() -> None:
     normalized = " ".join(
         (WORKFLOW_ROOT / "research/stages/explain.md").read_text().split()

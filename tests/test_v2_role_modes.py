@@ -167,6 +167,22 @@ def test_paper_explanation_workers_are_read_only_and_synthesizer_is_sole_writer(
         assert rule.lower() in body.lower()
 
 
+def test_explanation_evidence_auditor_returns_explicit_blocking_state() -> None:
+    _metadata, body = _frontmatter(ROLES_ROOT / "modes/explanation-evidence-auditor.md")
+    normalized = " ".join(body.split())
+
+    assert (
+        "Set `severity` on every audit finding to exactly one of `info`, `warning`, or `blocking`."
+    ) in normalized
+    assert (
+        "Set top-level `blocking: true` if any finding has `severity: blocking`; "
+        "otherwise set `blocking: false`."
+    ) in normalized
+    assert (
+        "Do not use `status` to encode audit impact; it continues to describe packet completion."
+    ) in normalized
+
+
 def test_native_paper_explanation_modes_have_exact_tools_references_and_sections() -> None:
     tools_by_mode = {
         "paper-indexer": ["Read", "Glob", "Grep"],

@@ -108,6 +108,10 @@ reasons remain in recovery metadata.
 | `partial` | Every mandatory task completed, but at least one optional analysis task failed or remained partial. |
 | `incomplete` | Delegation is unavailable, a mandatory task is not complete, a required audit failed, or synthesis violated evidence or output contracts. |
 
+`complete` requires A1 `status: complete` and `blocking: false` in reviewer mode.
+`partial` requires A1 `status: complete` and `blocking: false` in reviewer mode.
+`blocking: true` on A1 always produces `incomplete`.
+
 Any non-complete mandatory result is `incomplete`, including a mandatory packet with
 status partial. If I0 fails after attempt two, dispatch no analysis task, `A1`, or
 `S0`; stop and write no note. A mandatory external-task failure may produce only a

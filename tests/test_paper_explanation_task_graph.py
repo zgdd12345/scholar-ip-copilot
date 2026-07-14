@@ -217,6 +217,38 @@ def test_analysis_packet_schema_validates_all_terminal_statuses(
             jsonschema.validate(packet | {"retry_reason": ""}, schema)
 
 
+def test_a1_packet_requires_explicit_blocking_state_and_finding_severity() -> None:
+    schema = _schema("analysis-packet.schema.json")
+    packet = {
+        "task_id": "A1",
+        "attempt": 1,
+        "status": "complete",
+        "blocking": False,
+        "findings": [
+            {
+                "claim": "One source locator could be more precise.",
+                "evidence_refs": ["Paper section 3.2"],
+                "confidence": "medium",
+                "label": "audit",
+                "severity": "warning",
+            }
+        ],
+        "uncertainties": [],
+        "rejections": [],
+        "retry_reason": None,
+    }
+
+    jsonschema.validate(packet, schema)
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(
+            {key: value for key, value in packet.items() if key != "blocking"}, schema
+        )
+    without_severity = copy.deepcopy(packet)
+    without_severity["findings"][0].pop("severity")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(without_severity, schema)
+
+
 def test_external_packets_require_bounded_search_metadata() -> None:
     schema = _schema("analysis-packet.schema.json")
     packet = {

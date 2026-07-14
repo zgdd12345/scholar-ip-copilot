@@ -60,7 +60,13 @@ policies: [workspace-safety, evidence-integrity]
 2. Record conflicts without silently selecting one packet's claim.
 3. Enforce abstract-only scope and verify supplied canonical links.
 4. Report missing required related-work or twelve-section coverage.
-5. Never dispatch a nested subagent.
+5. Set `severity` on every audit finding to exactly one of `info`, `warning`,
+   or `blocking`.
+6. Set top-level `blocking: true` if any finding has `severity: blocking`;
+   otherwise set `blocking: false`.
+7. Do not use `status` to encode audit impact; it continues to describe packet
+   completion.
+8. Never dispatch a nested subagent.
 
 ## Failure modes you avoid
 
