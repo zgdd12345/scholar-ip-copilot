@@ -387,8 +387,15 @@ def test_research_explain_declares_the_native_paper_note_contract() -> None:
     ]
     assert action["policies"] == []
     assert action["roles"] == [
+        {"id": "researcher", "mode": "paper-indexer", "tier": "standard"},
+        {"id": "researcher", "mode": "paper-analysis-worker", "tier": "standard"},
+        {"id": "researcher", "mode": "paper-reasoning-worker", "tier": "deep"},
+        {
+            "id": "evidence-reviewer",
+            "mode": "explanation-evidence-auditor",
+            "tier": "standard",
+        },
         {"id": "researcher", "mode": "paper-explainer", "tier": "deep"},
-        {"id": "researcher", "mode": "literature-reviewer", "tier": "standard"},
     ]
     assert action["retention"] == {}
 
@@ -401,9 +408,9 @@ def test_research_explain_stage_enforces_the_complete_executable_contract() -> N
     assert "# workflow:research.explain" in stage
     for heading in (
         "## Phase 1: Resolve source and output",
-        "## Phase 2: Map the source paper",
-        "## Phase 3: Run bounded analysis work streams",
-        "## Phase 4: Synthesize the academic note",
+        "## Phase 2: Load and validate the task graph",
+        "## Phase 3: Dispatch adaptive dependency waves",
+        "## Phase 4: Calculate terminal status and synthesize",
         "## Phase 5: Validate and report",
         "## Constraints",
         "## Done criteria",
@@ -457,32 +464,69 @@ def test_research_explain_stage_enforces_the_complete_executable_contract() -> N
     assert "report the action as incomplete" in normalized_stage
 
 
-def test_research_explain_external_research_is_return_only_with_one_note_owner() -> None:
-    stage = (WORKFLOW_ROOT / "research" / "stages" / "explain.md").read_text(
+def test_research_explain_stage_declares_adaptive_graph_scheduler() -> None:
+    stage = (WORKFLOW_ROOT / "research/stages/explain.md").read_text(
         encoding="utf-8"
     )
-    reviewer = (
-        PLUGIN_ROOT / "roles" / "modes" / "literature-reviewer.md"
-    ).read_text(encoding="utf-8")
-    dispatch = re.search(
-        r"(?ms)^### Literature-reviewer dispatch contract\s*$\n"
-        r"(?P<body>.*?)(?=^#{2,3}\s|\Z)",
-        stage,
-    )
-    lite_mode = re.search(
-        r"(?ms)^## Lite-mode contract .*?$\n(?P<body>.*?)(?=^##\s|\Z)",
-        reviewer,
-    )
+    normalized = " ".join(stage.split())
+    for token in (
+        "task-graph.yaml",
+        "paper-map.schema.json",
+        "analysis-packet.schema.json",
+        "max_parallel: 4",
+        "max_attempts: 2",
+        "lexical `task_id` order",
+        "beginner",
+        "B1",
+        "B2",
+        "B3",
+        "graduate",
+        "M1",
+        "E1",
+        "X1",
+        "L1",
+        "R1",
+        "R2",
+        "reviewer",
+        "C1",
+        "A1",
+        "S0",
+    ):
+        assert token in stage
+    assert "two bounded work streams" not in normalized
+    assert "literature-reviewer" not in stage
 
-    assert dispatch is not None
-    assert lite_mode is not None
-    assert "dispatcher's output path lives under `.evidraft/notes/`" in lite_mode.group(0)
-    assert "The only file you create or modify" in lite_mode.group("body")
 
-    contract = " ".join(dispatch.group("body").split())
-    assert "MUST NOT contain `out`, `<resolved-output>`, the resolved final output path" in contract
-    assert "any `.evidraft/notes/` path" in contract
-    assert "only the verified source metadata and bounded query scope" in contract
-    assert "must not create or modify any file" in contract
-    assert "returns only a structured verified evidence payload" in contract
-    assert "`paper-explainer` is the sole final-note writer" in contract
+def test_research_explain_retry_and_status_contract_is_deterministic() -> None:
+    normalized = " ".join(
+        (WORKFLOW_ROOT / "research/stages/explain.md").read_text().split()
+    )
+    for token in (
+        "fresh subagent",
+        "except `attempt`",
+        "complete",
+        "partial",
+        "incomplete",
+        "mandatory task",
+        "both attempt reasons",
+        "missing sections",
+        "recovery actions",
+        "I0",
+        "writes no note",
+    ):
+        assert token in normalized
+    assert (
+        "If I0 fails after attempt two, stop without dispatching any analysis task, "
+        "A1, or S0 and write no note."
+    ) in normalized
+
+
+def test_research_explain_refuses_monolithic_fallback_and_keeps_one_writer() -> None:
+    normalized = " ".join(
+        (WORKFLOW_ROOT / "research/stages/explain.md").read_text().split()
+    )
+    assert "incomplete: delegation unavailable" in normalized
+    assert "must not run a monolithic fallback" in normalized
+    assert "Only `paper-explainer` receives the resolved output path" in normalized
+    assert "workers never receive `out`" in normalized
+    assert "workers never receive" in normalized and "collision state" in normalized

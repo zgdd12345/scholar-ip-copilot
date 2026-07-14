@@ -30,54 +30,94 @@ contracts for this stage.
    only its confined parent directory; it does not create the output file or
    `.evidraft/project.yaml`. Complete it before the final write.
 
-## Phase 2: Map the source paper
+## Phase 2: Load and validate the task graph
 
-Build a source map from the readable full text before drafting. Record the paper's
-section structure, research question, prerequisites, contributions, assumptions,
-method steps, key equations and every symbol, figures, tables, datasets, baselines,
-metrics, ablations, results, limitations, conclusion boundaries, implementation
-details, and reproduction gaps. Tie each technical claim to its precise source-paper
-location and distinguish author statements from explainer interpretation.
+1. Load `task-graph.yaml`, `paper-map.schema.json`, and
+   `analysis-packet.schema.json` from the private paper-explanation capability bundle.
+   Require `max_parallel: 4`, `max_attempts: 2`, forbidden nested delegation, and
+   canonical result order by task ID. Stop if any resource or graph reference is
+   missing or invalid; do not improvise a replacement graph or packet shape.
+2. Select exactly one graph profile from `mode`:
+   - `beginner`: `I0`, then the ready wave `B1`, `B2`, `B3`, then `S0`;
+   - `graduate`: `I0`, then the ready wave `E1`, `L1`, `M1`, `R1`, `R2`, `X1`,
+     then `S0`; or
+   - `reviewer`: `I0`, then the ready wave `C1`, `E1`, `L1`, `M1`, `R1`, `R2`,
+     `X1`, then `A1`, then `S0`.
+3. Before dispatch, confirm that the host can create independent subagents. If
+   delegation is unavailable, report `incomplete: delegation unavailable` and stop.
+   The coordinator must not run a monolithic fallback or merge worker scopes into one
+   invocation.
 
-## Phase 3: Run bounded analysis work streams
+## Phase 3: Dispatch adaptive dependency waves
 
-1. Resolve the verified paper identity, full-text location, selected mode, concrete
-   output path, collision decision, and bounded external query scope before dispatch.
-   Share the concrete output path and collision decision only with `paper-explainer`.
-2. Assign full-text source mapping, equation analysis, and final synthesis to the
-   `paper-explainer` deep role.
-3. Assign mandatory related-work retrieval to the `literature-reviewer` standard role.
-   It must use the `scholar-search` capability to find cited or contemporary similar
-   methods; subsequent, improved, applied, or critical work; newest verified related
-   methods found as of the execution date; and official code or project material.
-4. Once shared metadata is resolved, the two bounded work streams may run in parallel.
-   Workers return structured analysis and verified evidence. Only `paper-explainer`
-   may write the final note; neither worker may race on or create competing versions of
-   the final file.
-5. Open a canonical source for every included external candidate and verify title and
-   authorship. Reject candidates that cannot be verified. Retain each query, provider,
-   cutoff date, rejection reason, and the evidence scope of any abstract-only result.
+Dispatch `I0` first and validate its returned PaperMap. If I0 fails after attempt two,
+stop without dispatching any analysis task, A1, or S0 and write no note. Otherwise,
+dispatch each selected profile's dependency-ready tasks in lexical `task_id` order with
+effective concurrency `min(host capacity, 4)`. Wait for every dependency to become
+terminal before opening the next wave. In `reviewer` mode, dispatch `A1` only after
+`C1`, `E1`, `L1`, `M1`, `R1`, `R2`, and `X1` are terminal. Dispatch `S0` only after
+terminal status and its bounded synthesis input have been calculated. Workers cannot
+delegate further.
 
-### Literature-reviewer dispatch contract
+### IndexerInput contract
 
-The `literature-reviewer` dispatch input MUST contain only the verified source metadata
-and bounded query scope. It MUST NOT contain `out`, `<resolved-output>`, the resolved
-final output path, the collision decision, or any `.evidraft/notes/` path. This keeps the
-legacy lite-mode path condition from granting output-file ownership to the external
-research work stream.
+Dispatch `I0` with exactly `task_id`, `attempt`, `mode`, `source_identity`,
+`full_text_ref`, and its graph-declared `budget`. It receives neither a PaperMap nor
+dependency packets. Its return must validate against `paper-map.schema.json` and must
+map the readable full text's section structure, research question, prerequisites,
+contributions, assumptions, method steps, key equations and symbols, figures, tables,
+datasets, baselines, metrics, ablations, results, limitations, conclusion boundaries,
+implementation details, and reproduction gaps to precise source-paper locations.
 
-For this dispatch, `literature-reviewer` is return-only: it must not create or modify any
-file. It returns only a structured verified evidence payload to `paper-explainer` with
-the queries, providers, execution-date cutoff, rejected candidates and reasons, and each
-included candidate's title, authors, year, canonical link, relationship to the source,
-concrete methodological difference, evidence label, and available evidence scope.
-`paper-explainer` is the sole final-note writer and the only role that receives the
-resolved output path.
+### WorkerInput contract
 
-## Phase 4: Synthesize the academic note
+Dispatch every analysis, reasoning, or audit task with exactly `task_id`, `attempt`,
+graph-declared `task_scope`, `mode`, the immutable validated PaperMap, `full_text_ref`,
+immutable validated `dependency_packets`, and the graph-declared `budget`. First-wave
+dependency packets are empty; `A1` receives the seven terminal first-wave packets.
+Every return must validate against `analysis-packet.schema.json`.
 
-The `paper-explainer` writes exactly one Markdown note at the resolved output path using
-all twelve headings below, in this order:
+The workers never receive `out`, a resolved output path, collision state, output-file
+ownership, or another worker's mutable state. Only `paper-explainer` receives the
+resolved output path. External tasks use the bounded scholar-search contract, open a
+canonical source for each candidate, verify title and authorship, and retain queries,
+providers, cutoff date, rejection reasons, and abstract-only evidence scope. Workers
+never receive collision state and never create or modify the final note.
+
+### Retry contract
+
+For every timeout, execution failure, or schema-invalid PaperMap or AnalysisPacket,
+record the attempt reason. When attempt one fails, dispatch attempt two to a fresh
+subagent with identical immutable input, scope, and budget except `attempt`, which is
+set to `2`. Never
+repair an invalid packet, broaden scope, or increase a source or finding budget. After
+a second failure, record a terminal failed packet and preserve both attempt reasons for
+status calculation and recovery reporting.
+
+## Phase 4: Calculate terminal status and synthesize
+
+Calculate the pre-synthesis status deterministically from terminal graph results:
+
+- `complete`: every enabled pre-synthesis task is complete and any reviewer audit has
+  no blocking finding.
+- `partial`: every mandatory task is complete, including enabled external tasks and any
+  required audit, but at least one optional analysis task failed or remained partial.
+- `incomplete`: delegation is unavailable, any mandatory task is not complete, a
+  required audit failed, or synthesis cannot satisfy the evidence or output contract.
+  A mandatory task that returns partial is incomplete, not partial.
+
+An `I0` terminal failure writes no note. A mandatory external-research failure may
+continue only to a prominently marked incomplete source-analysis draft. Every partial
+or incomplete note includes a status banner, failed task IDs, both attempt reasons,
+missing sections, and recovery actions.
+
+Pass to `S0` only the selected mode, resolved output ownership, validated PaperMap,
+validated packets in canonical task-ID order, failure history and failed IDs, optional
+validated audit packet, and the calculated status. Exclude raw invalid packets and
+completion-order state. Only `paper-explainer` may write the final note; neither worker
+may race on or create a competing final file. The `paper-explainer`
+writes exactly one Markdown note at the resolved output path using all twelve headings
+below, in this order:
 
 ```markdown
 ## 1. Paper identity and one-sentence takeaway
@@ -120,15 +160,23 @@ Apply the selected-mode emphasis without removing any heading or external resear
 - `reviewer`: emphasize assumptions, novelty boundaries, experimental validity,
   missing controls, statistical support, and overclaiming risk.
 
+For conflicting numeric results, re-check the referenced table, figure, or text and
+retain every unresolved value with an explicit conflict label. Present external
+evidence alongside, never as a replacement for, the authors' conclusion. Exclude a
+factual finding without evidence references or mark it uncertain. When `A1` flags an
+unsupported strong claim, downgrade it, label it `[Interpretation]`, or exclude it.
+
 ## Phase 5: Validate and report
 
 Validate the source identity, readable-full-text status, twelve headings, evidence
 labels, equation symbol definitions, related-work verification and target counts,
-search metadata, and collision decision. Report the concrete output path, selected
-mode, full-text status, search cutoff, similar-method included count,
-subsequent/improved/newest-found included count, and rejected count. If source full text
-or mandatory external retrieval failed, report the action as incomplete and provide
-recovery options; do not claim a completed explanation even if temporary work exists.
+search metadata, collision decision, retry history, and calculated status. A synthesis
+contract failure changes the final status to `incomplete`. Report the concrete output
+path when one was written, selected mode, full-text status, search cutoff,
+similar-method included count, subsequent/improved/newest-found included count,
+rejected count, failed task IDs, and final status. If source full text or mandatory
+external retrieval failed, report the action as incomplete and provide recovery
+options; do not claim a completed explanation even if temporary work exists.
 
 ## Constraints
 
@@ -139,8 +187,8 @@ recovery options; do not claim a completed explanation even if temporary work ex
 - Do not present `[Interpretation]` as an author claim or discovery-only search results
   as verified evidence.
 - Mandatory external research cannot be disabled, and its cutoff cannot be omitted.
-- Keep dispatch bounded to the two declared roles and keep final-file ownership with
-  `paper-explainer`.
+- Keep dispatch bounded to the selected validated task-graph profile. Preserve sole
+  final-file ownership with `paper-explainer`; no worker can write an intermediate file.
 
 ## Done criteria
 
@@ -153,5 +201,6 @@ recovery options; do not claim a completed explanation even if temporary work ex
   queries, providers, cutoff, and rejection reasons.
 - Every included external work has a title, year, canonical link, relationship, and
   concrete methodological difference.
-- The final report states path, mode, full-text status, cutoff, both included counts,
-  rejected count, and an accurate complete or incomplete status.
+- The final report states path when written, mode, full-text status, cutoff, both
+  included counts, rejected count, failed IDs, and an accurate `complete`, `partial`,
+  or `incomplete` status.

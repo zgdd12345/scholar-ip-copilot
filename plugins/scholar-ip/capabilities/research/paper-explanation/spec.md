@@ -50,6 +50,75 @@ only in emphasis:
 Use `graduate` when no mode is supplied. Do not drop a required note section or
 mandatory external research for any mode.
 
+## Adaptive runtime bundle
+
+The coordinator loads `task-graph.yaml`, `paper-map.schema.json`, and
+`analysis-packet.schema.json` from this capability bundle before dispatch. The closed
+scheduler contract is `max_parallel: 4`, `max_attempts: 2`, nested delegation
+forbidden, and lexical `task_id` dispatch and result order.
+
+The action projects five ordered runtime modes:
+
+1. `paper-indexer` returns the immutable PaperMap.
+2. `paper-analysis-worker` returns bounded method, experiment, limitation, or external
+   AnalysisPackets.
+3. `paper-reasoning-worker` returns equation or claim-boundary AnalysisPackets.
+4. `explanation-evidence-auditor` returns the reviewer audit AnalysisPacket.
+5. `paper-explainer` synthesizes validated values and is the sole final-note writer.
+
+The approved profile allocations are:
+
+- `beginner`: `I0 -> [B1, B2, B3] -> S0`;
+- `graduate`: `I0 -> [E1, L1, M1, R1, R2, X1] -> S0`; and
+- `reviewer`: `I0 -> [C1, E1, L1, M1, R1, R2, X1] -> A1 -> S0`.
+
+Brackets denote a dependency-ready wave dispatched in lexical task-ID order with
+effective concurrency `min(host capacity, 4)`, not a merged worker invocation.
+
+## Invocation and return contracts
+
+`IndexerInput` contains exactly `task_id`, `attempt`, `mode`, `source_identity`,
+`full_text_ref`, and the graph-declared `budget`. It never contains a PaperMap,
+dependency packets, output path, or collision state. `I0` returns one value that
+validates against `paper-map.schema.json`.
+
+`WorkerInput` contains exactly `task_id`, `attempt`, graph-declared `task_scope`,
+`mode`, immutable validated `paper_map`, `full_text_ref`, immutable validated
+`dependency_packets`, and graph-declared `budget`. Workers cannot delegate and never
+receive `out`, a resolved output path, collision state, Write/Edit ownership, or
+mutable state. Each analysis, reasoning, or audit worker returns exactly one value that
+validates against `analysis-packet.schema.json`.
+
+Only `paper-explainer` receives the collision-safe resolved output path. Its bounded
+input is the selected mode, output ownership, validated PaperMap, validated packets in
+canonical task-ID order, retry history and failed IDs, optional validated audit, and
+calculated status. It performs no source mapping, specialist analysis, retrieval,
+packet repair, retry, or nested delegation and writes at most one note.
+
+## Retry and terminal status
+
+A timeout, execution failure, or schema-invalid return records one attempt reason. A
+second attempt uses a fresh subagent with identical immutable input, scope, and budget
+except for `attempt: 2`. A second failure becomes a terminal failed packet; both attempt
+reasons remain in recovery metadata.
+
+| Status | Deterministic condition |
+|---|---|
+| `complete` | Every enabled task completed and any reviewer audit has no blocking finding. |
+| `partial` | Every mandatory task completed, but at least one optional analysis task failed or remained partial. |
+| `incomplete` | Delegation is unavailable, a mandatory task is not complete, a required audit failed, or synthesis violated evidence or output contracts. |
+
+Any non-complete mandatory result is `incomplete`, including a mandatory packet with
+status partial. If I0 fails after attempt two, dispatch no analysis task, `A1`, or
+`S0`; stop and write no note. A mandatory external-task failure may produce only a
+prominently marked incomplete source-analysis draft. Every partial or incomplete note
+records a banner, failed task IDs, both attempt reasons, missing sections, and recovery
+actions.
+
+If the host cannot create independent subagents, report `incomplete: delegation
+unavailable` and stop. The coordinator must not run a monolithic fallback, merge task
+scopes, or relax the schemas.
+
 ## Required note schema
 
 Every completed note contains these sections:

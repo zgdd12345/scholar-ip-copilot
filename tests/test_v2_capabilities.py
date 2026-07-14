@@ -121,6 +121,28 @@ def test_paper_explanation_preserves_the_approved_research_and_collision_contrac
     ) in normalized
 
 
+def test_paper_explanation_spec_declares_the_adaptive_runtime_contract() -> None:
+    spec = CAPABILITIES / "research" / "paper-explanation" / "spec.md"
+    normalized = " ".join(spec.read_text(encoding="utf-8").split())
+
+    for token in (
+        "task-graph.yaml",
+        "paper-indexer",
+        "paper-analysis-worker",
+        "paper-reasoning-worker",
+        "explanation-evidence-auditor",
+        "paper-explainer",
+        "max_parallel: 4",
+        "max_attempts: 2",
+        "complete",
+        "partial",
+        "incomplete",
+        "delegation unavailable",
+        "no analysis task",
+    ):
+        assert token in normalized
+
+
 def test_capability_tree_exposes_no_host_discoverable_skill_files() -> None:
     assert not list(CAPABILITIES.rglob("SKILL.md"))
     assert {path.name for path in CAPABILITIES.iterdir() if path.is_dir()} == set(EXPECTED_GROUPS)
