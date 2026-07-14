@@ -239,6 +239,20 @@ def test_a1_packet_requires_explicit_blocking_state_and_finding_severity() -> No
     }
 
     jsonschema.validate(packet, schema)
+    blocking_packet = copy.deepcopy(packet)
+    blocking_packet["blocking"] = True
+    blocking_packet["findings"][0]["severity"] = "blocking"
+    jsonschema.validate(blocking_packet, schema)
+
+    false_with_blocking_finding = copy.deepcopy(blocking_packet)
+    false_with_blocking_finding["blocking"] = False
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(false_with_blocking_finding, schema)
+    true_without_blocking_finding = copy.deepcopy(packet)
+    true_without_blocking_finding["blocking"] = True
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(true_without_blocking_finding, schema)
+
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(
             {key: value for key, value in packet.items() if key != "blocking"}, schema
