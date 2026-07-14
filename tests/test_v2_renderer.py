@@ -76,7 +76,15 @@ def test_render_copies_native_paper_explanation_resources(tmp_path: Path, host: 
     private = out / (
         "skills/.evidraft-private" if host is Host.CODEX else "private"
     )
-    assert (private / "capabilities/research/paper-explanation/spec.md").is_file()
+    source = PLUGIN_ROOT / "capabilities/research/paper-explanation"
+    rendered = private / "capabilities/research/paper-explanation"
+    for name in (
+        "spec.md",
+        "task-graph.yaml",
+        "paper-map.schema.json",
+        "analysis-packet.schema.json",
+    ):
+        assert (rendered / name).read_bytes() == (source / name).read_bytes()
     assert (private / "roles/modes/paper-explainer.md").is_file()
 
 

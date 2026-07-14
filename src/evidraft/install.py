@@ -58,6 +58,9 @@ def _validate_source(rendered_root: Path) -> tuple[dict[str, Path], Path]:
     private = skills_root / ".evidraft-private"
     required = (
         private / "capabilities" / "index.yaml",
+        private / "capabilities" / "research" / "paper-explanation" / "task-graph.yaml",
+        private / "capabilities" / "research" / "paper-explanation" / "paper-map.schema.json",
+        private / "capabilities" / "research" / "paper-explanation" / "analysis-packet.schema.json",
         private / "roles" / "roles.yaml",
         private / "policies" / "policy.yaml",
         private / "templates" / "paper-project" / "manuscript" / "main.tex",

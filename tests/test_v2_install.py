@@ -45,6 +45,10 @@ def test_sync_upgrades_exact_v1_entries_and_preserves_user_skills(tmp_path: Path
     assert visible == PUBLIC
     private = destination / ".evidraft-private"
     assert (private / "capabilities" / "index.yaml").is_file()
+    explanation = private / "capabilities" / "research" / "paper-explanation"
+    assert (explanation / "task-graph.yaml").is_file()
+    assert (explanation / "paper-map.schema.json").is_file()
+    assert (explanation / "analysis-packet.schema.json").is_file()
     assert (private / "roles" / "roles.yaml").is_file()
     assert (private / "templates" / "paper-project" / "manuscript" / "main.tex").is_file()
     stage = destination / "scholar-paper" / "stages" / "init.md"
@@ -81,6 +85,35 @@ def test_sync_rejects_incomplete_render_without_touching_destination(tmp_path: P
     sentinel.write_text("unchanged")
 
     with pytest.raises(ValueError, match="exactly seven"):
+        sync_codex_skills(source, destination)
+
+    assert sentinel.read_text() == "unchanged"
+    assert not (destination / ".evidraft-ownership.json").exists()
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["task-graph.yaml", "paper-map.schema.json", "analysis-packet.schema.json"],
+)
+def test_sync_rejects_incomplete_explanation_bundle_without_touching_destination(
+    tmp_path: Path, name: str
+) -> None:
+    source = _render_codex(tmp_path)
+    bundle = (
+        source
+        / "skills"
+        / ".evidraft-private"
+        / "capabilities"
+        / "research"
+        / "paper-explanation"
+    )
+    (bundle / name).unlink()
+    destination = tmp_path / "skills"
+    destination.mkdir()
+    sentinel = destination / "keep"
+    sentinel.write_text("unchanged")
+
+    with pytest.raises(ValueError, match="missing private workflow resources"):
         sync_codex_skills(source, destination)
 
     assert sentinel.read_text() == "unchanged"
