@@ -27,7 +27,9 @@ references:
 
 ## Source resolution
 
-1. Accept a local PDF path, arXiv URL or identifier, DOI, or paper URL.
+1. Accept a local PDF path, arXiv URL or identifier, DOI, or paper URL. Before opening
+   a local PDF, run workflow preflight with that path as `--read-target`; never treat a
+   remote DOI, arXiv value, or paper URL as a local path.
 2. Resolve one unique source paper before analysis. If the source cannot be
    uniquely identified, stop and request a more precise identifier.
 3. Verify title, authors, year, venue, canonical URL, and the paper's research
@@ -66,6 +68,13 @@ The action projects five ordered runtime modes:
 4. `explanation-evidence-auditor` returns the reviewer audit AnalysisPacket.
 5. `paper-explainer` synthesizes validated values and is the sole final-note writer.
 
+Claude and OpenCode render the first four worker modes as separate mode-specific agents
+with hard read-only tool frontmatter. Codex does not expose per-agent `allowed_tools` in
+this plugin surface, so its coordinator attaches the complete private mode spec and
+enforces the listed tools as a contract rather than claiming a hard sandbox. That Codex
+limitation alone is not `delegation unavailable`; independent subagent creation remains
+the delegation criterion.
+
 The approved profile allocations are:
 
 - `beginner`: `I0 -> [B1, B2, B3] -> S0`;
@@ -77,13 +86,16 @@ effective concurrency `min(host capacity, 4)`, not a merged worker invocation.
 
 ## Invocation and return contracts
 
-`IndexerInput` contains exactly `task_id`, `attempt`, `mode`, `source_identity`,
+The coordinator must map public `mode` to internal `explanation_mode` without changing
+its `beginner`, `graduate`, or `reviewer` value.
+
+`IndexerInput` contains exactly `task_id`, `attempt`, `explanation_mode`, `source_identity`,
 `full_text_ref`, and the graph-declared `budget`. It never contains a PaperMap,
 dependency packets, output path, or collision state. `I0` returns one value that
 validates against `paper-map.schema.json`.
 
 `WorkerInput` contains exactly `task_id`, `attempt`, graph-declared `task_scope`,
-`mode`, immutable validated `paper_map`, `full_text_ref`, immutable validated
+`explanation_mode`, immutable validated `paper_map`, `full_text_ref`, immutable validated
 `dependency_packets`, and graph-declared `budget`. Workers cannot delegate and never
 receive `out`, a resolved output path, collision state, Write/Edit ownership, or
 mutable state. Each analysis, reasoning, or audit worker returns exactly one value that
@@ -200,6 +212,11 @@ offers:
 `augment` is the default recommendation when the user asks for newer related
 methods. If the derived sibling path exists, append a numeric suffix until it
 is unique.
+
+Immediately before S0, re-check the resolved target. If it became non-empty, repeat the
+collision decision and output preparation with the newly resolved path. The current
+core does not atomically reserve an empty target, so a narrow check-to-write race remains
+and must be reported rather than hidden.
 
 ## Failure contract
 

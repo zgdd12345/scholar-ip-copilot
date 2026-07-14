@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import jsonschema
 import yaml
@@ -194,6 +195,19 @@ EXPECTED_PROFILES = {
 }
 
 
+def _runtime_format_checker() -> jsonschema.FormatChecker:
+    checker = jsonschema.FormatChecker()
+
+    def is_absolute_uri(value: object) -> bool:
+        if not isinstance(value, str) or any(character.isspace() for character in value):
+            return False
+        parsed = urlsplit(value)
+        return parsed.scheme.lower() in {"http", "https"} and bool(parsed.netloc)
+
+    checker.checks("uri")(is_absolute_uri)
+    return checker
+
+
 def _assert_acyclic(profile_id: str, profile: dict[str, object]) -> None:
     dependencies = profile["dependencies"]
     if not isinstance(dependencies, dict):
@@ -259,3 +273,68 @@ def validate_paper_explanation_bundle(
         jsonschema.Draft202012Validator.check_schema(schema)
     graph = yaml.safe_load(paths["task-graph.yaml"].read_text(encoding="utf-8"))
     return validate_paper_explanation_graph(graph, declared_modes)
+
+
+def validate_paper_explanation_instance(
+    bundle: Path,
+    instance: object,
+    *,
+    expected_task_id: str,
+    expected_attempt: int,
+) -> dict[str, object]:
+    """Validate one worker return against its schema, identity, attempt, and graph budget."""
+    bundle = Path(bundle)
+    paths = {name: bundle / name for name in PAPER_EXPLANATION_RESOURCES}
+    for path in paths.values():
+        if not path.is_file():
+            raise FileNotFoundError(path)
+
+    graph = yaml.safe_load(paths["task-graph.yaml"].read_text(encoding="utf-8"))
+    declared_modes = {str(task["mode"]) for task in EXPECTED_TASKS.values()}
+    validate_paper_explanation_graph(graph, declared_modes)
+    tasks = graph["tasks"]
+    if expected_task_id not in tasks or expected_task_id == "S0":
+        raise ValueError(f"task_id has no structured worker return: {expected_task_id}")
+    if (
+        isinstance(expected_attempt, bool)
+        or not isinstance(expected_attempt, int)
+        or not 1 <= expected_attempt <= EXPECTED_SCHEDULER["max_attempts"]
+    ):
+        raise ValueError(f"attempt is outside the graph contract: {expected_attempt}")
+
+    schema_name = (
+        "paper-map.schema.json"
+        if tasks[expected_task_id]["output"] == "paper-map"
+        else "analysis-packet.schema.json"
+    )
+    schema = json.loads(paths[schema_name].read_text(encoding="utf-8"))
+    jsonschema.Draft202012Validator.check_schema(schema)
+    jsonschema.Draft202012Validator(
+        schema, format_checker=_runtime_format_checker()
+    ).validate(instance)
+    if not isinstance(instance, dict):
+        raise ValueError("worker return must be a JSON object")
+    if instance.get("task_id") != expected_task_id:
+        raise ValueError(
+            f"task_id mismatch: expected {expected_task_id}, got {instance.get('task_id')}"
+        )
+    if instance.get("attempt") != expected_attempt:
+        raise ValueError(
+            f"attempt mismatch: expected {expected_attempt}, got {instance.get('attempt')}"
+        )
+
+    if schema_name == "analysis-packet.schema.json":
+        budget = tasks[expected_task_id]["budget"]
+        findings = instance.get("findings", [])
+        external_works = instance.get("external_works", [])
+        if len(findings) > budget["max_findings"]:
+            raise ValueError(
+                f"max_findings exceeded for {expected_task_id}: "
+                f"{len(findings)} > {budget['max_findings']}"
+            )
+        if len(external_works) > budget["max_sources"]:
+            raise ValueError(
+                f"max_sources exceeded for {expected_task_id}: "
+                f"{len(external_works)} > {budget['max_sources']}"
+            )
+    return instance

@@ -18,7 +18,7 @@
   },
   "allOf": [
     {"if": {"properties": {"status": {"const": "failed"}}, "required": ["status"]}, "then": {"properties": {"retry_reason": {"type": "string", "minLength": 1}}}, "else": {"properties": {"retry_reason": {"type": "null"}}}},
-    {"if": {"properties": {"task_id": {"enum": ["B3", "R1", "R2"]}}, "required": ["task_id"]}, "then": {"required": ["search_metadata", "external_works"], "properties": {"search_metadata": {"$ref": "#/$defs/searchMetadata"}}}},
+    {"if": {"properties": {"task_id": {"enum": ["B3", "R1", "R2"]}, "status": {"enum": ["complete", "partial"]}}, "required": ["task_id", "status"]}, "then": {"required": ["search_metadata", "external_works"], "properties": {"search_metadata": {"$ref": "#/$defs/searchMetadata"}}}},
     {"if": {"properties": {"task_id": {"const": "A1"}}, "required": ["task_id"]}, "then": {"required": ["blocking"], "properties": {"findings": {"items": {"allOf": [{"$ref": "#/$defs/finding"}, {"required": ["severity"]}]}}}, "allOf": [{"if": {"properties": {"findings": {"contains": {"properties": {"severity": {"const": "blocking"}}, "required": ["severity"]}}}, "required": ["findings"]}, "then": {"properties": {"blocking": {"const": true}}}, "else": {"properties": {"blocking": {"const": false}}}}]}}
   ],
   "$defs": {

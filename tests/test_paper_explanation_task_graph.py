@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import io
 import json
 from pathlib import Path
 
@@ -8,6 +9,8 @@ import jsonschema
 import pytest
 import yaml
 
+import evidraft.paper_explanation as paper_explanation_module
+from evidraft.cli import main as cli_main
 from evidraft.paper_explanation import validate_paper_explanation_graph
 
 
@@ -33,6 +36,95 @@ def _schema(name: str) -> dict:
 def _declared_modes() -> set[str]:
     roles = yaml.safe_load(ROLES.read_text(encoding="utf-8"))["roles"]
     return {mode for role in roles.values() for mode in role["modes"]}
+
+
+def _paper_map(*, attempt: int = 1) -> dict:
+    return {
+        "task_id": "I0",
+        "attempt": attempt,
+        "source_identity": {
+            "title": "Attention Is All You Need",
+            "authors": ["A. Author"],
+            "year": 2017,
+            "venue": "NeurIPS",
+            "canonical_url": "https://arxiv.org/abs/1706.03762",
+        },
+        "full_text_ref": "papers/attention.pdf",
+        "sections": [
+            {"id": "3", "title": "Model Architecture", "locator": "Paper section 3"}
+        ],
+        "research_question": {
+            "text": "Can attention replace recurrence?",
+            "locator": "Paper section 1",
+        },
+        "prerequisites": [
+            {"text": "Sequence transduction", "locator": "Paper section 1"}
+        ],
+        "contributions": [
+            {"text": "An attention-only architecture", "locator": "Paper section 3"}
+        ],
+        "method_steps": [
+            {"text": "Encode tokens with self-attention", "locator": "Paper section 3.1"}
+        ],
+        "equations": [
+            {
+                "id": "1",
+                "locator": "Equation 1",
+                "symbols": [{"symbol": "Q", "definition": "queries"}],
+            }
+        ],
+        "figures": [],
+        "tables": [],
+        "experiments": {
+            "datasets": [],
+            "baselines": [],
+            "metrics": [],
+            "ablations": [],
+            "result_locators": [],
+        },
+        "claims": [
+            {"text": "The model uses self-attention.", "locator": "Paper section 3"}
+        ],
+        "assumptions": [],
+        "limitations": [],
+        "implementation_refs": [],
+        "reproduction_gaps": [
+            {"text": "Random seed is not specified", "locator": "Paper section 5"}
+        ],
+        "uncertainties": [
+            {"text": "One appendix equation is unreadable", "locator": "Appendix A"}
+        ],
+    }
+
+
+def _analysis_packet(
+    *, task_id: str = "M1", attempt: int = 1, findings: int = 1
+) -> dict:
+    return {
+        "task_id": task_id,
+        "attempt": attempt,
+        "status": "complete",
+        "findings": [
+            {
+                "claim": f"Grounded finding {index}",
+                "evidence_refs": ["Paper section 3"],
+                "confidence": "high",
+                "label": "paper",
+            }
+            for index in range(findings)
+        ],
+        "uncertainties": [],
+        "rejections": [],
+        "retry_reason": None,
+    }
+
+
+def _instance_validator():
+    validator = getattr(
+        paper_explanation_module, "validate_paper_explanation_instance", None
+    )
+    assert callable(validator), "runtime instance validator is missing"
+    return validator
 
 
 def test_task_graph_declares_closed_scheduler_and_adaptive_profiles() -> None:
@@ -143,39 +235,7 @@ def test_graph_validation_rejects_unsafe_mutations(mutation: str) -> None:
 def test_paper_map_schema_accepts_grounded_map_and_rejects_extra_fields() -> None:
     schema = _schema("paper-map.schema.json")
     jsonschema.Draft202012Validator.check_schema(schema)
-    valid = {
-        "task_id": "I0",
-        "attempt": 1,
-        "source_identity": {
-            "title": "Attention Is All You Need",
-            "authors": ["A. Author"],
-            "year": 2017,
-            "venue": "NeurIPS",
-            "canonical_url": "https://arxiv.org/abs/1706.03762",
-        },
-        "full_text_ref": "papers/attention.pdf",
-        "sections": [{"id": "3", "title": "Model Architecture", "locator": "Paper section 3"}],
-        "equations": [
-            {
-                "id": "1",
-                "locator": "Equation 1",
-                "symbols": [{"symbol": "Q", "definition": "queries"}],
-            }
-        ],
-        "figures": [],
-        "tables": [],
-        "experiments": {
-            "datasets": [],
-            "baselines": [],
-            "metrics": [],
-            "ablations": [],
-            "result_locators": [],
-        },
-        "claims": [{"text": "The model uses self-attention.", "locator": "Paper section 3"}],
-        "assumptions": [],
-        "limitations": [],
-        "implementation_refs": [],
-    }
+    valid = _paper_map()
     jsonschema.validate(valid, schema)
     invalid = valid | {"output_path": ".evidraft/notes/forbidden.md"}
     with pytest.raises(jsonschema.ValidationError):
@@ -296,3 +356,164 @@ def test_external_packets_require_bounded_search_metadata() -> None:
         jsonschema.validate(
             {key: value for key, value in packet.items() if key != "search_metadata"}, schema
         )
+
+
+@pytest.mark.parametrize("task_id", ["B3", "R1", "R2"])
+def test_failed_external_packet_may_omit_search_results_but_requires_reason(
+    task_id: str,
+) -> None:
+    schema = _schema("analysis-packet.schema.json")
+    packet = {
+        "task_id": task_id,
+        "attempt": 1,
+        "status": "failed",
+        "findings": [],
+        "uncertainties": [],
+        "rejections": [],
+        "retry_reason": "canonical provider timed out",
+    }
+
+    jsonschema.Draft202012Validator(
+        schema, format_checker=jsonschema.FormatChecker()
+    ).validate(packet)
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(packet | {"retry_reason": ""}, schema)
+
+
+@pytest.mark.parametrize("status", ["complete", "partial"])
+def test_nonfailed_external_packet_still_requires_search_results(status: str) -> None:
+    schema = _schema("analysis-packet.schema.json")
+    packet = {
+        "task_id": "R2",
+        "attempt": 1,
+        "status": status,
+        "findings": [],
+        "uncertainties": [],
+        "rejections": [],
+        "retry_reason": None,
+    }
+
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(packet, schema)
+
+
+def test_paper_map_schema_requires_all_indexer_analysis_fields() -> None:
+    schema = _schema("paper-map.schema.json")
+    required = {
+        "research_question",
+        "prerequisites",
+        "contributions",
+        "method_steps",
+        "reproduction_gaps",
+        "uncertainties",
+    }
+    assert required <= set(schema["required"])
+    for field in required:
+        invalid = copy.deepcopy(_paper_map())
+        invalid.pop(field)
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(invalid, schema)
+
+
+def test_runtime_validator_accepts_valid_paper_map_and_analysis_packet() -> None:
+    validate = _instance_validator()
+
+    assert validate(BUNDLE, _paper_map(), expected_task_id="I0", expected_attempt=1)[
+        "task_id"
+    ] == "I0"
+    assert validate(
+        BUNDLE, _analysis_packet(), expected_task_id="M1", expected_attempt=1
+    )["task_id"] == "M1"
+
+
+@pytest.mark.parametrize(
+    ("packet", "task_id", "attempt", "message"),
+    [
+        (_analysis_packet(task_id="X1"), "M1", 1, "task_id"),
+        (_analysis_packet(attempt=1), "M1", 2, "attempt"),
+    ],
+)
+def test_runtime_validator_rejects_spoofed_task_or_stale_attempt(
+    packet: dict, task_id: str, attempt: int, message: str
+) -> None:
+    validate = _instance_validator()
+
+    with pytest.raises(ValueError, match=message):
+        validate(BUNDLE, packet, expected_task_id=task_id, expected_attempt=attempt)
+
+
+def test_runtime_validator_enforces_graph_finding_and_source_budgets() -> None:
+    validate = _instance_validator()
+    with pytest.raises(ValueError, match="max_findings"):
+        validate(
+            BUNDLE,
+            _analysis_packet(findings=13),
+            expected_task_id="M1",
+            expected_attempt=1,
+        )
+
+    external = _analysis_packet(task_id="R1", findings=0)
+    external["search_metadata"] = {
+        "queries": ["verified query"],
+        "providers": ["arxiv"],
+        "cutoff": "2026-07-14",
+    }
+    external["external_works"] = [
+        {
+            "title": f"Work {index}",
+            "authors": ["A. Author"],
+            "year": 2026,
+            "canonical_url": f"https://example.test/work/{index}",
+            "relationship": "similar",
+            "methodological_difference": "different operator",
+            "evidence_scope": "abstract-only",
+            "label": "external-citation",
+        }
+        for index in range(6)
+    ]
+    with pytest.raises(ValueError, match="max_sources"):
+        validate(BUNDLE, external, expected_task_id="R1", expected_attempt=1)
+
+
+@pytest.mark.parametrize(
+    "canonical_url",
+    [
+        "javascript://host",
+        "ftp://example.test/paper",
+        "https://",
+        "https://example.test/has space",
+    ],
+)
+def test_runtime_validator_rejects_non_http_or_malformed_canonical_url(
+    canonical_url: str,
+) -> None:
+    validate = _instance_validator()
+    invalid = _paper_map()
+    invalid["source_identity"]["canonical_url"] = canonical_url
+
+    with pytest.raises(jsonschema.ValidationError, match="uri"):
+        validate(BUNDLE, invalid, expected_task_id="I0", expected_attempt=1)
+
+
+def test_packet_validation_cli_reads_json_from_stdin(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(_analysis_packet())))
+
+    assert cli_main(
+        [
+            "paper-explanation",
+            "validate-return",
+            "--bundle",
+            str(BUNDLE),
+            "--task-id",
+            "M1",
+            "--attempt",
+            "1",
+        ]
+    ) == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "attempt": 1,
+        "task_id": "M1",
+        "valid": True,
+    }

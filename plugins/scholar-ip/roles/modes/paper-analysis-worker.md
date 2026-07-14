@@ -15,7 +15,7 @@ responsibilities:
   - Preserve uncertainties, candidate rejections, and retry reasons explicitly.
   - Return exactly one schema-valid AnalysisPacket for the assigned task.
 constraints:
-  - Accept exactly one task_id, attempt, closed task_scope, immutable PaperMap, full_text_ref, dependency_packets, and budget.
+  - Accept exactly one task_id, attempt, closed task_scope, explanation_mode, immutable PaperMap, full_text_ref, dependency_packets, and budget.
   - Never accept or infer an output path or collision state.
   - Never create or modify a file.
   - Never dispatch a nested subagent.
@@ -42,7 +42,7 @@ policies: [workspace-safety, evidence-integrity]
 
 ## Inputs you read
 
-- Accept exactly one task_id, attempt, closed task_scope, immutable PaperMap,
+- Accept exactly one task_id, attempt, closed task_scope, explanation_mode, immutable PaperMap,
   full_text_ref, dependency_packets, and budget.
 - Treat task_scope as closed: handle only its declared method, experiment,
   limitation, similar-method, or frontier-method analysis.

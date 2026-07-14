@@ -256,7 +256,7 @@ The indexer receives only:
 ```yaml
 task_id: I0
 attempt: 1
-mode: graduate
+explanation_mode: graduate
 source_identity: <verified canonical metadata>
 full_text_ref: <verified local or fetched full-text reference>
 budget:
@@ -275,7 +275,7 @@ Every post-index analysis or audit worker receives:
 task_id: M1
 attempt: 1
 task_scope: [method]
-mode: graduate
+explanation_mode: graduate
 paper_map: <immutable PaperMap value>
 full_text_ref: <verified local or fetched full-text reference>
 dependency_packets: []
@@ -291,7 +291,8 @@ resolved output path, collision state, or another worker's mutable state.
 graph declares dependencies. It is empty for every first-wave analysis task and
 contains the seven terminal first-wave packets for reviewer audit `A1`.
 
-`task_id`, `task_scope`, and `budget` must exactly match the selected task-graph
+The public action maps `mode` to `explanation_mode`; role-mode selection remains
+the graph task's separate `mode` field. `task_id`, `task_scope`, and `budget` must exactly match the selected task-graph
 entry. A worker may not broaden a query, read unrelated project material, or
 delegate further.
 
@@ -379,10 +380,12 @@ The synthesizer applies these rules in order:
 Claude Code, Codex, and OpenCode render the same task graph, schemas, role modes,
 and stage instructions.
 
-- Claude Code and OpenCode dispatch the declared semantic role repeatedly with
-  the task's selected private mode.
+- Claude Code and OpenCode render and dispatch four mode-specific worker agents
+  with hard tool frontmatter matching the selected private mode.
 - Codex uses its available collaboration/subagent facility and loads the same
-  private mode for every task.
+  private mode for every task. Its current plugin surface has no per-agent
+  `allowed_tools`, so this is explicit contract enforcement rather than a hard
+  tool sandbox; this limitation alone is not delegation unavailability.
 - The coordinator must not claim `complete` when the host cannot create
   independent subagents. It reports `incomplete: delegation unavailable`.
 - Workers never dispatch child subagents.

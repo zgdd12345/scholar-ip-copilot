@@ -92,22 +92,25 @@ def test_sync_rejects_incomplete_render_without_touching_destination(tmp_path: P
 
 
 @pytest.mark.parametrize(
-    "name",
-    ["task-graph.yaml", "paper-map.schema.json", "analysis-packet.schema.json"],
+    "relative",
+    [
+        "skills/.evidraft-private/capabilities/research/paper-explanation/spec.md",
+        "skills/.evidraft-private/capabilities/research/paper-explanation/task-graph.yaml",
+        "skills/.evidraft-private/capabilities/research/paper-explanation/paper-map.schema.json",
+        "skills/.evidraft-private/capabilities/research/paper-explanation/analysis-packet.schema.json",
+        "skills/scholar-research/stages/explain.md",
+        "skills/.evidraft-private/roles/modes/paper-indexer.md",
+        "skills/.evidraft-private/roles/modes/paper-analysis-worker.md",
+        "skills/.evidraft-private/roles/modes/paper-reasoning-worker.md",
+        "skills/.evidraft-private/roles/modes/explanation-evidence-auditor.md",
+        "skills/.evidraft-private/roles/modes/paper-explainer.md",
+    ],
 )
 def test_sync_rejects_incomplete_explanation_bundle_without_touching_destination(
-    tmp_path: Path, name: str
+    tmp_path: Path, relative: str
 ) -> None:
     source = _render_codex(tmp_path)
-    bundle = (
-        source
-        / "skills"
-        / ".evidraft-private"
-        / "capabilities"
-        / "research"
-        / "paper-explanation"
-    )
-    (bundle / name).unlink()
+    (source / relative).unlink()
     destination = tmp_path / "skills"
     destination.mkdir()
     sentinel = destination / "keep"

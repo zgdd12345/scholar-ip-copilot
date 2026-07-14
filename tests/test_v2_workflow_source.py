@@ -400,6 +400,65 @@ def test_research_explain_declares_the_native_paper_note_contract() -> None:
     assert action["retention"] == {}
 
 
+def test_research_explain_maps_public_mode_to_closed_worker_input_name() -> None:
+    stage = (WORKFLOW_ROOT / "research/stages/explain.md").read_text(encoding="utf-8")
+    spec = (
+        PLUGIN_ROOT / "capabilities/research/paper-explanation/spec.md"
+    ).read_text(encoding="utf-8")
+    for document in (stage, spec):
+        normalized = " ".join(document.split())
+        assert "map public `mode` to internal `explanation_mode`" in normalized
+        assert (
+            "task_id`, `attempt`, `explanation_mode`, `source_identity`, "
+            "`full_text_ref`, and"
+        ) in normalized
+        assert (
+            "`task_id`, `attempt`, graph-declared `task_scope`, "
+            "`explanation_mode`, immutable"
+        ) in normalized
+        assert "Require task_id I0 and mode paper-indexer" not in document
+
+
+def test_research_explain_validates_every_worker_return_without_temp_files() -> None:
+    stage = (WORKFLOW_ROOT / "research/stages/explain.md").read_text(encoding="utf-8")
+    normalized = " ".join(stage.split())
+    command = (
+        "evidraft paper-explanation validate-return --bundle <paper-explanation-bundle> "
+        "--task-id <task-id> --attempt <attempt>"
+    )
+
+    assert command in normalized
+    assert "send the exact returned JSON on stdin" in normalized
+    assert "after every i0, analysis, reasoning, or audit return" in normalized.lower()
+    assert "schema-invalid return consumes that attempt" in normalized
+    assert "temporary" in normalized and "file" in normalized
+
+
+def test_research_explain_preflights_local_pdf_before_any_read() -> None:
+    stage = (WORKFLOW_ROOT / "research/stages/explain.md").read_text(encoding="utf-8")
+    normalized = " ".join(stage.split())
+    command = "evidraft workflow preflight research.explain --read-target <source>"
+
+    assert command in normalized
+    assert "before reading the local PDF or resolving metadata from it" in normalized
+    assert "Do not pass a DOI, arXiv identifier or URL, or paper URL" in normalized
+    assert stage.index(command) < stage.index("Obtain readable full text")
+
+
+def test_research_explain_rechecks_collision_immediately_before_synthesis() -> None:
+    stage = (WORKFLOW_ROOT / "research/stages/explain.md").read_text(encoding="utf-8")
+    normalized = " ".join(stage.split())
+
+    assert "Immediately before dispatching `S0`, re-check the resolved target" in normalized
+    assert "repeat the `reuse`, `augment`, or `overwrite` decision" in normalized
+    assert (
+        "run `evidraft workflow prepare-output research.explain --target "
+        "<resolved-output>` again"
+    ) in normalized
+    assert "narrow race remains between this final check and the single write" in normalized
+    assert stage.index("Immediately before dispatching `S0`") < stage.index("Pass to `S0`")
+
+
 def test_research_explain_stage_enforces_the_complete_executable_contract() -> None:
     stage = (
         WORKFLOW_ROOT / "research" / "stages" / "explain.md"
@@ -459,6 +518,14 @@ def test_research_explain_stage_enforces_the_complete_executable_contract() -> N
         "workspace-safety"
     ]["tool_access"]["default_allowed_tools"]
     assert any(fnmatchcase(f"Bash:{prepare}", pattern) for pattern in allowed_tools)
+    validate_return = (
+        "evidraft paper-explanation validate-return "
+        "--bundle <paper-explanation-bundle> --task-id <task-id> --attempt <attempt>"
+    )
+    assert validate_return in normalized_stage
+    assert any(
+        fnmatchcase(f"Bash:{validate_return}", pattern) for pattern in allowed_tools
+    )
     assert stage.index(prepare) < stage.index("writes exactly one Markdown note")
     assert "source full text or mandatory external retrieval failed" in normalized_stage
     assert "report the action as incomplete" in normalized_stage

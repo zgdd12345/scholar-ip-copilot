@@ -725,6 +725,33 @@ def test_projectless_note_preflight_preserves_default_workspace_safety(tmp_path:
     assert yaml.safe_load(project.read_text(encoding="utf-8"))["format_version"] == 2
 
 
+def test_projectless_explanation_read_preflight_confines_local_pdf(
+    tmp_path: Path,
+) -> None:
+    paper = tmp_path / "papers" / "source.pdf"
+    paper.parent.mkdir()
+    paper.write_bytes(b"%PDF-1.7")
+
+    assert workflow_preflight(
+        tmp_path, "research.explain", read_paths=[paper]
+    ).scope == "pass"
+    with pytest.raises(PreflightError, match="project root"):
+        workflow_preflight(
+            tmp_path, "research.explain", read_paths=[tmp_path.parent / "outside.pdf"]
+        )
+    with pytest.raises(PreflightError, match="project root"):
+        workflow_preflight(tmp_path, "research.explain", read_paths=["../outside.pdf"])
+    with pytest.raises(PreflightError, match="sensitive"):
+        workflow_preflight(tmp_path, "research.explain", read_paths=[".env.paper.pdf"])
+
+    outside = tmp_path / "outside.pdf"
+    outside.write_bytes(b"%PDF-1.7")
+    link = paper.parent / "linked.pdf"
+    link.symlink_to(outside)
+    with pytest.raises(PreflightError, match="symlink"):
+        workflow_preflight(tmp_path, "research.explain", read_paths=[link])
+
+
 def test_prepare_output_preflights_and_creates_only_the_safe_parent(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

@@ -28,6 +28,7 @@ policies:
         - 'Bash:cat*'
         - 'Bash:latexmk*'
         - 'Bash:evidraft workflow prepare-output*'
+        - 'Bash:evidraft paper-explanation validate-return*'
       forbidden_tool_patterns:
         - 'Bash:rm -rf*'
         - 'Bash:sudo*'

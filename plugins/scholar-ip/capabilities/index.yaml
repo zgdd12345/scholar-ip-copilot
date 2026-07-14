@@ -3,7 +3,7 @@ capabilities:
   brainstorming: {group: research, spec: research/brainstorming/spec.md, bundle_sha256: 4a076550c7500dff11a06005a8bb9233681eaaa32e751c76aadf543f1f34afcd}
   deep-literature-review: {group: research, spec: research/deep-literature-review/spec.md, bundle_sha256: 881c2d39f446727d3992ecf34ccc9b827c27b3fe6439a45d16b5ec48982349a7}
   literature-review: {group: research, spec: research/literature-review/spec.md, bundle_sha256: 5b6d47a72ece1215cfae05311cd9576022cabf60738bb539c6aaf57d7c803968}
-  paper-explanation: {group: research, spec: research/paper-explanation/spec.md, bundle_sha256: 12b6f9db88990f715429999ccbbe810c357783247b164e29a0f1642590a24912}
+  paper-explanation: {group: research, spec: research/paper-explanation/spec.md, bundle_sha256: 3c18507220d66e1098094a658a96d990a2f5efa7e80cb45673e79b659bbeea91}
   patent-search: {group: research, spec: research/patent-search/spec.md, bundle_sha256: 02816d4604c05fc95cf26fd2d2b64eba6a580dd089ffaa19d11be3f20e2ebaf8}
   scholar-search: {group: research, spec: research/scholar-search/spec.md, bundle_sha256: f087d3d19313ef1a3e6d1cc073d507e8c68199c1c5204e4b1394a65780106a32}
   using-deep-research: {group: research, spec: research/using-deep-research/spec.md, bundle_sha256: 499e7d03aa2d1abf5bf2c59d960ce26d1603b4182c9222caa090e6829913c918}

@@ -30,6 +30,12 @@ EXPECTED_ACTIONS = {
     "polish": {"run"},
     "xreview": {"run"},
 }
+PAPER_EXPLANATION_WORKER_MODES = (
+    "paper-indexer",
+    "paper-analysis-worker",
+    "paper-reasoning-worker",
+    "explanation-evidence-auditor",
+)
 
 
 class Host(str, Enum):
@@ -59,8 +65,11 @@ HOST_PROFILES = {
         spec_home="`${{CLAUDE_PLUGIN_ROOT}}/private/workflows/{workflow}/workflow.yaml`",
         role_spec="${CLAUDE_PLUGIN_ROOT}/private/roles/modes/<mode>.md",
         role_dispatch=(
-            "For every selected action's role assignment, dispatch the declared role and mode "
-            "with this model mapping: fast -> haiku, standard -> sonnet, deep -> opus. "
+            "Each selected action's role assignment declares availability only. Never dispatch "
+            "merely because an assignment exists. The selected procedure controls dispatch timing "
+            "and cardinality for every other action; for research.explain, its validated task graph "
+            "exclusively controls dispatch. When the procedure dispatches a role, use its declared "
+            "mode with this model mapping: fast -> haiku, standard -> sonnet, deep -> opus. "
             "The role file uses `inherit`; the action assignment is authoritative.\n"
         ),
         model_tiers=(("fast", "haiku"), ("standard", "sonnet"), ("deep", "opus")),
@@ -73,7 +82,10 @@ HOST_PROFILES = {
         spec_home="`workflow.yaml`",
         role_spec="../.evidraft-private/roles/modes/<mode>.md",
         role_dispatch=(
-            "For every selected action's role assignment, resolve the declared mode in "
+            "Each selected action's role assignment declares availability only. Never dispatch "
+            "merely because an assignment exists. The selected procedure controls dispatch timing "
+            "and cardinality for every other action; for research.explain, its validated task graph "
+            "exclusively controls dispatch. When the procedure dispatches a role, resolve its mode in "
             "`../.evidraft-private/roles/roles.yaml` and load exactly one private mode spec at "
             "`../.evidraft-private/roles/modes/<mode>.md`. The mode spec is authoritative for "
             "tools, responsibilities, constraints, and output contracts. Map fast, standard, "
@@ -89,7 +101,11 @@ HOST_PROFILES = {
         spec_home="`.opencode/private/workflows/{workflow}/workflow.yaml`",
         role_spec=".opencode/private/roles/modes/<mode>.md",
         role_dispatch=(
-            "For every selected action's role assignment, dispatch the declared role and mode. "
+            "Each selected action's role assignment declares availability only. Never dispatch "
+            "merely because an assignment exists. The selected procedure controls dispatch timing "
+            "and cardinality for every other action; for research.explain, its validated task graph "
+            "exclusively controls dispatch. When the procedure dispatches a role, use the declared "
+            "role and mode. "
             "Map fast, standard, and deep to the closest available host effort levels.\n"
         ),
         model_tiers=(("fast", "low"), ("standard", "medium"), ("deep", "high")),
@@ -306,6 +322,44 @@ def _role_body(
     return _frontmatter(str(role["description"]), body, **extra)
 
 
+def _mode_agent_body(mode: str, spec: Path, profile: HostProfile) -> str:
+    metadata, _spec_body = _split_frontmatter(spec.read_text(encoding="utf-8"))
+    allowed_tools = list(metadata["allowed_tools"])
+    if any(
+        str(tool).casefold() in {"write", "edit", "task"}
+        or str(tool).casefold().startswith("bash")
+        for tool in allowed_tools
+    ):
+        raise ValueError(f"paper-explanation worker mode is not read-only: {mode}")
+    body = (
+        f"# {mode}\n\n"
+        f"Load exactly one private mode spec at `{profile.role_spec.replace('<mode>', mode)}` "
+        "and execute only the task-graph invocation assigned to this mode. The frontmatter "
+        "tool list is a hard host boundary in addition to the private mode contract. Never "
+        "write files or dispatch a nested subagent. Return only the structured value declared "
+        "by the mode spec.\n"
+    )
+    extra: dict[str, Any]
+    if profile.host is Host.CLAUDE:
+        extra = {"name": mode, "model": "inherit", "tools": allowed_tools}
+    elif profile.host is Host.OPENCODE:
+        enabled = {str(tool).lower() for tool in allowed_tools}
+        tool_names = enabled | {"write", "edit", "bash", "task"}
+        extra = {
+            "mode": "subagent",
+            "tools": {tool: tool in enabled for tool in sorted(tool_names)},
+            "permission": {
+                "edit": "deny",
+                "bash": "deny",
+                "task": "deny",
+                "external_directory": "deny",
+            },
+        }
+    else:  # pragma: no cover - Codex does not project agent files
+        raise ValueError("Codex has no mode-specific agent projection")
+    return _frontmatter(str(metadata["description"]), body, **extra)
+
+
 def _write_text(root: Path, relative: Path, text: str) -> None:
     target = root / relative
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -429,6 +483,12 @@ def _stage_render(plugin_root: Path, stage_root: Path, host: Host) -> list[Path]
                 stage_root,
                 Path("agents") / f"{role_id}.md",
                 _role_body(role_id, role, profile, workspace_safety, mode_specs),
+            )
+        for mode in PAPER_EXPLANATION_WORKER_MODES:
+            _write_text(
+                stage_root,
+                Path("agents") / f"{mode}.md",
+                _mode_agent_body(mode, mode_specs[mode], profile),
             )
 
     if host is Host.CLAUDE:

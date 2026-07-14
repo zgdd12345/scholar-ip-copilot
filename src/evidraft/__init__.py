@@ -20,6 +20,7 @@ from .core import (
     workflow_finalize,
     workflow_prepare_output,
     workflow_preflight,
+    workflow_validate_paper_explanation_return,
 )
 
 __all__ = [
@@ -40,4 +41,5 @@ __all__ = [
     "workflow_finalize",
     "workflow_prepare_output",
     "workflow_preflight",
+    "workflow_validate_paper_explanation_return",
 ]

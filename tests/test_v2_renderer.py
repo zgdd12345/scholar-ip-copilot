@@ -165,7 +165,7 @@ def test_render_exposes_only_seven_public_workflows(tmp_path: Path, host: Host) 
 
 
 @pytest.mark.parametrize("host", list(Host))
-def test_render_copies_private_stages_and_six_roles(tmp_path: Path, host: Host) -> None:
+def test_render_copies_private_stages_and_six_semantic_roles(tmp_path: Path, host: Host) -> None:
     out = tmp_path / host.value
     render_plugin(PLUGIN_ROOT, out, host)
 
@@ -175,7 +175,7 @@ def test_render_copies_private_stages_and_six_roles(tmp_path: Path, host: Host) 
     else:
         assert (out / "private" / "workflows" / "paper" / "stages" / "draft.md").is_file()
         assert (out / "private" / "roles" / "roles.yaml").is_file()
-        assert len(list((out / "agents").glob("*.md"))) == 6
+        assert len(list((out / "agents").glob("*.md"))) == 10
 
 
 @pytest.mark.parametrize("host", [Host.CLAUDE, Host.OPENCODE])
@@ -193,6 +193,79 @@ def test_rendered_agents_use_host_frontmatter(tmp_path: Path, host: Host) -> Non
     else:
         assert metadata["mode"] == "subagent"
         assert metadata["permission"]["bash"]["sudo*"] == "deny"
+
+
+READ_ONLY_WORKER_TOOLS = {
+    "paper-indexer": ["Read", "Glob", "Grep"],
+    "paper-analysis-worker": ["Read", "Glob", "Grep", "WebSearch", "WebFetch"],
+    "paper-reasoning-worker": ["Read", "Glob", "Grep"],
+    "explanation-evidence-auditor": ["Read", "Glob", "Grep", "WebFetch"],
+}
+
+
+@pytest.mark.parametrize("host", [Host.CLAUDE, Host.OPENCODE])
+def test_rendered_paper_workers_have_hard_mode_specific_tool_isolation(
+    tmp_path: Path, host: Host
+) -> None:
+    out = tmp_path / host.value
+    render_plugin(PLUGIN_ROOT, out, host)
+
+    for mode, allowed in READ_ONLY_WORKER_TOOLS.items():
+        agent = out / "agents" / f"{mode}.md"
+        metadata = yaml.safe_load(agent.read_text(encoding="utf-8").split("---", 2)[1])
+        body = agent.read_text(encoding="utf-8").split("---", 2)[2]
+        assert f"roles/modes/{mode}.md" in body
+        if host is Host.CLAUDE:
+            assert metadata["name"] == mode
+            assert metadata["model"] == "inherit"
+            assert metadata["tools"] == allowed
+        else:
+            enabled = {tool.lower() for tool in allowed}
+            assert metadata["mode"] == "subagent"
+            assert all(metadata["tools"][tool] is True for tool in enabled)
+            assert all(
+                metadata["tools"][tool] is False
+                for tool in {"write", "edit", "bash", "task"}
+            )
+            assert metadata["permission"] == {
+                "edit": "deny",
+                "bash": "deny",
+                "task": "deny",
+                "external_directory": "deny",
+            }
+
+
+@pytest.mark.parametrize("unsafe_tool", ["write", "eDiT", "tAsK", "bAsH:git status"])
+def test_renderer_rejects_case_insensitive_unsafe_paper_worker_tools(
+    tmp_path: Path, unsafe_tool: str
+) -> None:
+    plugin = tmp_path / "plugin"
+    shutil.copytree(PLUGIN_ROOT, plugin)
+    mode = plugin / "roles" / "modes" / "paper-indexer.md"
+    _set_mode_allowed_tools(mode, ["Read", unsafe_tool])
+
+    with pytest.raises(ValueError, match="worker mode is not read-only"):
+        render_plugin(plugin, tmp_path / "opencode", Host.OPENCODE)
+
+
+@pytest.mark.parametrize("host", list(Host))
+def test_rendered_explain_stage_selects_mode_agent_without_overstating_codex_isolation(
+    tmp_path: Path, host: Host
+) -> None:
+    out = tmp_path / host.value
+    render_plugin(PLUGIN_ROOT, out, host)
+    stage = (
+        out / "skills/scholar-research/stages/explain.md"
+        if host is Host.CODEX
+        else out / "private/workflows/research/stages/explain.md"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(stage.split())
+
+    assert "Claude and OpenCode" in normalized
+    assert "mode-specific agent whose identifier exactly matches" in normalized
+    assert "Codex does not expose per-agent allowed_tools" in normalized
+    assert "contract enforcement, not a hard tool sandbox" in normalized
+    assert "does not by itself mean delegation unavailable" in normalized
 
 
 def test_claude_agents_union_only_their_registered_mode_tools(tmp_path: Path) -> None:
@@ -251,13 +324,37 @@ def test_claude_router_projects_each_action_tier_to_dispatch_model(tmp_path: Pat
     assert "fast -> haiku" in router
     assert "standard -> sonnet" in router
     assert "deep -> opus" in router
-    assert "selected action's role assignment" in router
+    assert "selected action's role assignment declares availability only" in router
+    assert "Never dispatch merely because an assignment exists" in router
     assert "workflow finalize --directory <directory> --pattern <pattern>" in router
     assert "--read-target <target>" in router
     assert "--target <each concrete write path>" in router
     assert "--evidence-id <each current evidence id>" in router
     assert "Bash:rm -rf*" in router
     assert "Bash:sudo*" in router
+
+
+@pytest.mark.parametrize("host", list(Host))
+def test_rendered_router_leaves_dispatch_timing_and_cardinality_to_stage(
+    tmp_path: Path, host: Host
+) -> None:
+    out = tmp_path / host.value
+    render_plugin(PLUGIN_ROOT, out, host)
+    router = (
+        out / "skills/scholar-research/SKILL.md"
+        if host is Host.CODEX
+        else out
+        / "commands"
+        / ("research.md" if host is Host.CLAUDE else "scholar-research.md")
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(router.split())
+
+    assert "role assignment declares availability only" in normalized
+    assert "Never dispatch merely because an assignment exists" in normalized
+    assert "research.explain" in normalized
+    assert "task graph exclusively controls dispatch" in normalized
+    assert "every other action" in normalized
+    assert "selected procedure controls dispatch timing and cardinality" in normalized
 
 
 @pytest.mark.parametrize("host", list(Host))

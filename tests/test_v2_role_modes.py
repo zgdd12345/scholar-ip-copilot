@@ -225,13 +225,38 @@ def test_paper_indexer_accepts_only_the_closed_indexer_input() -> None:
     )[0]
 
     assert (
-        "Accept exactly one task_id, attempt, mode, source_identity, "
+        "Accept exactly one task_id, attempt, explanation_mode, source_identity, "
         "full_text_ref, and budget."
         in inputs
     )
+    assert "mode paper-indexer" not in inputs
     assert "PaperMap" not in inputs
     assert "dependency_packets" not in inputs
     assert "task_scope" not in inputs
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "paper-analysis-worker",
+        "paper-reasoning-worker",
+        "explanation-evidence-auditor",
+    ],
+)
+def test_post_index_workers_accept_explanation_mode_in_the_exact_input_set(
+    mode: str,
+) -> None:
+    metadata, body = _frontmatter(ROLES_ROOT / "modes" / f"{mode}.md")
+    inputs = body.split("## Inputs you read", 1)[1].split(
+        "## Outputs you return", 1
+    )[0]
+
+    expected = (
+        "task_id, attempt, closed task_scope, explanation_mode, immutable PaperMap, "
+        "full_text_ref, dependency_packets, and budget"
+    )
+    assert expected in " ".join(inputs.split())
+    assert expected in " ".join(" ".join(metadata["constraints"]).split())
 
 
 def test_normalized_mode_specs_match_the_frozen_behavior_snapshot() -> None:
@@ -304,5 +329,25 @@ def test_renderer_copies_all_mode_specs_privately(tmp_path: Path, host: Host) ->
             for path in routers
         )
     else:
-        assert len(agents) == 6
-        assert all("roles/modes/<mode>.md" in path.read_text() for path in agents)
+        assert len(agents) == 10
+        semantic_agents = {
+            "code-reviewer",
+            "evidence-reviewer",
+            "experiment-reviewer",
+            "patent-reviewer",
+            "researcher",
+            "writing-reviewer",
+        }
+        assert all(
+            "roles/modes/<mode>.md" in (out / "agents" / f"{role}.md").read_text()
+            for role in semantic_agents
+        )
+        for mode in {
+            "paper-indexer",
+            "paper-analysis-worker",
+            "paper-reasoning-worker",
+            "explanation-evidence-auditor",
+        }:
+            assert f"roles/modes/{mode}.md" in (
+                out / "agents" / f"{mode}.md"
+            ).read_text()

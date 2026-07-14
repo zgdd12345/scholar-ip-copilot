@@ -9,12 +9,14 @@ description: >
   Use only for I0 to resolve the supplied full text into a schema-valid PaperMap.
 responsibilities:
   - Verify the source identity against the supplied full text.
-  - Map sections, equations, figures, tables, and implementation references.
-  - Record experiment structure, claims, assumptions, and limitations with locators.
+  - Map the research question, prerequisites, contributions, method steps, sections,
+    equations, figures, tables, and implementation references.
+  - Record experiment structure, claims, assumptions, limitations, reproduction gaps,
+    and uncertainties with locators.
   - Preserve unreadable or absent material as uncertainty rather than inference.
   - Return exactly one schema-valid PaperMap for the assigned task.
 constraints:
-  - Accept exactly one task_id, attempt, mode, source_identity, full_text_ref, and budget.
+  - Accept exactly one task_id, attempt, explanation_mode, source_identity, full_text_ref, and budget.
   - Never accept or infer an output path or collision state.
   - Never create or modify a file.
   - Never dispatch a nested subagent.
@@ -39,8 +41,8 @@ policies: [workspace-safety, evidence-integrity]
 
 ## Inputs you read
 
-- Accept exactly one task_id, attempt, mode, source_identity, full_text_ref, and budget.
-- Require task_id I0 and mode paper-indexer.
+- Accept exactly one task_id, attempt, explanation_mode, source_identity, full_text_ref, and budget.
+- Require task_id I0 and explanation_mode beginner, graduate, or reviewer.
 - Verify source_identity against full_text_ref and enforce budget without
   accepting any additional input field.
 
@@ -54,8 +56,9 @@ policies: [workspace-safety, evidence-integrity]
 ## Execution protocol
 
 1. Verify title, authors, year, venue, canonical URL, and readable full text.
-2. Index sections, equations, figures, tables, experiments, claims,
-   assumptions, limitations, and implementation references with locators.
+2. Index the research question, prerequisites, contributions, method steps, sections,
+   equations, figures, tables, experiments, claims, assumptions, limitations,
+   implementation references, reproduction gaps, and uncertainties with locators.
 3. Keep the map factual and immutable for all dependent tasks.
 4. Never dispatch a nested subagent.
 5. Never accept or infer an output path or collision state.

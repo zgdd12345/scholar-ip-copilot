@@ -7,24 +7,30 @@ contracts for this stage.
 
 ## Phase 1: Resolve source and output
 
-1. Classify `source` as a local PDF path, arXiv identifier or URL, DOI, or paper URL.
-   Resolve exactly one paper and verify its title, authors, year, venue, canonical URL,
+1. Classify the supplied identifier without opening it. For a local PDF, run
+   `evidraft workflow preflight research.explain --read-target <source>` before reading
+   the local PDF or resolving metadata from it. Do not pass a DOI, arXiv identifier or
+   URL, or paper URL as a local `--read-target`; remote sources follow their canonical
+   retrieval path.
+2. Resolve exactly one paper and verify its title, authors, year, venue, canonical URL,
    and research problem against the source or a canonical record. Stop and request a
    more precise identifier when the identity is ambiguous.
-2. Obtain readable full text and verify that its sections, equations, figures, and
+3. Obtain readable full text and verify that its sections, equations, figures, and
    tables can be inspected. An abstract alone is not full text. If a PDF has no usable
    text layer or materially broken equation extraction, request a readable copy; any
    explicitly requested OCR draft remains incomplete.
-3. Select `mode`, defaulting to `graduate`. Derive `<paper-slug>` from the verified title
+4. Select public `mode`, defaulting to `graduate`, then map public `mode` to internal
+   `explanation_mode` without changing its `beginner`, `graduate`, or `reviewer` value.
+   Derive `<paper-slug>` from the verified title
    as deterministic ASCII: transliterate when possible, lowercase, replace each run of
    non-alphanumeric characters with one hyphen, trim hyphens, and fall back to a verified
    paper identifier if the title yields no characters. Resolve `out` or the default
    `.evidraft/notes/paper-explanations/<paper-slug>.md` to a concrete relative path.
-4. If that path is a non-empty existing note, resolve one choice before writing:
+5. If that path is a non-empty existing note, resolve one choice before writing:
    `reuse` keeps it and stops; `augment` preserves it and selects a unique dated sibling
    (adding a numeric suffix on collision); `overwrite` requires explicit user
    confirmation. Recommend `augment` for refreshed related-work requests.
-5. Run `evidraft workflow prepare-output research.explain --target <resolved-output>`
+6. Run `evidraft workflow prepare-output research.explain --target <resolved-output>`
    with the final concrete collision-safe path. Never pass an unresolved placeholder.
    This deterministic command applies workspace preflight to that one target and creates
    only its confined parent directory; it does not create the output file or
@@ -50,6 +56,14 @@ contracts for this stage.
 
 ## Phase 3: Dispatch adaptive dependency waves
 
+On Claude and OpenCode, dispatch each I0, analysis, reasoning, and audit task through
+the mode-specific agent whose identifier exactly matches the task graph's `mode`; its
+frontmatter enforces the mode's read-only tool set. Codex does not expose per-agent
+allowed_tools in this plugin projection, so attach the complete private mode spec to
+each independent subagent and enforce its tool list as a contract. This is contract
+enforcement, not a hard tool sandbox, and does not by itself mean delegation unavailable.
+Only inability to create the required independent subagents triggers that terminal state.
+
 Dispatch `I0` first and validate its returned PaperMap. If I0 fails after attempt two,
 stop without dispatching any analysis task, A1, or S0 and write no note. Otherwise,
 dispatch each selected profile's dependency-ready tasks in lexical `task_id` order with
@@ -61,7 +75,7 @@ delegate further.
 
 ### IndexerInput contract
 
-Dispatch `I0` with exactly `task_id`, `attempt`, `mode`, `source_identity`,
+Dispatch `I0` with exactly `task_id`, `attempt`, `explanation_mode`, `source_identity`,
 `full_text_ref`, and its graph-declared `budget`. It receives neither a PaperMap nor
 dependency packets. Its return must validate against `paper-map.schema.json` and must
 map the readable full text's section structure, research question, prerequisites,
@@ -72,10 +86,17 @@ implementation details, and reproduction gaps to precise source-paper locations.
 ### WorkerInput contract
 
 Dispatch every analysis, reasoning, or audit task with exactly `task_id`, `attempt`,
-graph-declared `task_scope`, `mode`, the immutable validated PaperMap, `full_text_ref`,
+graph-declared `task_scope`, `explanation_mode`, immutable validated PaperMap, `full_text_ref`,
 immutable validated `dependency_packets`, and the graph-declared `budget`. First-wave
 dependency packets are empty; `A1` receives the seven terminal first-wave packets.
 Every return must validate against `analysis-packet.schema.json`.
+
+After every I0, analysis, reasoning, or audit return, run
+`evidraft paper-explanation validate-return --bundle <paper-explanation-bundle>
+--task-id <task-id> --attempt <attempt>` and send the exact returned JSON on stdin.
+Do not serialize a worker return through a temporary project file. This validator binds
+the schema-valid object to the expected task ID, current attempt, and graph-declared
+source and finding budgets. An invalid or schema-invalid return consumes that attempt.
 
 The workers never receive `out`, a resolved output path, collision state, output-file
 ownership, or another worker's mutable state. Only `paper-explainer` receives the
@@ -114,6 +135,14 @@ An `I0` terminal failure writes no note. A mandatory external-research failure m
 continue only to a prominently marked incomplete source-analysis draft. Every partial
 or incomplete note includes a status banner, failed task IDs, both attempt reasons,
 missing sections, and recovery actions.
+
+Immediately before dispatching `S0`, re-check the resolved target. If it has become a
+non-empty file since output preparation, repeat the `reuse`, `augment`, or `overwrite`
+decision, resolve the final path, and run
+`evidraft workflow prepare-output research.explain --target <resolved-output>` again.
+The current core does not reserve an empty destination atomically, so a narrow race
+remains between this final check and the single write; never treat the earlier check as
+permission to overwrite a newly non-empty note.
 
 Pass to `S0` only the selected mode, resolved output ownership, validated PaperMap,
 validated packets in canonical task-ID order, failure history and failed IDs, optional

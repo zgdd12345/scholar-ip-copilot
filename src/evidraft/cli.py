@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Sequence
 
@@ -15,6 +16,7 @@ from .core import (
     workflow_finalize,
     workflow_prepare_output,
     workflow_preflight,
+    workflow_validate_paper_explanation_return,
 )
 from .install import sync_codex_skills
 from .render import Host, clean_rendered, render_plugin
@@ -63,6 +65,18 @@ def build_parser() -> argparse.ArgumentParser:
     sync.add_argument("--dest", required=True, type=Path)
     clean = commands.add_parser("clean-rendered")
     clean.add_argument("--out", required=True, type=Path)
+    paper_explanation = commands.add_parser("paper-explanation")
+    paper_explanation_commands = paper_explanation.add_subparsers(
+        dest="paper_explanation_command", required=True
+    )
+    validate_return = paper_explanation_commands.add_parser("validate-return")
+    validate_return.add_argument("--bundle", required=True, type=Path)
+    validate_return.add_argument("--task-id", required=True)
+    validate_return.add_argument("--attempt", required=True, type=int)
+    validate_return.add_argument(
+        "--packet-json",
+        help="JSON object; omit or pass '-' to read the exact return from stdin.",
+    )
     return parser
 
 
@@ -115,6 +129,31 @@ def main(argv: Sequence[str] | None = None) -> int:
     elif args.command == "clean-rendered":
         removed = clean_rendered(args.out)
         print(json.dumps({"removed": len(removed), "output": str(args.out.resolve())}))
+    elif (
+        args.command == "paper-explanation"
+        and args.paper_explanation_command == "validate-return"
+    ):
+        raw = (
+            sys.stdin.read()
+            if args.packet_json in (None, "-")
+            else args.packet_json
+        )
+        result = workflow_validate_paper_explanation_return(
+            args.bundle,
+            json.loads(raw),
+            expected_task_id=args.task_id,
+            expected_attempt=args.attempt,
+        )
+        print(
+            json.dumps(
+                {
+                    "valid": True,
+                    "task_id": result["task_id"],
+                    "attempt": result["attempt"],
+                },
+                sort_keys=True,
+            )
+        )
     return 0
 
 
