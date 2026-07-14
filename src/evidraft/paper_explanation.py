@@ -30,7 +30,7 @@ EXPECTED_TASKS = {
         "mandatory": True,
         "output": "paper-map",
         "writes_final_note": False,
-        "budget": {"max_sources": 0, "max_findings": 100},
+        "budget": {"max_sections": 100},
     },
     "B1": {
         "role": "researcher",
@@ -323,8 +323,15 @@ def validate_paper_explanation_instance(
             f"attempt mismatch: expected {expected_attempt}, got {instance.get('attempt')}"
         )
 
-    if schema_name == "analysis-packet.schema.json":
-        budget = tasks[expected_task_id]["budget"]
+    budget = tasks[expected_task_id]["budget"]
+    if schema_name == "paper-map.schema.json":
+        sections = instance.get("sections", [])
+        if len(sections) > budget["max_sections"]:
+            raise ValueError(
+                f"max_sections exceeded for {expected_task_id}: "
+                f"{len(sections)} > {budget['max_sections']}"
+            )
+    else:
         findings = instance.get("findings", [])
         external_works = instance.get("external_works", [])
         if len(findings) > budget["max_findings"]:

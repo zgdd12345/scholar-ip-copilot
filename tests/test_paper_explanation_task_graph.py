@@ -209,6 +209,10 @@ def test_graph_assigns_exact_modes_mandatory_work_and_one_writer() -> None:
             assert task["writes_final_note"] is False
 
 
+def test_i0_graph_budget_is_exactly_the_dedicated_section_limit() -> None:
+    assert _graph()["tasks"]["I0"]["budget"] == {"max_sections": 100}
+
+
 @pytest.mark.parametrize(
     "mutation", ["cycle", "unknown-dependency", "unknown-mode", "second-writer"]
 )
@@ -321,6 +325,13 @@ def test_a1_packet_requires_explicit_blocking_state_and_finding_severity() -> No
     without_severity["findings"][0].pop("severity")
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(without_severity, schema)
+
+
+def test_non_a1_packet_rejects_blocking_state() -> None:
+    schema = _schema("analysis-packet.schema.json")
+
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(_analysis_packet() | {"blocking": False}, schema)
 
 
 def test_external_packets_require_bounded_search_metadata() -> None:
@@ -473,6 +484,15 @@ def test_runtime_validator_enforces_graph_finding_and_source_budgets() -> None:
     ]
     with pytest.raises(ValueError, match="max_sources"):
         validate(BUNDLE, external, expected_task_id="R1", expected_attempt=1)
+
+
+def test_runtime_validator_enforces_i0_section_budget() -> None:
+    validate = _instance_validator()
+    paper_map = _paper_map()
+    paper_map["sections"] *= 101
+
+    with pytest.raises(ValueError, match="max_sections"):
+        validate(BUNDLE, paper_map, expected_task_id="I0", expected_attempt=1)
 
 
 @pytest.mark.parametrize(

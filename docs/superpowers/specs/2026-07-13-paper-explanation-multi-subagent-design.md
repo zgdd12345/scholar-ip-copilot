@@ -1,8 +1,8 @@
 # Paper Explanation Multi-Subagent Design
 
-**Date:** 2026-07-13  
-**Status:** Approved for implementation planning  
-**Extends:** `2026-07-13-paper-explanation-design.md`  
+**Date:** 2026-07-13
+**Status:** Approved for implementation planning
+**Extends:** `2026-07-13-paper-explanation-design.md`
 **Public action:** `workflow:research.explain`
 
 ## Purpose

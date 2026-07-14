@@ -227,7 +227,7 @@ Create `task-graph.yaml` with the scheduler above and these task records. All re
 format_version: 1
 scheduler: {max_parallel: 4, max_attempts: 2, nested_delegation: forbidden, result_order: task_id}
 tasks:
-  I0: {role: researcher, mode: paper-indexer, tier: standard, scope: [paper-index], mandatory: true, output: paper-map, writes_final_note: false, budget: {max_sources: 0, max_findings: 100}}
+  I0: {role: researcher, mode: paper-indexer, tier: standard, scope: [paper-index], mandatory: true, output: paper-map, writes_final_note: false, budget: {max_sections: 100}}
   B1: {role: researcher, mode: paper-analysis-worker, tier: standard, scope: [method, intuitive-equations], mandatory: false, output: analysis-packet, writes_final_note: false, budget: {max_sources: 0, max_findings: 20}}
   B2: {role: researcher, mode: paper-analysis-worker, tier: standard, scope: [experiments, limitations], mandatory: false, output: analysis-packet, writes_final_note: false, budget: {max_sources: 0, max_findings: 20}}
   B3: {role: researcher, mode: paper-analysis-worker, tier: standard, scope: [similar-methods, frontier-methods], mandatory: true, output: analysis-packet, writes_final_note: false, budget: {max_sources: 10, max_findings: 20}}
@@ -346,7 +346,7 @@ EXPECTED_SCHEDULER = {
     "nested_delegation": "forbidden", "result_order": "task_id",
 }
 EXPECTED_TASKS = {
-    "I0": {"role": "researcher", "mode": "paper-indexer", "tier": "standard", "scope": ["paper-index"], "mandatory": True, "output": "paper-map", "writes_final_note": False, "budget": {"max_sources": 0, "max_findings": 100}},
+    "I0": {"role": "researcher", "mode": "paper-indexer", "tier": "standard", "scope": ["paper-index"], "mandatory": True, "output": "paper-map", "writes_final_note": False, "budget": {"max_sections": 100}},
     "B1": {"role": "researcher", "mode": "paper-analysis-worker", "tier": "standard", "scope": ["method", "intuitive-equations"], "mandatory": False, "output": "analysis-packet", "writes_final_note": False, "budget": {"max_sources": 0, "max_findings": 20}},
     "B2": {"role": "researcher", "mode": "paper-analysis-worker", "tier": "standard", "scope": ["experiments", "limitations"], "mandatory": False, "output": "analysis-packet", "writes_final_note": False, "budget": {"max_sources": 0, "max_findings": 20}},
     "B3": {"role": "researcher", "mode": "paper-analysis-worker", "tier": "standard", "scope": ["similar-methods", "frontier-methods"], "mandatory": True, "output": "analysis-packet", "writes_final_note": False, "budget": {"max_sources": 10, "max_findings": 20}},
