@@ -523,7 +523,7 @@ def test_paper_explanation_workers_are_read_only_and_synthesizer_is_sole_writer(
         metadata, body = _frontmatter(ROLES_ROOT / "modes" / f"{mode}.md")
         assert "Write" not in metadata["allowed_tools"]
         assert "Edit" not in metadata["allowed_tools"]
-        assert "output path" not in body.lower()
+        assert "never accept or infer an output path or collision state" in body.lower()
         assert "nested subagent" in body.lower()
         assert "return" in body.lower()
     metadata, body = _frontmatter(ROLES_ROOT / "modes/paper-explainer.md")
