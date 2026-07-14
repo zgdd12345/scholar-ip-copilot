@@ -557,7 +557,7 @@ paper-reasoning-worker: [Read, Glob, Grep]
 explanation-evidence-auditor: [Read, Glob, Grep, WebFetch]
 ```
 
-Every worker body must contain `## Inputs you read`, `## Outputs you return`, `## Execution protocol`, and `## Failure modes you avoid`, and explicitly state all of the following:
+Every mode body must contain `## Inputs you read`, `## Outputs you return`, `## Execution protocol`, and `## Failure modes you avoid`. `paper-indexer` must explicitly accept only `task_id`, `attempt`, `mode`, `source_identity`, `full_text_ref`, and `budget`; it must not accept `PaperMap`, `dependency_packets`, `task_scope`, output path, or collision state. Every post-index worker must explicitly state all of the following:
 
 ```text
 - Accept exactly one task_id, attempt, closed task_scope, immutable PaperMap, full_text_ref, dependency_packets, and budget.
