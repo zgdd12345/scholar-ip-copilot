@@ -79,9 +79,13 @@ MODE_ASSIGNMENTS = {
     "literature-reviewer": ("researcher", "standard"),
     "screener": ("researcher", "fast"),
     "paper-critic": ("researcher", "standard"),
+    "paper-indexer": ("researcher", "standard"),
+    "paper-analysis-worker": ("researcher", "standard"),
+    "paper-reasoning-worker": ("researcher", "deep"),
     "paper-explainer": ("researcher", "deep"),
     "deep-research-orchestrator": ("researcher", "deep"),
     "evidence-auditor": ("evidence-reviewer", "standard"),
+    "explanation-evidence-auditor": ("evidence-reviewer", "standard"),
     "consistency-checker": ("evidence-reviewer", "fast"),
     "codebase-analyst": ("code-reviewer", "standard"),
     "methodology-reviewer": ("code-reviewer", "standard"),
@@ -357,7 +361,7 @@ def test_workspace_safety_denies_the_complete_legacy_sensitive_set(path: str) ->
 def test_actions_reference_only_declared_roles_policies_and_tiers() -> None:
     roles = _load_yaml(PLUGIN_ROOT / "roles" / "roles.yaml")["roles"]
     declared_modes = [mode for role in roles.values() for mode in role["modes"]]
-    assert len(declared_modes) == len(set(declared_modes)) == 16
+    assert len(declared_modes) == len(set(declared_modes)) == 20
     assert set(declared_modes) == set(MODE_ASSIGNMENTS)
 
     for workflow_id in ROUTES:

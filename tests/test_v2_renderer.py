@@ -16,6 +16,17 @@ PLUGIN_ROOT = REPO_ROOT / "plugins" / "scholar-ip"
 PUBLIC_IDS = {"using", "scope", "research", "paper", "patent", "polish", "xreview"}
 
 
+def _set_mode_allowed_tools(path: Path, allowed_tools: object) -> None:
+    text = path.read_text(encoding="utf-8")
+    _, header, body = text.split("---", 2)
+    metadata = yaml.safe_load(header)
+    metadata["allowed_tools"] = allowed_tools
+    path.write_text(
+        f"---\n{yaml.safe_dump(metadata, sort_keys=False)}---{body}",
+        encoding="utf-8",
+    )
+
+
 def _public_entries(root: Path, host: Host) -> set[str]:
     if host is Host.CLAUDE:
         return {path.stem for path in (root / "commands").glob("*.md")}
@@ -85,7 +96,43 @@ def test_render_copies_native_paper_explanation_resources(tmp_path: Path, host: 
         "analysis-packet.schema.json",
     ):
         assert (rendered / name).read_bytes() == (source / name).read_bytes()
-    assert (private / "roles/modes/paper-explainer.md").is_file()
+    for mode in (
+        "paper-indexer",
+        "paper-analysis-worker",
+        "paper-reasoning-worker",
+        "explanation-evidence-auditor",
+        "paper-explainer",
+    ):
+        assert (private / "roles" / "modes" / f"{mode}.md").is_file()
+
+
+@pytest.mark.parametrize(
+    "corruption",
+    ["cycle", "unknown-dependency", "unknown-mode", "second-writer"],
+)
+def test_renderer_rejects_invalid_paper_explanation_graph_before_output(
+    tmp_path: Path, corruption: str
+) -> None:
+    plugin = tmp_path / "plugin"
+    shutil.copytree(PLUGIN_ROOT, plugin)
+    graph_path = plugin / "capabilities/research/paper-explanation/task-graph.yaml"
+    graph = yaml.safe_load(graph_path.read_text(encoding="utf-8"))
+
+    if corruption == "cycle":
+        graph["profiles"]["beginner"]["dependencies"]["I0"] = ["S0"]
+    elif corruption == "unknown-dependency":
+        graph["profiles"]["beginner"]["dependencies"]["B1"] = ["Z9"]
+    elif corruption == "unknown-mode":
+        graph["tasks"]["I0"]["mode"] = "missing-mode"
+    else:
+        graph["tasks"]["B1"]["writes_final_note"] = True
+    graph_path.write_text(yaml.safe_dump(graph, sort_keys=False), encoding="utf-8")
+    out = tmp_path / "out"
+
+    with pytest.raises(ValueError):
+        render_plugin(plugin, out, Host.CLAUDE)
+
+    assert not out.exists()
 
 
 @pytest.mark.parametrize("missing", ["workflows/patent", "capabilities", "templates"])
@@ -179,12 +226,10 @@ def test_renderer_validates_mode_tools_and_filters_forbidden_globs(tmp_path: Pat
     plugin = tmp_path / "plugin"
     shutil.copytree(PLUGIN_ROOT, plugin)
     mode = plugin / "roles" / "modes" / "paper-explainer.md"
-    text = mode.read_text(encoding="utf-8")
-    text = text.replace(
-        "allowed_tools: [Read, Glob, Grep, Write, Edit, WebSearch, WebFetch]",
-        "allowed_tools: [Read, Glob, Grep, Write, Edit, WebSearch, WebFetch, 'Bash:sudo now']",
+    _set_mode_allowed_tools(
+        mode,
+        ["Read", "Glob", "Grep", "Write", "Edit", "Bash:sudo now"],
     )
-    mode.write_text(text, encoding="utf-8")
 
     out = tmp_path / "claude"
     render_plugin(plugin, out, Host.CLAUDE)
@@ -193,12 +238,7 @@ def test_renderer_validates_mode_tools_and_filters_forbidden_globs(tmp_path: Pat
     )
     assert "Bash:sudo now" not in researcher["tools"]
 
-    text = mode.read_text(encoding="utf-8")
-    text = text.replace(
-        "allowed_tools: [Read, Glob, Grep, Write, Edit, WebSearch, WebFetch, 'Bash:sudo now']",
-        "allowed_tools: WebSearch",
-    )
-    mode.write_text(text, encoding="utf-8")
+    _set_mode_allowed_tools(mode, "WebSearch")
     with pytest.raises(ValueError, match="allowed_tools.*list"):
         render_plugin(plugin, tmp_path / "invalid", Host.CLAUDE)
 

@@ -16,6 +16,7 @@ import jsonschema
 import yaml
 
 from .legacy import V1_AGENTS, V1_COMMANDS, V1_HOOK_FILES, V1_SKILLS
+from .paper_explanation import validate_paper_explanation_bundle
 from .transaction import replace_owned_tree
 
 
@@ -141,8 +142,9 @@ def _validate_plugin_source(plugin_root: Path) -> dict[str, Workflow]:
         for role in roles.values()
         for mode in role.get("modes", [])
     }
-    if set(mode_specs) != declared_modes or len(declared_modes) != 16:
-        raise ValueError("v2 source must map exactly 16 role modes to private specs")
+    validate_paper_explanation_bundle(plugin_root, declared_modes)
+    if set(mode_specs) != declared_modes or len(declared_modes) != 20:
+        raise ValueError("v2 source must map exactly 20 role modes to private specs")
     for mode, spec in mode_specs.items():
         metadata, _body = _split_frontmatter(spec.read_text(encoding="utf-8"))
         if metadata.get("id") != mode:

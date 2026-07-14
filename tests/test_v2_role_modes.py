@@ -33,7 +33,18 @@ EXPECTED = {
     "patent-engineer": ("patent-reviewer", "deep", 5, 5, 6, 5),
 }
 NATIVE_EXPECTED = {
-    "paper-explainer": ("researcher", "deep", 7, 7, 7, 7),
+    "paper-indexer": ("researcher", "standard", 5, 7, 6, 3),
+    "paper-analysis-worker": ("researcher", "standard", 6, 8, 7, 5),
+    "paper-reasoning-worker": ("researcher", "deep", 5, 8, 7, 3),
+    "explanation-evidence-auditor": (
+        "evidence-reviewer",
+        "standard",
+        6,
+        8,
+        7,
+        4,
+    ),
+    "paper-explainer": ("researcher", "deep", 6, 8, 7, 5),
 }
 ALL_EXPECTED = EXPECTED | NATIVE_EXPECTED
 MODE_SPEC_SHA256 = {
@@ -83,7 +94,7 @@ def _mode_index() -> dict[str, tuple[str, str, str]]:
     return indexed
 
 
-def test_roles_map_exactly_sixteen_unique_modes_to_private_specs() -> None:
+def test_roles_map_exactly_twenty_unique_modes_to_private_specs() -> None:
     index = _mode_index()
 
     assert set(index) == set(ALL_EXPECTED)
@@ -120,6 +131,91 @@ def test_mode_specs_preserve_v1_tools_and_semantic_sections() -> None:
         assert "Inputs you read" in body
         assert "Outputs you " in body
         assert "Failure modes you avoid" in body
+
+
+def test_paper_explanation_workers_are_read_only_and_synthesizer_is_sole_writer() -> None:
+    worker_modes = {
+        "paper-indexer",
+        "paper-analysis-worker",
+        "paper-reasoning-worker",
+        "explanation-evidence-auditor",
+    }
+    for mode in worker_modes:
+        metadata, body = _frontmatter(ROLES_ROOT / "modes" / f"{mode}.md")
+        assert "Write" not in metadata["allowed_tools"]
+        assert "Edit" not in metadata["allowed_tools"]
+        assert (
+            "never accept or infer an output path or collision state."
+            in body.lower()
+        )
+        assert "nested subagent" in body.lower()
+        assert "return" in body.lower()
+
+    metadata, body = _frontmatter(ROLES_ROOT / "modes/paper-explainer.md")
+    assert metadata["allowed_tools"] == ["Read", "Glob", "Grep", "Write", "Edit"]
+    assert "sole" in body.lower()
+    assert "canonical task order" in body.lower()
+    for rule in (
+        "re-check each numerical conflict against its evidence_refs and retain "
+        "every unresolved value",
+        "present external evidence alongside, never as a replacement for, the "
+        "authors' conclusion",
+        "exclude any factual finding without evidence_refs or mark it uncertain",
+        "when the audit packet flags an unsupported strong claim, downgrade it, "
+        "label it [Interpretation], or exclude it",
+    ):
+        assert rule.lower() in body.lower()
+
+
+def test_native_paper_explanation_modes_have_exact_tools_references_and_sections() -> None:
+    tools_by_mode = {
+        "paper-indexer": ["Read", "Glob", "Grep"],
+        "paper-analysis-worker": ["Read", "Glob", "Grep", "WebSearch", "WebFetch"],
+        "paper-reasoning-worker": ["Read", "Glob", "Grep"],
+        "explanation-evidence-auditor": ["Read", "Glob", "Grep", "WebFetch"],
+        "paper-explainer": ["Read", "Glob", "Grep", "Write", "Edit"],
+    }
+    worker_schema_by_mode = {
+        "paper-indexer": "paper-map.schema.json",
+        "paper-analysis-worker": "analysis-packet.schema.json",
+        "paper-reasoning-worker": "analysis-packet.schema.json",
+        "explanation-evidence-auditor": "analysis-packet.schema.json",
+    }
+    headings = {
+        "## Inputs you read",
+        "## Outputs you return",
+        "## Execution protocol",
+        "## Failure modes you avoid",
+    }
+
+    for mode, expected_tools in tools_by_mode.items():
+        metadata, body = _frontmatter(ROLES_ROOT / "modes" / f"{mode}.md")
+        assert metadata["allowed_tools"] == expected_tools
+        assert headings <= set(body.splitlines())
+
+    for mode, schema in worker_schema_by_mode.items():
+        metadata, _body = _frontmatter(ROLES_ROOT / "modes" / f"{mode}.md")
+        assert [reference["doc"] for reference in metadata["references"]] == [
+            "../../capabilities/research/paper-explanation/spec.md",
+            "../../capabilities/research/paper-explanation/task-graph.yaml",
+            f"../../capabilities/research/paper-explanation/{schema}",
+        ]
+
+
+def test_paper_indexer_accepts_only_the_closed_indexer_input() -> None:
+    _metadata, body = _frontmatter(ROLES_ROOT / "modes/paper-indexer.md")
+    inputs = body.split("## Inputs you read", 1)[1].split(
+        "## Outputs you return", 1
+    )[0]
+
+    assert (
+        "Accept exactly one task_id, attempt, mode, source_identity, "
+        "full_text_ref, and budget."
+        in inputs
+    )
+    assert "PaperMap" not in inputs
+    assert "dependency_packets" not in inputs
+    assert "task_scope" not in inputs
 
 
 def test_normalized_mode_specs_match_the_frozen_behavior_snapshot() -> None:
