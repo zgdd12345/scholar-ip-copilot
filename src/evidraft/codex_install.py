@@ -128,13 +128,18 @@ def _marketplace_root(output: str, marketplace_name: str) -> Path | None:
     return matches[0] if matches else None
 
 
-def _installed_plugin(output: str, plugin_ref: str) -> InstalledPlugin:
+def _installed_plugin_records(
+    output: str,
+    plugin_ref: str,
+) -> tuple[bool, list[InstalledPlugin]]:
     lines = output.splitlines()
     in_table = False
+    saw_table = False
     matches: list[InstalledPlugin] = []
     for line in lines:
         if line.split() == ["PLUGIN", "STATUS", "VERSION", "PATH"]:
             in_table = True
+            saw_table = True
             continue
         if not line.strip():
             in_table = False
@@ -147,12 +152,20 @@ def _installed_plugin(output: str, plugin_ref: str) -> InstalledPlugin:
         if len(fields) != 4:
             raise RuntimeError(f"post-validate: malformed installed record for {plugin_ref}")
         matches.append(InstalledPlugin(fields[0], fields[1], fields[2], Path(fields[3])))
+    return saw_table, matches
+
+
+def _installed_plugin(output: str, plugin_ref: str) -> InstalledPlugin:
+    _, matches = _installed_plugin_records(output, plugin_ref)
     if len(matches) != 1:
         raise RuntimeError(f"post-validate: expected one installed record for {plugin_ref}")
     return matches[0]
 
 
 def _plugin_is_enabled(output: str, plugin_ref: str) -> bool:
+    saw_table, records = _installed_plugin_records(output, plugin_ref)
+    if saw_table:
+        return any(record.status == "installed, enabled" for record in records)
     for line in output.splitlines():
         fields = line.strip().split(maxsplit=1)
         if fields == [plugin_ref, "installed, enabled"]:

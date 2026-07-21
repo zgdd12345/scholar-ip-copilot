@@ -119,6 +119,27 @@ def test_project_mode_refuses_active_plugin_without_removing_it(tmp_path: Path) 
     assert all("remove" not in command for command in calls)
 
 
+def test_project_mode_refuses_active_plugin_from_current_inventory_table(
+    tmp_path: Path,
+) -> None:
+    calls: list[list[str]] = []
+    plugin_root = tmp_path / "cache root" / "scholar"
+    output = (
+        "PLUGIN  STATUS  VERSION  PATH\n"
+        f"{PLUGIN_REF}  installed, enabled  3.0.0+codex.test  {plugin_root}\n"
+    )
+
+    def runner(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0, output, "")
+
+    with pytest.raises(RuntimeError, match=r"codex plugin remove scholar@scholar-ip-copilot"):
+        codex_project_mode_preflight(tmp_path, runner=runner)
+
+    assert len(calls) == 1
+    assert calls[0][-2:] == ["plugin", "list"]
+
+
 @pytest.mark.parametrize(
     "plugin_list_output",
     [
