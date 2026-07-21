@@ -9,8 +9,10 @@ SMOKE_VENV   := .release-smoke-venv
 CODEX_SKILLS_INSTALL := .agents/skills
 
 .PHONY: help render _render-all render-claude render-codex render-opencode \
-        install _install-all install-claude install-codex install-opencode \
-        sync-codex-skills test lint plugin-validate wheel wheel-smoke \
+        install _install-all install-claude install-codex install-codex-plugin \
+        install-codex-project install-opencode remove-codex-project-skills \
+        codex-project-mode-preflight sync-codex-skills package-check \
+        test lint plugin-validate wheel wheel-smoke \
         release-check verify clean
 
 help:
@@ -22,12 +24,13 @@ help:
 	@echo ""
 	@echo "Install targets (render + put files where the host actually loads them):"
 	@echo "  install-claude    -> render + remind to run 'claude plugin install'"
-	@echo "  install-codex     -> render + sync scholar-* skills into $(CODEX_SKILLS_INSTALL)/"
+	@echo "  install-codex     -> validate + install the tracked Codex marketplace plugin"
+	@echo "  install-codex-project -> compatibility mode: sync project-local skills"
 	@echo "  install-opencode  -> render (opencode auto-discovers .opencode/)"
 	@echo "  install           -> all three"
 	@echo ""
 	@echo "Other:"
-	@echo "  sync-codex-skills -> just the .agents/skills/scholar-* sync step"
+	@echo "  sync-codex-skills -> just the compatibility-mode project skill sync"
 	@echo "  test              -> full pytest suite"
 	@echo "  lint              -> Ruff"
 	@echo "  plugin-validate   -> render + official Claude plugin validator"
@@ -62,14 +65,36 @@ render-opencode:
 # ---------------------------------------------------------------------------
 # install
 
-# Codex discovers project skills under <repo>/.agents/skills/. The deterministic
-# installer replaces the seven owned bundles transactionally and removes only
-# paths recorded in its ownership manifest or in the exact v1 migration set.
-sync-codex-skills: render-codex
-	$(PYTHON) -m evidraft.cli sync-codex-skills \
-	    --source $(CODEX_OUT) --dest $(CODEX_SKILLS_INSTALL)
+# Marketplace mode is the default. It removes only manifest-owned project skills
+# before using the tracked, package-checked repo marketplace.
+package-check:
+	$(PYTHON) -m evidraft.cli package \
+	    --plugin $(PLUGIN_SRC) --out plugins/scholar --check
 
-install-codex: sync-codex-skills
+remove-codex-project-skills:
+	$(PYTHON) -m evidraft.cli remove-codex-project-skills \
+	    --dest $(CODEX_SKILLS_INSTALL)
+
+install-codex-plugin: package-check remove-codex-project-skills
+	$(PYTHON) -m evidraft.cli install-codex-plugin \
+	    --repo-root . \
+	    --marketplace .agents/plugins/marketplace.json \
+	    --plugin plugins/scholar
+
+install-codex: install-codex-plugin
+
+# Compatibility mode is explicit and refuses to run while the marketplace
+# plugin is active. It never removes or disables the plugin automatically.
+codex-project-mode-preflight:
+	$(PYTHON) -m evidraft.cli codex-project-mode-preflight --repo-root .
+
+sync-codex-skills: package-check
+	$(PYTHON) -m evidraft.cli sync-codex-skills \
+	    --source plugins/scholar --dest $(CODEX_SKILLS_INSTALL)
+
+install-codex-project: package-check codex-project-mode-preflight
+	$(PYTHON) -m evidraft.cli sync-codex-skills \
+	    --source plugins/scholar --dest .agents/skills
 
 install-claude: render-claude
 	@echo ""
@@ -143,7 +168,7 @@ verify: install test
 	@echo "  claude:   claude plugin marketplace add ./ --scope project &&"
 	@echo "            claude plugin install scholar@scholar-ip-copilot --scope project"
 	@echo "  codex:    codex plugin marketplace add ./ &&"
-	@echo "            append '[plugins.\"scholar@scholar-ip-copilot\"] enabled = true' to ~/.codex/config.toml"
+	@echo "            codex -c 'model_reasoning_effort=\"xhigh\"' plugin add scholar@scholar-ip-copilot"
 	@echo "  opencode: open opencode in this repo (auto-discovery), or install the rendered .opencode tree"
 
 clean:

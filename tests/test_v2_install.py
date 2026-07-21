@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from evidraft.cli import main
-from evidraft.install import sync_codex_skills
+from evidraft.install import remove_codex_project_skills, sync_codex_skills
 from evidraft.render import Host, render_plugin
 
 
@@ -207,3 +207,12 @@ def test_sync_rejects_symlink_ancestor_before_creating_destination(tmp_path: Pat
         sync_codex_skills(source, link / "skills")
 
     assert not (outside / "skills").exists()
+
+
+def test_remove_codex_project_skills_is_idempotent_without_manifest(tmp_path: Path) -> None:
+    destination = tmp_path / "skills"
+    user_skill = destination / "scholar-user"
+    user_skill.mkdir(parents=True)
+
+    assert remove_codex_project_skills(destination) == []
+    assert user_skill.is_dir()

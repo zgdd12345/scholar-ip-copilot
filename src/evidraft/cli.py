@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
+from .codex_install import codex_project_mode_preflight, reinstall_codex_plugin
 from .core import (
     append_evidence,
     audit_evidence,
@@ -19,7 +20,7 @@ from .core import (
     workflow_preflight,
     workflow_validate_paper_explanation_return,
 )
-from .install import sync_codex_skills
+from .install import remove_codex_project_skills, sync_codex_skills
 from .release import release_package_drift, render_plugin_package
 from .render import Host, clean_rendered, render_plugin
 
@@ -70,6 +71,15 @@ def build_parser() -> argparse.ArgumentParser:
     sync = commands.add_parser("sync-codex-skills")
     sync.add_argument("--source", required=True, type=Path)
     sync.add_argument("--dest", required=True, type=Path)
+    install_codex_plugin = commands.add_parser("install-codex-plugin")
+    install_codex_plugin.add_argument("--repo-root", required=True, type=Path)
+    install_codex_plugin.add_argument("--marketplace", required=True, type=Path)
+    install_codex_plugin.add_argument("--plugin", required=True, type=Path)
+    install_codex_plugin.add_argument("--plugin-creator", type=Path)
+    remove_project_skills = commands.add_parser("remove-codex-project-skills")
+    remove_project_skills.add_argument("--dest", required=True, type=Path)
+    project_mode_preflight = commands.add_parser("codex-project-mode-preflight")
+    project_mode_preflight.add_argument("--repo-root", required=True, type=Path)
     clean = commands.add_parser("clean-rendered")
     clean.add_argument("--out", required=True, type=Path)
     paper_explanation = commands.add_parser("paper-explanation")
@@ -152,6 +162,34 @@ def main(argv: Sequence[str] | None = None) -> int:
     elif args.command == "sync-codex-skills":
         installed = sync_codex_skills(args.source, args.dest)
         print(json.dumps({"installed": len(installed), "destination": str(args.dest.resolve())}))
+    elif args.command == "install-codex-plugin":
+        result = reinstall_codex_plugin(
+            args.repo_root,
+            args.marketplace,
+            args.plugin,
+            args.plugin_creator,
+        )
+        print(
+            json.dumps(
+                {
+                    "plugin_ref": result.plugin_ref,
+                    "installed_version": result.installed_version,
+                }
+            )
+        )
+    elif args.command == "remove-codex-project-skills":
+        removed = remove_codex_project_skills(args.dest)
+        print(
+            json.dumps(
+                {
+                    "removed": [str(path) for path in removed],
+                    "destination": str(args.dest.resolve()),
+                }
+            )
+        )
+    elif args.command == "codex-project-mode-preflight":
+        codex_project_mode_preflight(args.repo_root)
+        print(json.dumps({"ready": True, "mode": "project-skills"}))
     elif args.command == "clean-rendered":
         removed = clean_rendered(args.out)
         print(json.dumps({"removed": len(removed), "output": str(args.out.resolve())}))

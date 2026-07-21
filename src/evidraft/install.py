@@ -40,7 +40,7 @@ def _owned_names(destination: Path) -> set[str]:
     private_path = raw.get("private_path")
     if private_path is not None:
         relative = Path(str(private_path))
-        if relative.is_absolute() or len(relative.parts) != 1:
+        if relative.is_absolute() or len(relative.parts) != 1 or relative.name in {".", ".."}:
             raise ValueError(f"unsafe private skill path: {private_path}")
         names.add(relative.name)
     return names
@@ -111,3 +111,34 @@ def sync_codex_skills(rendered_root: Path, destination: Path) -> list[Path]:
         )
 
     return [destination / name for name in sorted(bundles)]
+
+
+def remove_codex_project_skills(destination: Path) -> list[Path]:
+    """Remove only entries declared by the destination ownership manifest."""
+    destination = Path(destination).absolute()
+    if destination.is_symlink():
+        raise ValueError(f"skill destination must not be a symlink: {destination}")
+    manifest = destination / ".evidraft-ownership.json"
+    if manifest.is_symlink() or (manifest.exists() and not manifest.is_file()):
+        raise ValueError(f"deployment manifest must be a regular file: {manifest}")
+    owned = _owned_names(destination)
+    removed = [
+        destination / name
+        for name in sorted(owned)
+        if (destination / name).exists() or (destination / name).is_symlink()
+    ]
+    if not owned:
+        return []
+    with tempfile.TemporaryDirectory(prefix="evidraft-remove-skills-") as raw:
+        staged = Path(raw) / "empty"
+        staged.mkdir()
+        replace_owned_tree(
+            root=destination,
+            staged_root=staged,
+            new_owned=set(),
+            old_owned={Path(name) for name in owned},
+            manifest=manifest,
+            manifest_data={"version": 2, "owned_paths": []},
+        )
+        manifest.unlink()
+    return removed
