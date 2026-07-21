@@ -38,9 +38,11 @@ def build_parser() -> argparse.ArgumentParser:
     preflight.add_argument("operation")
     preflight.add_argument("--read-target", action="append", default=[])
     preflight.add_argument("--target", action="append", default=[])
+    preflight.add_argument("--approve-overwrite", action="store_true")
     prepare_output = workflow_commands.add_parser("prepare-output")
     prepare_output.add_argument("operation")
     prepare_output.add_argument("--target", required=True)
+    prepare_output.add_argument("--approve-overwrite", action="store_true")
     finalize = workflow_commands.add_parser("finalize")
     finalize.add_argument("--directory", required=True)
     finalize.add_argument("--pattern", default="*")
@@ -111,6 +113,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.operation,
             read_paths=args.read_target,
             target_paths=args.target,
+            overwrite_approved=args.approve_overwrite,
         )
         print(
             json.dumps(
@@ -118,7 +121,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         )
     elif args.command == "workflow" and args.workflow_command == "prepare-output":
-        result = workflow_prepare_output(args.root, args.operation, args.target)
+        result = workflow_prepare_output(
+            args.root,
+            args.operation,
+            args.target,
+            overwrite_approved=args.approve_overwrite,
+        )
         print(
             json.dumps(
                 {"operation": result.operation, "warnings": result.warnings}

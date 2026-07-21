@@ -965,6 +965,7 @@ def workflow_preflight(
     read_paths: Sequence[Path | str] = (),
     target_paths: Sequence[Path | str] = (),
     write_zone: Path | str | None = None,
+    overwrite_approved: bool = False,
 ) -> PreflightResult:
     """Enforce migration and workspace path safety before a workflow operation."""
     root = Path(root).resolve()
@@ -1028,6 +1029,11 @@ def workflow_preflight(
     ]
     if unsafe:
         raise PreflightError(f"sensitive workspace path blocked: {', '.join(unsafe)}")
+    existing = [str(path.relative_to(root)) for path in resolved_targets if path.exists()]
+    if existing and not overwrite_approved:
+        raise PreflightError(
+            "target exists and overwrite approval was not provided: " + ", ".join(existing)
+        )
     if write_zone is not None:
         zone = _resolve_within(root, write_zone, label="write zone")
         violations: list[str] = []
@@ -1047,10 +1053,17 @@ def workflow_prepare_output(
     root: Path | str,
     operation: str,
     target_path: Path | str,
+    *,
+    overwrite_approved: bool = False,
 ) -> PreflightResult:
     """Preflight one output and create only its confined parent directory."""
     root = Path(root).resolve()
-    result = workflow_preflight(root, operation, target_paths=[target_path])
+    result = workflow_preflight(
+        root,
+        operation,
+        target_paths=[target_path],
+        overwrite_approved=overwrite_approved,
+    )
     target = _resolve_within(root, target_path, label="target path")
     if target == root:
         raise PreflightError("target path must name an output inside the project root")

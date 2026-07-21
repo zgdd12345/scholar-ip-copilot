@@ -166,6 +166,70 @@ def test_preflight_rejects_symlinked_regular_write_targets(tmp_path: Path, kind:
         core_module.workflow_prepare_output(tmp_path, "research.explain", target)
 
 
+@pytest.mark.parametrize("api", ["preflight", "prepare-output"])
+def test_existing_output_requires_explicit_core_overwrite_approval(
+    tmp_path: Path, api: str
+) -> None:
+    target = tmp_path / "report.md"
+    original = b"existing report\n"
+    target.write_bytes(original)
+
+    with pytest.raises(PreflightError, match="overwrite approval"):
+        if api == "preflight":
+            workflow_preflight(tmp_path, "research.explain", target_paths=[target.name])
+        else:
+            core_module.workflow_prepare_output(tmp_path, "research.explain", target.name)
+
+    assert target.read_bytes() == original
+    if api == "preflight":
+        result = workflow_preflight(
+            tmp_path,
+            "research.explain",
+            target_paths=[target.name],
+            overwrite_approved=True,
+        )
+    else:
+        result = core_module.workflow_prepare_output(
+            tmp_path,
+            "research.explain",
+            target.name,
+            overwrite_approved=True,
+        )
+    assert result.operation == "research.explain"
+    assert target.read_bytes() == original
+
+
+@pytest.mark.parametrize("workflow_command", ["preflight", "prepare-output"])
+def test_existing_output_requires_explicit_cli_overwrite_approval(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    workflow_command: str,
+) -> None:
+    target = tmp_path / "report.md"
+    original = b"existing report\n"
+    target.write_bytes(original)
+    argv = [
+        "--root",
+        str(tmp_path),
+        "workflow",
+        workflow_command,
+        "research.explain",
+        "--target",
+        target.name,
+    ]
+
+    with pytest.raises(PreflightError, match="overwrite approval"):
+        cli_main(argv)
+
+    assert target.read_bytes() == original
+    assert cli_main([*argv, "--approve-overwrite"]) == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "operation": "research.explain",
+        "warnings": [],
+    }
+    assert target.read_bytes() == original
+
+
 def test_evidence_audit_reports_non_empty_quarantine(tmp_path: Path) -> None:
     _write_project(tmp_path)
     quarantine = tmp_path / ".evidraft/evidence/quarantine.jsonl"

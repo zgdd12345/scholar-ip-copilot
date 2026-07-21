@@ -21,7 +21,9 @@ For external tasks, load the private
 4. Run `evidraft workflow prepare-output research.explain --target <resolved-output>`
    only after the concrete collision-safe path is known. Workspace confinement,
    sensitive paths, unsafe symlinks, overwrite authority, and external publication
-   authority are hard safety boundaries.
+   authority are hard safety boundaries. For the explicitly confirmed `overwrite`
+   decision, run `evidraft workflow prepare-output research.explain --target
+   <resolved-output> --approve-overwrite` instead.
 
 ## Phase 2: Load and validate the task graph
 
@@ -100,7 +102,8 @@ output-write safety, and external publication authority remain hard.
 
 Immediately before dispatching `S0`, re-check the resolved target. If it became
 non-empty, repeat the `reuse`, `augment`, or `overwrite` decision and run
-`evidraft workflow prepare-output research.explain --target <resolved-output>` again.
+`evidraft workflow prepare-output research.explain --target <resolved-output>` again,
+adding `--approve-overwrite` only after explicit confirmation of `overwrite`.
 A narrow race remains between this final check and the single write and must be reported.
 
 Render these headings in order, naming unavailable coverage rather than inventing it:

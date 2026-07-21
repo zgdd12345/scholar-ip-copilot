@@ -478,6 +478,7 @@ def test_research_explain_stage_enforces_the_complete_executable_contract() -> N
         "--target <resolved-output>"
     )
     assert prepare in stage
+    assert f"{prepare} --approve-overwrite" in normalized_stage
     assert "mkdir -p" not in stage
     allowed_tools = _load_yaml(PLUGIN_ROOT / "policies" / "policy.yaml")["policies"][
         "workspace-safety"

@@ -5,7 +5,7 @@
     "version": "3.0.0"
   },
   "renderer_version": 2,
-  "source_sha256": "597377b5b73e445c64271e8d44055e91fe6d52961c1fb08af6c2defc45df9fc1",
+  "source_sha256": "1d6fe59c38a9f7e8f0ff9f094d652996177daadbbb9052e24ba5fe5592488e57",
   "hosts": {
     "claude": [
       ".claude-plugin/plugin.json",
