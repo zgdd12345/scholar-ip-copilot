@@ -18,6 +18,8 @@ from .install import (
     restore_codex_project_skills,
     snapshot_codex_project_skills,
 )
+from .release import release_package_drift
+from .render import _reject_source_symlinks
 
 
 Runner = Callable[..., subprocess.CompletedProcess[str]]
@@ -58,6 +60,30 @@ def _public_skill_bundles(skills_root: Path) -> set[str]:
         for path in skills_root.iterdir()
         if path.is_dir() and (path / "SKILL.md").is_file()
     }
+
+
+def _canonical_install_paths(
+    repo_root: Path,
+    marketplace_path: Path,
+    plugin_root: Path,
+) -> tuple[Path, Path, Path]:
+    lexical_repo = Path(repo_root).absolute()
+    expected_marketplace = lexical_repo / ".agents" / "plugins" / "marketplace.json"
+    expected_plugin = lexical_repo / "plugins" / "scholar"
+
+    _reject_source_symlinks(expected_plugin)
+    _reject_source_symlinks(expected_marketplace)
+    if Path(marketplace_path).absolute() != expected_marketplace:
+        raise ValueError("marketplace must be the canonical tracked marketplace descriptor")
+    if Path(plugin_root).absolute() != expected_plugin:
+        raise ValueError("plugin root must be the canonical tracked release package")
+
+    canonical_repo = lexical_repo.resolve()
+    return (
+        canonical_repo,
+        canonical_repo / ".agents" / "plugins" / "marketplace.json",
+        canonical_repo / "plugins" / "scholar",
+    )
 
 
 def validate_marketplace_plugin(
@@ -242,11 +268,17 @@ def reinstall_codex_plugin(
     codex_command: tuple[str, ...] = DEFAULT_CODEX_COMMAND,
 ) -> ReinstallResult:
     """Install the tracked Codex plugin with one transient cachebuster."""
-    repo_root = Path(repo_root).resolve()
-    marketplace_path = Path(marketplace_path).resolve()
+    repo_root, marketplace_path, plugin_root = _canonical_install_paths(
+        repo_root,
+        marketplace_path,
+        plugin_root,
+    )
     selected = validate_marketplace_plugin(repo_root, marketplace_path)
-    if selected.plugin_root != Path(plugin_root).resolve():
+    if selected.plugin_root != plugin_root:
         raise ValueError("marketplace and requested plugin roots differ")
+    drift = release_package_drift(repo_root / "plugins" / "scholar-ip", selected.plugin_root)
+    if drift:
+        raise ValueError(f"tracked release package has drift: {'; '.join(drift)}")
     creator = (
         _plugin_creator_root()
         if plugin_creator_root is None

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Callable
@@ -20,6 +21,7 @@ PLUGIN_HEADER = "PLUGIN  STATUS  VERSION  PATH\n"
 @pytest.fixture(autouse=True)
 def _isolated_codex_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CODEX_HOME", str(tmp_path / "codex-home"))
+    monkeypatch.setattr(codex_install, "release_package_drift", lambda _source, _package: [])
 
 
 def _build_release(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
@@ -683,6 +685,130 @@ def test_invalid_marketplace_fails_before_commands(
     assert calls == []
 
 
+def test_noncanonical_marketplace_fails_before_any_side_effect(tmp_path: Path) -> None:
+    repo, marketplace, release, creator = _build_release(tmp_path)
+    destination, compatibility_before = _seed_compatibility_state(repo)
+    external_marketplace = tmp_path / "marketplace.json"
+    shutil.copy2(marketplace, external_marketplace)
+    manifest = release / ".codex-plugin" / "plugin.json"
+    manifest_before = manifest.read_bytes()
+    marketplace_before = marketplace.read_bytes()
+    calls: list[list[str]] = []
+
+    with pytest.raises(ValueError, match="canonical tracked marketplace"):
+        reinstall_codex_plugin(
+            repo,
+            external_marketplace,
+            release,
+            creator,
+            runner=_runner(release, calls),
+        )
+
+    assert calls == []
+    assert _compatibility_state(destination) == compatibility_before
+    assert manifest.read_bytes() == manifest_before
+    assert marketplace.read_bytes() == marketplace_before
+    assert external_marketplace.read_bytes() == marketplace_before
+
+
+def test_release_drift_fails_before_any_side_effect(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, marketplace, release, creator = _build_release(tmp_path)
+    destination, compatibility_before = _seed_compatibility_state(repo)
+    manifest = release / ".codex-plugin" / "plugin.json"
+    manifest_before = manifest.read_bytes()
+    marketplace_before = marketplace.read_bytes()
+    calls: list[list[str]] = []
+    drift_calls: list[tuple[Path, Path]] = []
+
+    def drift(source: Path, package: Path) -> list[str]:
+        drift_calls.append((source, package))
+        return ["changed: skills/scholar-using/SKILL.md"]
+
+    monkeypatch.setattr(codex_install, "release_package_drift", drift, raising=False)
+
+    with pytest.raises(ValueError, match="tracked release package has drift"):
+        reinstall_codex_plugin(
+            repo,
+            marketplace,
+            release,
+            creator,
+            runner=_runner(release, calls),
+        )
+
+    assert drift_calls == [(repo / "plugins/scholar-ip", release)]
+    assert calls == []
+    assert _compatibility_state(destination) == compatibility_before
+    assert manifest.read_bytes() == manifest_before
+    assert marketplace.read_bytes() == marketplace_before
+
+
+@pytest.mark.parametrize(
+    "kind",
+    ["repo-root", "ancestor", "plugin-root", "release-descendant"],
+)
+def test_release_path_symlinks_fail_before_any_side_effect(
+    tmp_path: Path,
+    kind: str,
+) -> None:
+    build_root = tmp_path / "actual" if kind == "ancestor" else tmp_path
+    repo, marketplace, release, creator = _build_release(build_root)
+    destination, compatibility_before = _seed_compatibility_state(repo)
+    presented_repo = repo
+    presented_marketplace = marketplace
+    presented_release = release
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    sentinel = outside / "sentinel.txt"
+    sentinel.write_bytes(b"outside unchanged\n")
+
+    if kind == "repo-root":
+        presented_repo = tmp_path / "linked-repo"
+        presented_repo.symlink_to(repo, target_is_directory=True)
+        presented_marketplace = presented_repo / ".agents/plugins/marketplace.json"
+        presented_release = presented_repo / "plugins/scholar"
+    elif kind == "ancestor":
+        linked_parent = tmp_path / "linked-parent"
+        linked_parent.symlink_to(repo.parent, target_is_directory=True)
+        presented_repo = linked_parent / repo.name
+        presented_marketplace = presented_repo / ".agents/plugins/marketplace.json"
+        presented_release = presented_repo / "plugins/scholar"
+    elif kind == "plugin-root":
+        external_release = outside / "scholar"
+        shutil.copytree(release, external_release)
+        shutil.rmtree(release)
+        release.symlink_to(external_release, target_is_directory=True)
+    else:
+        skill = release / "skills/scholar-using/SKILL.md"
+        external_skill = outside / "SKILL.md"
+        shutil.copy2(skill, external_skill)
+        skill.unlink()
+        skill.symlink_to(external_skill)
+
+    manifest = release / ".codex-plugin" / "plugin.json"
+    manifest_before = manifest.read_bytes()
+    marketplace_before = marketplace.read_bytes()
+    outside_before = sentinel.read_bytes()
+    calls: list[list[str]] = []
+
+    with pytest.raises(ValueError, match="source.*symlink"):
+        reinstall_codex_plugin(
+            presented_repo,
+            presented_marketplace,
+            presented_release,
+            creator,
+            runner=_runner(release, calls),
+        )
+
+    assert calls == []
+    assert _compatibility_state(destination) == compatibility_before
+    assert manifest.read_bytes() == manifest_before
+    assert marketplace.read_bytes() == marketplace_before
+    assert sentinel.read_bytes() == outside_before
+
+
 def test_missing_package_fails_before_commands(tmp_path: Path) -> None:
     repo, marketplace, release, creator = _build_release(tmp_path)
     (release / ".codex-plugin" / "plugin.json").unlink()
@@ -700,15 +826,18 @@ def test_missing_package_fails_before_commands(tmp_path: Path) -> None:
     assert calls == []
 
 
-def test_requested_plugin_root_mismatch_fails_before_commands(tmp_path: Path) -> None:
+def test_byte_identical_external_plugin_root_fails_before_commands(tmp_path: Path) -> None:
     repo, marketplace, release, creator = _build_release(tmp_path)
+    external_release = tmp_path / "external-scholar"
+    shutil.copytree(release, external_release)
+    assert _compatibility_state(external_release) == _compatibility_state(release)
     calls: list[list[str]] = []
 
-    with pytest.raises(ValueError, match="requested plugin roots differ"):
+    with pytest.raises(ValueError, match="canonical tracked release package"):
         reinstall_codex_plugin(
             repo,
             marketplace,
-            repo / "plugins" / "other",
+            external_release,
             creator,
             runner=_runner(release, calls),
         )
