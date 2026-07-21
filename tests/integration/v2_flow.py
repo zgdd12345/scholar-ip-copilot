@@ -74,6 +74,7 @@ def execute_flow(
             project_root,
             f"{workflow_id}.{action_id}",
             target_paths=outputs,
+            overwrite_approved=True,
         )
         created = _evidence_for_action(project_root, workflow_id, action_id)
         if created is not None:
