@@ -36,6 +36,7 @@ PAPER_EXPLANATION_WORKER_MODES = (
     "paper-reasoning-worker",
     "explanation-evidence-auditor",
 )
+RENDERER_VERSION = 2
 
 
 class Host(str, Enum):
@@ -55,6 +56,19 @@ class HostProfile:
     model_tiers: tuple[tuple[str, str], ...]
     emits_agents: bool
     hook_projection: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class PluginMetadata:
+    id: str
+    display_name: str
+    version: str
+    description: str
+    license: str
+    homepage: str
+    repository: str
+    keywords: tuple[str, ...]
+    author_name: str
 
 
 HOST_PROFILES = {
@@ -123,6 +137,21 @@ class Workflow:
     description: str
     actions: dict[str, dict[str, Any]]
     root: Path
+
+
+def load_plugin_metadata(plugin_root: Path) -> PluginMetadata:
+    raw = yaml.safe_load((Path(plugin_root) / "plugin.yaml").read_text(encoding="utf-8"))
+    return PluginMetadata(
+        id=str(raw["id"]),
+        display_name=str(raw["name"]),
+        version=str(raw["version"]),
+        description=str(raw["description"]).strip(),
+        license=str(raw["license"]),
+        homepage=str(raw["homepage"]),
+        repository=str(raw["repository"]),
+        keywords=tuple(str(value) for value in raw["keywords"]),
+        author_name=str(raw["authors"][0]["name"]),
+    )
 
 
 def load_workflows(plugin_root: Path) -> dict[str, Workflow]:
@@ -429,22 +458,26 @@ def _copy_workflow_bundle(
         _write_text(stage_root, relative_root / "stages" / procedure.name, text)
 
 
-def _codex_manifest() -> dict[str, Any]:
+def _codex_manifest(metadata: PluginMetadata) -> dict[str, Any]:
     return {
-        "name": "scholar",
-        "version": "3.0.0",
-        "description": "Evidence-grounded academic and patent workflows.",
+        "name": metadata.id,
+        "version": metadata.version,
+        "description": metadata.description,
         "skills": "./skills/",
-        "license": "MIT",
-        "author": {"name": "scholar-ip-copilot contributors"},
+        "license": metadata.license,
+        "author": {"name": metadata.author_name},
+        "homepage": metadata.homepage,
+        "repository": metadata.repository,
+        "keywords": list(metadata.keywords),
         "interface": {
-            "displayName": "EviDraft",
+            "displayName": metadata.display_name,
             "shortDescription": "Evidence-grounded research and patent workflows",
             "longDescription": (
                 "Seven compact workflows for literature, papers, patents, evidence, and review."
             ),
-            "developerName": "scholar-ip-copilot contributors",
+            "developerName": metadata.author_name,
             "category": "Productivity",
+            "websiteURL": metadata.homepage,
             "defaultPrompt": [
                 "Orient me in this EviDraft project.",
                 "Continue the evidence-backed paper workflow.",
@@ -455,7 +488,25 @@ def _codex_manifest() -> dict[str, Any]:
     }
 
 
-def _stage_render(plugin_root: Path, stage_root: Path, host: Host) -> list[Path]:
+def _claude_manifest(metadata: PluginMetadata) -> dict[str, Any]:
+    return {
+        "name": metadata.id,
+        "version": metadata.version,
+        "description": metadata.description,
+        "author": {"name": metadata.author_name},
+        "license": metadata.license,
+        "homepage": metadata.homepage,
+        "repository": metadata.repository,
+        "keywords": list(metadata.keywords),
+    }
+
+
+def _stage_render(
+    plugin_root: Path,
+    stage_root: Path,
+    host: Host,
+    metadata: PluginMetadata,
+) -> list[Path]:
     profile = HOST_PROFILES[host]
     workflows = load_workflows(plugin_root)
     roles = _load_roles(plugin_root)
@@ -503,24 +554,16 @@ def _stage_render(plugin_root: Path, stage_root: Path, host: Host) -> list[Path]
                 _mode_agent_body(mode, mode_specs[mode], profile),
             )
     if host is Host.CLAUDE:
-        plugin_json = {
-            "name": "scholar",
-            "version": "3.0.0",
-            "description": "Evidence-grounded academic and patent workflows.",
-            "author": {"name": "scholar-ip-copilot contributors"},
-            "license": "MIT",
-            "homepage": "https://github.com/scholar-ip-copilot/scholar-ip-copilot",
-        }
         _write_text(
             stage_root,
             Path(".claude-plugin") / "plugin.json",
-            json.dumps(plugin_json, indent=2) + "\n",
+            json.dumps(_claude_manifest(metadata), indent=2) + "\n",
         )
     elif host is Host.CODEX:
         _write_text(
             stage_root,
             Path(".codex-plugin") / "plugin.json",
-            json.dumps(_codex_manifest(), indent=2) + "\n",
+            json.dumps(_codex_manifest(metadata), indent=2) + "\n",
         )
     return sorted(path for path in stage_root.rglob("*") if path.is_file())
 
@@ -621,6 +664,7 @@ def render_plugin(plugin_root: Path, out_dir: Path, host: Host | str) -> list[Pa
     host = Host(host)
     plugin_root = plugin_root.resolve()
     _validate_plugin_source(plugin_root)
+    metadata = load_plugin_metadata(plugin_root)
     out_dir = out_dir.absolute()
     has_manifest = (out_dir / ".evidraft-render-manifest.json").is_file()
     old_owned = _read_owned_paths(out_dir)
@@ -630,13 +674,13 @@ def render_plugin(plugin_root: Path, out_dir: Path, host: Host | str) -> list[Pa
     with tempfile.TemporaryDirectory(prefix="evidraft-render-") as temp_dir:
         stage_root = Path(temp_dir) / "new"
         stage_root.mkdir()
-        staged = _stage_render(plugin_root, stage_root, host)
+        staged = _stage_render(plugin_root, stage_root, host, metadata)
         new_owned = {path.relative_to(stage_root) for path in staged}
         for relative in old_owned | new_owned:
             _output_target(out_dir, relative)
         manifest = out_dir / ".evidraft-render-manifest.json"
         manifest_data = {
-            "version": 2,
+            "version": RENDERER_VERSION,
             "host": host.value,
             "owned_paths": sorted(path.as_posix() for path in new_owned),
         }

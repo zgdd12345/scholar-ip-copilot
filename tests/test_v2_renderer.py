@@ -588,6 +588,27 @@ def test_codex_manifest_contains_required_interface_metadata(tmp_path: Path) -> 
     }
 
 
+def test_host_manifests_derive_metadata_from_plugin_yaml(tmp_path: Path) -> None:
+    plugin = tmp_path / "plugin"
+    shutil.copytree(PLUGIN_ROOT, plugin)
+    source = yaml.safe_load((plugin / "plugin.yaml").read_text())
+    source["version"] = source["manifest_version"] = "3.0.1"
+    source["description"] = "Metadata sentinel"
+    (plugin / "plugin.yaml").write_text(yaml.safe_dump(source, sort_keys=False))
+
+    for host in (Host.CLAUDE, Host.CODEX):
+        out = tmp_path / host.value
+        render_plugin(plugin, out, host)
+        manifest_path = out / (
+            ".codex-plugin/plugin.json"
+            if host is Host.CODEX
+            else ".claude-plugin/plugin.json"
+        )
+        manifest = json.loads(manifest_path.read_text())
+        assert manifest["version"] == "3.0.1"
+        assert manifest["description"] == "Metadata sentinel"
+
+
 def test_rendered_routers_stay_below_context_budget(tmp_path: Path) -> None:
     out = tmp_path / "codex"
     render_plugin(PLUGIN_ROOT, out, Host.CODEX)

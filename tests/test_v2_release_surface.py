@@ -73,6 +73,16 @@ def test_manifest_declares_only_the_v3_authoring_surface() -> None:
         PUBLIC_WORKFLOWS
     )
     assert {item["status"] for item in manifest["adapters"]} == {"stable"}
+    assert manifest["homepage"] == "https://github.com/zgdd12345/scholar-ip-copilot"
+    assert manifest["repository"] == "https://github.com/zgdd12345/scholar-ip-copilot"
+    assert manifest["keywords"] == [
+        "research",
+        "literature-review",
+        "academic-writing",
+        "patents",
+        "evidence",
+    ]
+    assert {"homepage", "repository", "keywords"} <= set(schema["required"])
 
 
 def test_runtime_and_installable_schema_copies_are_identical() -> None:

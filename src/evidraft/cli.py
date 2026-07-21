@@ -20,6 +20,7 @@ from .core import (
     workflow_validate_paper_explanation_return,
 )
 from .install import sync_codex_skills
+from .release import release_package_drift, render_plugin_package
 from .render import Host, clean_rendered, render_plugin
 
 
@@ -62,6 +63,10 @@ def build_parser() -> argparse.ArgumentParser:
     render.add_argument("--host", required=True, choices=[host.value for host in Host])
     render.add_argument("--plugin", required=True, type=Path)
     render.add_argument("--out", required=True, type=Path)
+    package = commands.add_parser("package")
+    package.add_argument("--plugin", required=True, type=Path)
+    package.add_argument("--out", required=True, type=Path)
+    package.add_argument("--check", action="store_true")
     sync = commands.add_parser("sync-codex-skills")
     sync.add_argument("--source", required=True, type=Path)
     sync.add_argument("--dest", required=True, type=Path)
@@ -136,6 +141,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     elif args.command == "render":
         written = render_plugin(args.plugin, args.out, Host(args.host))
         print(json.dumps({"host": args.host, "written": len(written)}))
+    elif args.command == "package":
+        if args.check:
+            findings = release_package_drift(args.plugin, args.out)
+            for finding in findings:
+                print(finding)
+            return 1 if findings else 0
+        written = render_plugin_package(args.plugin, args.out)
+        print(json.dumps({"written": len(written), "output": str(args.out.resolve())}))
     elif args.command == "sync-codex-skills":
         installed = sync_codex_skills(args.source, args.dest)
         print(json.dumps({"installed": len(installed), "destination": str(args.dest.resolve())}))
