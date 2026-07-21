@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -13,6 +16,22 @@ ROLES = ROOT / "plugins" / "scholar-ip" / "roles" / "modes"
 PAPER_TEMPLATE_README = (
     ROOT / "plugins" / "scholar-ip" / "templates" / "paper-project" / "README.md"
 )
+PAPER_TEMPLATE_ROOT = PAPER_TEMPLATE_README.parent
+LAZY_PAPER_FILES = (
+    Path(".evidraft/project.yaml"),
+    Path(".evidraft/evidence/evidence.jsonl"),
+    Path(".evidraft/literature/references.bib"),
+    Path("manuscript/main.tex"),
+)
+
+
+def _materialize_lazy_paper_project(tmp_path: Path) -> Path:
+    project = tmp_path / "paper"
+    for relative in LAZY_PAPER_FILES:
+        target = project / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(PAPER_TEMPLATE_ROOT / relative, target)
+    return project
 
 
 def _workflow(name: str) -> dict:
@@ -59,6 +78,75 @@ def test_paper_init_creates_only_four_required_core_files_without_overwriting() 
     assert "does not create `manuscript/sections/`" in stage.lower()
     assert "creates only four core files" in template_readme.lower()
     assert "later workflow actions create all other artifacts" in template_readme.lower()
+
+
+def test_lazy_paper_init_materializes_compilable_four_file_graph(tmp_path: Path) -> None:
+    project = _materialize_lazy_paper_project(tmp_path)
+    actual_files = {
+        path.relative_to(project)
+        for path in project.rglob("*")
+        if path.is_file()
+    }
+    main = (project / "manuscript/main.tex").read_text(encoding="utf-8")
+    guarded_pattern = re.compile(
+        r"\\IfFileExists\{([^{}]+\.tex)\}\{\\input\{([^{}]+)\}\}\{\}"
+    )
+    guarded = set(guarded_pattern.findall(main))
+    sections = (
+        "sections/introduction",
+        "sections/related_work",
+        "sections/method",
+        "sections/experiments",
+        "sections/conclusion",
+    )
+    failures: list[str] = []
+
+    if actual_files != set(LAZY_PAPER_FILES):
+        failures.append(f"unexpected lazy files: {sorted(actual_files)}")
+    expected_guards = {(f"{section}.tex", section) for section in sections}
+    if guarded != expected_guards:
+        failures.append(f"conditional section inputs: {sorted(guarded)}")
+    unconditional = guarded_pattern.sub("", main)
+    for _command, relative in re.findall(
+        r"\\(input|include)\{([^{}]+)\}", unconditional
+    ):
+        dependency = (project / "manuscript" / relative).with_suffix(".tex")
+        if not dependency.is_file():
+            failures.append(f"missing unconditional TeX dependency: {relative}")
+    for bibliography in re.findall(r"\\bibliography\{([^{}]+)\}", main):
+        for relative in bibliography.split(","):
+            dependency = (project / "manuscript" / relative.strip()).with_suffix(
+                ".bib"
+            )
+            if not dependency.is_file():
+                failures.append(f"missing bibliography: {relative.strip()}")
+    if (project / ".evidraft/literature/references.bib").read_bytes() != b"":
+        failures.append("canonical bibliography is not empty")
+
+    assert failures == []
+
+
+@pytest.mark.skipif(shutil.which("latexmk") is None, reason="latexmk is unavailable")
+def test_lazy_paper_init_compiles_with_supported_latexmk(tmp_path: Path) -> None:
+    project = _materialize_lazy_paper_project(tmp_path)
+
+    result = subprocess.run(
+        [
+            "latexmk",
+            "-pdf",
+            "-interaction=nonstopmode",
+            "-file-line-error",
+            "main.tex",
+        ],
+        check=False,
+        cwd=project / "manuscript",
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+
+    assert result.returncode == 0, result.stdout[-4000:] + result.stderr[-4000:]
+    assert (project / "manuscript/main.pdf").is_file()
 
 
 def test_patent_init_is_lazy_and_declares_conditional_scaffolding_optional() -> None:

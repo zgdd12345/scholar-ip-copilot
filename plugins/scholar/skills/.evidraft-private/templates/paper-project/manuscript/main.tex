@@ -32,12 +32,12 @@
 % .evidraft/evidence/evidence.jsonl.
 \end{abstract}
 
-\input{sections/introduction}
-\input{sections/related_work}
-\input{sections/method}
-\input{sections/experiments}
-\input{sections/conclusion}
+\IfFileExists{sections/introduction.tex}{\input{sections/introduction}}{}
+\IfFileExists{sections/related_work.tex}{\input{sections/related_work}}{}
+\IfFileExists{sections/method.tex}{\input{sections/method}}{}
+\IfFileExists{sections/experiments.tex}{\input{sections/experiments}}{}
+\IfFileExists{sections/conclusion.tex}{\input{sections/conclusion}}{}
 
-\bibliography{references}
+\bibliography{../.evidraft/literature/references}
 
 \end{document}
