@@ -13,7 +13,7 @@ capabilities:
   evidence-check: {group: evidence, spec: evidence/evidence-check/spec.md, bundle_sha256: dc50a6ec7c1c82595155b82e8f42a3f21c3c73beecc51ea0a15a8e1f76e18b6f}
   code-intel: {group: code, spec: code/code-intel/spec.md, bundle_sha256: f9fd83bb6b822bbd7efd1880cd46b202d3108780e5a7e3e3291774d2729bda29}
   codebase-audit: {group: code, spec: code/codebase-audit/spec.md, bundle_sha256: 1247a4a670ffd1cd3096104a1834873fd1dc882b60a8c25bcc4cb4d21ef338ed}
-  external-agent-bridge: {group: code, spec: code/external-agent-bridge/spec.md, bundle_sha256: ba148fc9b028bdab23dcd8989b9b00ac2917e460492bc08d3c6fbdf4d07a9860}
+  external-agent-bridge: {group: code, spec: code/external-agent-bridge/spec.md, bundle_sha256: 9f4b5d40fb1ae8a142b1c87ac3a4cc70945f7b1125aee97c10919526fbd9080d}
   experiment-analysis: {group: experiments, spec: experiments/experiment-analysis/spec.md, bundle_sha256: 80dd68ec8aaf02bec3f8dc42b8f795d267797a061f45bf35b6a71deafe10cb3d}
   latex-build: {group: latex, spec: latex/latex-build/spec.md, bundle_sha256: a865c670efe23ba353fd20d5ee528054cefac511503a959d50f601cac0ae99b7}
   latex-style-audit: {group: latex, spec: latex/latex-style-audit/spec.md, bundle_sha256: 71592d7a12eb48258374797bf37186c90b80e20ad3f4a6ade86187edb8d2f1b7}

@@ -119,7 +119,7 @@ STAGE_BODY_SHA256 = {
     "research.reading-list": "66b96ac2d701b250d842f393a0e88e00148d3e3293c8873290a1089ca6b80ec7",
     "scope.run": "b7907f1f69956af46c23a1b6cfb3c34d2c33107cdc5768331ad32c2bf0e9eb7c",
     "using.run": "b4964c41087ab1333d79b1be774378d21f60450467369f8d55cd2471e71b0604",
-    "xreview.run": "81d1bc406c556453a7b7c994cd4bab038b3302deb3436604ab30e7c2d59536e8",
+    "xreview.run": "26ce753b3488fc9dd043c1063b257e1e356c3332acae3e4a586cd963ca4117a8",
 }
 LEGACY_SENSITIVE_PATTERNS = [
     ".env",

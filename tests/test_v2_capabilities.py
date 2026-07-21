@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -172,6 +174,72 @@ def test_xreview_uses_v2_role_modes_without_deleted_authoring_paths() -> None:
     assert (stage.parent / ROLE_PATH.search(stage.read_text()).group()).resolve().is_file()
     for deleted_root in ("agents/", "commands/", "hooks/", "plugins/scholar-ip/agents"):
         assert deleted_root not in combined
+
+
+def test_claude_bridge_passes_prompt_through_stdin_not_argv(tmp_path: Path) -> None:
+    bridge = (
+        CAPABILITIES / "code" / "external-agent-bridge" / "spec.md"
+    ).read_text(encoding="utf-8")
+    claude_section = bridge.split("### Claude bare", 1)[1].split("### OpenCode", 1)[0]
+    command = next(
+        line for line in claude_section.splitlines() if line.startswith("claude ")
+    )
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_claude = fake_bin / "claude"
+    fake_claude.write_text(
+        "#!/bin/sh\n"
+        "printf '%s\\n' \"$@\" > \"$ARGV_CAPTURE\"\n"
+        "cat > \"$STDIN_CAPTURE\"\n"
+        "printf '{}\\n'\n",
+        encoding="utf-8",
+    )
+    fake_claude.chmod(0o755)
+    prompt = tmp_path / "review.prompt"
+    sentinel = "PROMPT-SENTINEL-6f859743"
+    prompt.write_text(sentinel, encoding="utf-8")
+    argv_capture = tmp_path / "argv.txt"
+    stdin_capture = tmp_path / "stdin.txt"
+    output = tmp_path / "out.json"
+    env = {
+        **os.environ,
+        "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}",
+        "PROMPT_FILE": str(prompt),
+        "OUT_FILE": str(output),
+        "ARGV_CAPTURE": str(argv_capture),
+        "STDIN_CAPTURE": str(stdin_capture),
+    }
+
+    result = subprocess.run(
+        ["/bin/sh", "-c", command],
+        check=False,
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert stdin_capture.read_text(encoding="utf-8") == sentinel
+    assert sentinel not in argv_capture.read_text(encoding="utf-8")
+    assert output.read_text(encoding="utf-8") == "{}\n"
+
+
+def test_external_bridge_sources_have_no_prompt_substitution_or_opencode_launch() -> None:
+    forbidden = ("$(cat $PROMPT_FILE)", "opencode run", "Bash:opencode*")
+    violations: list[str] = []
+    for root in (PLUGIN_ROOT, REPO_ROOT / "plugins" / "scholar"):
+        for document in root.rglob("*"):
+            if not document.is_file() or document.suffix not in {".md", ".yaml"}:
+                continue
+            text = document.read_text(encoding="utf-8")
+            for token in forbidden:
+                if token in text:
+                    violations.append(
+                        f"{document.relative_to(REPO_ROOT).as_posix()}: {token}"
+                    )
+
+    assert violations == []
 
 
 def test_private_prose_has_no_references_to_deleted_authoring_roots() -> None:

@@ -26,13 +26,23 @@ output — that consumes that spec.
 
 | Name | Type | Required | Notes |
 |---|---|---|---|
-| `agent` | enum `{codex, claude-bare, opencode}` | yes | Picks the CLI binary and the sandboxing strategy. |
+| `agent` | enum `{codex, claude-bare, opencode}` | yes | Picks a runnable CLI, or requests OpenCode's explicit fail-closed result. |
 | `target` | path | yes | File to be reviewed. Must not match `policy:workspace-safety` patterns. |
 | `persona` | string | yes | EviDraft role mode; e.g. `novelty-critic`, `methodology-reviewer`. |
 | `schema` | path | no | JSON schema the external agent should conform its output to (passed inline in the prompt). |
 | `extra_context` | string | no | Short addendum appended to the rendered persona prompt. |
 
+## Availability gate
+
+If `agent=opencode`, return `status: blocked` immediately because the supported
+OpenCode CLI has no verified stdin plus OS-enforced read-only sandbox contract.
+Do not evaluate later preconditions, resolve identifiers, inspect auth, create
+directories, render or copy the prompt or project, or launch a process. In
+particular, do not create any review artifact and do not invoke `opencode`.
+
 ## Preconditions
+
+For the runnable `codex` and `claude-bare` agents only:
 
 1. `target` exists, is a regular file, and is **not** under `.env*`, `secrets/`, `**/*.pem`, `**/*.key`, or any path matched by `policy:workspace-safety`.
 2. `persona` occurs exactly once under a semantic role in `../../../roles/roles.yaml`.
@@ -40,7 +50,7 @@ output — that consumes that spec.
 
 ## Auth
 
-Per-agent env-var requirements are documented in
+Runnable-agent env-var requirements are documented in
 `../../../capabilities/code/external-agent-bridge/spec.md` §CLI invocation matrix (one
 `Env:` line per agent). The plugin **reads no key** and **echoes no
 key**. If the required env var is unset, abort with a one-line message
@@ -62,17 +72,15 @@ and instruct the user to set it in their shell.
 
 3. **Invoke the external agent.** Use the verbatim CLI signature for
    the chosen `agent` from `../../../capabilities/code/external-agent-bridge/spec.md`
-   §CLI invocation matrix. The three signatures (Codex / Claude bare /
-   OpenCode) are parameterised on `$WORKDIR`, `$OUT_FILE`,
-   `$PROMPT_FILE`, and `$TARGET_FILE=target`. For `opencode`, follow
-   the worktree-copy mitigation in the skill (OpenCode has no native
-   read-only sandbox) before invocation.
+   §CLI invocation matrix. The two runnable signatures (Codex / Claude bare)
+   are parameterised on `$WORKDIR`, `$OUT_FILE`, `$PROMPT_FILE`, and
+   `$TARGET_FILE=target`. OpenCode never reaches this step.
    - Choose any follow-up invocation adaptively from target complexity and the
      returned quality/error signal. Use no fixed cardinality, waves, or retry count;
      stop after a useful review or a terminal auth, safety, timeout, or cost limit.
 
 4. **Enforce the fixed write zone.** Run `policy:workspace-safety` preflight before
-   the `Bash:codex*` / `Bash:claude*` / `Bash:opencode*` tool call.
+   the `Bash:codex*` / `Bash:claude*` tool call.
    - The only writable target is `$OUT_FILE` under
      `.evidraft/reviews/`.
    - Reject the call if any new file appears outside
@@ -134,6 +142,8 @@ If the parse failed, replace the "Top 3" block with:
 ## Failure modes
 
 - Missing env var → abort with a one-line message; do not invoke.
+- `agent=opencode` → return `status: blocked` at the availability gate without
+  creating review artifacts or launching a process.
 - `target` blocked by `policy:workspace-safety` → abort; surface the policy
   message.
 - External agent non-zero exit, parse failure, or timeout → preserve any safe raw
@@ -145,8 +155,9 @@ If the parse failed, replace the "Top 3" block with:
 
 ## Done criteria
 
-- `.evidraft/reviews/<agent>-<persona>-<ts>.md` exists and is non-empty.
-- `.evidraft/reviews/.last.yaml` reflects this invocation.
+- For a runnable agent, `.evidraft/reviews/<agent>-<persona>-<ts>.md` exists and
+  is non-empty, and `.evidraft/reviews/.last.yaml` reflects this invocation.
+- For OpenCode, no review artifact or `.last.yaml` update is created.
 - No file outside `.evidraft/reviews/` was written by the external
   agent.
 - Chat output prints agent, persona, output path, token cost (if

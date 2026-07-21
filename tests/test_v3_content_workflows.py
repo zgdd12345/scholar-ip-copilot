@@ -236,6 +236,26 @@ def test_xreview_is_projectless_without_scope_and_preserves_security_boundaries(
     assert ".evidraft/reviews/" in stage
 
 
+def test_xreview_refuses_opencode_before_setup_without_claiming_copy_isolation() -> None:
+    action = _workflow("xreview")["actions"]["run"]
+    stage = _stage("xreview", "run")
+    bridge = (
+        CAPABILITIES / "code" / "external-agent-bridge" / "spec.md"
+    ).read_text(encoding="utf-8")
+    agent = next(item for item in action["inputs"] if item["name"] == "agent")
+    refusal = "If `agent=opencode`, return `status: blocked` immediately"
+
+    assert "opencode" in agent["values"]
+    assert refusal in stage
+    assert stage.index(refusal) < stage.index("## Preconditions")
+    assert "do not create any review artifact" in stage.lower()
+    assert "do not invoke `opencode`" in stage.lower()
+    assert "defense in depth" in _normalized(bridge).lower()
+    for forbidden in ("Bash:opencode*", "opencode run", "git worktree", "cp -R"):
+        assert forbidden not in bridge
+        assert forbidden not in stage
+
+
 def test_external_agent_bridge_uses_adaptive_follow_up_without_fixed_retry() -> None:
     bridge = _normalized(
         (CAPABILITIES / "code" / "external-agent-bridge" / "spec.md").read_text(encoding="utf-8")

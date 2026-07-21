@@ -5,8 +5,8 @@ kind: skill
 phase: shared
 description: >
   Single source of truth for delegating an EviDraft review task to another
-  coding agent (Codex CLI, Claude bare, OpenCode). Defines the per-agent
-  CLI signatures, the sandboxing posture, the prompt-rendering recipe,
+  coding agent (Codex CLI or Claude bare) and refusing OpenCode until it has
+  a verified read-only sandbox. Defines the runnable CLI signatures, the sandboxing posture, the prompt-rendering recipe,
   the security checklist, the adaptive follow-up/timeout protocol, and the cost
   telemetry capture.
 triggers:
@@ -14,7 +14,7 @@ triggers:
   - "when an existing review command receives --fanout <agent>"
   - "when the user asks 'how do I get a second opinion from <other agent>?'"
 provides:
-  - "CLI invocation matrix for codex / claude-bare / opencode"
+  - "CLI invocation matrix for codex / claude-bare and fail-closed status for opencode"
   - "prompt-rendering recipe (semantic role + mode + target file + optional schema)"
   - "security checklist (stdin-only prompts, env-var auth, write-zone pin)"
   - "adaptive follow-up / timeout protocol"
@@ -27,7 +27,6 @@ allowed_tools:
   - Edit
   - "Bash:codex*"
   - "Bash:claude*"
-  - "Bash:opencode*"
 policies: [workspace-safety]
 references:
   - doc: ../../../roles/roles.yaml
@@ -51,8 +50,9 @@ any future `--fanout <agent>` mode on `workflow:paper.review` and
 
 ## CLI invocation matrix
 
-The three invocations below are **verbatim** — the `xreview.run`
-workflow stage and any adapter MUST use them exactly.
+The two runnable invocations below are **verbatim** — the `xreview.run`
+workflow stage and any adapter MUST use them exactly. OpenCode has no runnable
+invocation until a verified OS-enforced read-only contract is available.
 
 ### Codex (safest — hard-locked read-only)
 
@@ -77,13 +77,13 @@ codex exec --sandbox read-only --json -C $WORKDIR --output-last-message $OUT_FIL
 ### Claude bare
 
 ```
-claude --bare -p "$(cat $PROMPT_FILE)" --permission-mode dontAsk --allowedTools "Read" --output-format json > $OUT_FILE
+claude --bare --permission-mode dontAsk --allowedTools "Read" --output-format json -p < "$PROMPT_FILE" > "$OUT_FILE"
 ```
 
 - `--bare` — strip the interactive UI; run a single non-interactive
   turn.
-- `-p "$(cat $PROMPT_FILE)"` — prompt comes from the rendered file;
-  `"$(cat …)"` keeps user content out of the literal shell command.
+- `-p < "$PROMPT_FILE"` — print mode reads the rendered prompt from
+  stdin; prompt bytes never become a process argument.
 - `--permission-mode dontAsk` paired with `--allowedTools "Read"` —
   Claude bare's read-only posture. The agent may read but not write,
   edit, or execute shell.
@@ -91,24 +91,13 @@ claude --bare -p "$(cat $PROMPT_FILE)" --permission-mode dontAsk --allowedTools 
   `$OUT_FILE`.
 - Env: `ANTHROPIC_API_KEY`.
 
-### OpenCode (no native read-only — run against a copy / worktree)
+### OpenCode (unavailable — fail closed)
 
-```
-opencode run --format json --dir $WORKDIR -f $TARGET_FILE "$(cat $PROMPT_FILE)" > $OUT_FILE
-```
-
-- OpenCode does **not** ship a `--sandbox read-only` equivalent today.
-- Mitigation: before running, copy the project to a throwaway worktree
-  (`git worktree add ../.evidraft-xreview-<ts>` or `cp -R . <tmp>`)
-  and pass that path as `$WORKDIR`. The live project tree is never
-  exposed.
-- `--format json` — structured stdout, captured to `$OUT_FILE`.
-- `--dir $WORKDIR` — the worktree path.
-- `-f $TARGET_FILE` — attach the target file as context.
-- `"$(cat $PROMPT_FILE)"` — keep the prompt out of literal shell.
-- Env: one of OpenCode's supported provider keys, e.g.
-  `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`. See
-  OpenCode docs for the exact provider/key mapping.
+OpenCode has no verified stdin plus OS-enforced read-only sandbox contract in
+the supported CLI. `xreview.run` therefore returns `status: blocked` before
+checking provider auth, creating review paths, rendering or copying prompt or
+project data, or launching a process. A directory flag, disposable project
+copy, or post-run file-manifest comparison is not an isolation boundary.
 
 ## Prompt-rendering recipe
 
@@ -140,24 +129,23 @@ deterministically:
    UTF-8 contents of `target` inside a fenced code block whose language
    tag matches the file extension (default `text`).
 
-Never interpolate user content into a shell command. The prompt is
-always delivered via stdin (Codex) or `"$(cat …)"` (Claude / OpenCode).
+Never interpolate user content into a shell command. The prompt is delivered
+via stdin for both runnable agents. OpenCode is refused before prompt rendering.
 
 ## Security checklist
 
 - [ ] **No key in argv.** All auth comes from env vars
       (`CODEX_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, etc.).
       The plugin never reads, logs, or echoes a key.
-- [ ] **No user content in argv beyond `"$(cat …)"`.** Codex uses
-      stdin; Claude bare and OpenCode use `"$(cat $PROMPT_FILE)"`. The
-      prompt file is mode 0600.
+- [ ] **No user content in argv.** Codex and Claude bare use stdin. The
+      prompt file is mode 0600. OpenCode is never launched.
 - [ ] **Read-only flags applied where supported.** Codex →
       `--sandbox read-only`; Claude bare →
-      `--permission-mode dontAsk --allowedTools "Read"`. OpenCode →
-      worktree / copy.
+      `--permission-mode dontAsk --allowedTools "Read"`.
 - [ ] **Write zone pinned.** `policy:workspace-safety` preflight with
       `failure_mode: block` rejects any file appearing outside
-      `.evidraft/reviews/` after the invocation.
+      `.evidraft/reviews/` after the invocation. This post-check is defense in
+      depth for already sandboxed agents, not a substitute for process isolation.
 - [ ] **`policy:workspace-safety` pre-check.** Reject if `target` matches
       `.env*`, `secrets/`, `**/*.pem`, `**/*.key`,
       `credentials.json`, or any project-defined forbidden path.
@@ -195,7 +183,7 @@ Each agent reports cost differently. Capture what is available; record
 |---|---|
 | `codex` | `--json` stream emits a `session.summary` event at the end with `input_tokens`, `output_tokens`, and `usd_cost`. Sum into the telemetry record. |
 | `claude-bare` | `--output-format json` envelope includes a `usage` block (`input_tokens`, `output_tokens`). Record tokens; leave `cost_usd: null` until a pricing table lands in `packages/mcp/README.md` (v0.3+). |
-| `opencode` | `--format json` envelope shape is provider-dependent; capture `tokens` if present, otherwise `null`. Always `null` for `cost_usd` until v0.2. |
+| `opencode` | Not invoked. Return `status: blocked` with `tokens: null` and `cost_usd: null`. |
 
 Telemetry is appended to `.evidraft/reviews/.last.yaml` and (in v0.2)
 to a rolling `.evidraft/reviews/.cost.jsonl` ledger.
