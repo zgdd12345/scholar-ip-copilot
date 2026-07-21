@@ -90,11 +90,19 @@ The shared renderer:
 Host adapters may change path syntax, role dispatch, model names, and hook projection.
 They may not change action inputs, defaults, outputs, policy results, or retention.
 
+`plugins/scholar-ip` is the authored source. Packaging combines its Claude and Codex
+projections into `plugins/scholar`, the deterministic, tracked Codex and Claude release
+package. The Python wheel deliberately excludes both trees and all host manifests and
+skills; its renderers require an external `--plugin` path.
+
 ## Validation
 
 ```bash
 .venv/bin/python -m pytest tests/
 .venv/bin/python -m ruff check .
-.venv/bin/evidraft-claude-code --plugin plugins/scholar-ip --out .claude/plugins/scholar-ip
-claude plugin validate .claude/plugins/scholar-ip
+.venv/bin/evidraft package --plugin plugins/scholar-ip --out plugins/scholar --check
+python "$PLUGIN_CREATOR_ROOT/scripts/validate_plugin.py" plugins/scholar
+claude plugin validate plugins/scholar
 ```
+
+These validation commands are read-only and do not install a host plugin.

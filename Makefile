@@ -1,18 +1,22 @@
 PYTHON       ?= .venv/bin/python
 PLUGIN_SRC   := plugins/scholar-ip
+PLUGIN_OUT   := plugins/scholar
+PLUGIN_CREATOR_ROOT ?= $(HOME)/.codex/skills/.system/plugin-creator
 CC_OUT       := .claude/plugins/scholar-ip
 CODEX_OUT    := .codex/plugins/scholar
 OPENCODE_OUT := .opencode
 DIST_DIR     := dist
 SMOKE_VENV   := .release-smoke-venv
+SMOKE_ENV    := env -u PYTHONPATH
 # Where Codex auto-discovers skills (cwd walked up to worktree root).
 CODEX_SKILLS_INSTALL := .agents/skills
 
 .PHONY: help render _render-all render-claude render-codex render-opencode \
         install _install-all install-claude install-codex install-codex-plugin \
         install-codex-project install-opencode remove-codex-project-skills \
-        codex-project-mode-preflight sync-codex-skills package-check \
-        test lint plugin-validate wheel wheel-smoke \
+        codex-project-mode-preflight sync-codex-skills package package-check \
+        test lint plugin-validate plugin-validate-codex plugin-validate-claude \
+        opencode-inventory wheel wheel-smoke \
         release-check verify clean
 
 help:
@@ -23,20 +27,23 @@ help:
 	@echo "  render            -> all three"
 	@echo ""
 	@echo "Install targets (render + put files where the host actually loads them):"
-	@echo "  install-claude    -> render + remind to run 'claude plugin install'"
+	@echo "  install-claude    -> validate + update the tracked project marketplace plugin"
 	@echo "  install-codex     -> validate + install the tracked Codex marketplace plugin"
 	@echo "  install-codex-project -> compatibility mode: sync project-local skills"
 	@echo "  install-opencode  -> render (opencode auto-discovers .opencode/)"
 	@echo "  install           -> all three"
 	@echo ""
 	@echo "Other:"
+	@echo "  package           -> regenerate the tracked Codex/Claude release package"
+	@echo "  package-check     -> verify the tracked release package without writing"
 	@echo "  sync-codex-skills -> just the compatibility-mode project skill sync"
 	@echo "  test              -> full pytest suite"
 	@echo "  lint              -> Ruff"
-	@echo "  plugin-validate   -> render + official Claude plugin validator"
+	@echo "  plugin-validate   -> Codex and Claude validation of the tracked package"
+	@echo "  opencode-inventory -> temporary OpenCode render and inventory check"
 	@echo "  wheel-smoke       -> clean wheel install + repo-external CLI smoke"
-	@echo "  release-check     -> test + lint + plugin validator + wheel smoke"
-	@echo "  verify            -> render + test + report which host CLIs are detected"
+	@echo "  release-check     -> non-mutating verification + temporary host inventory"
+	@echo "  verify            -> package drift + tests + lint + validators + wheel smoke"
 	@echo "  clean             -> remove rendered output (keeps marketplace files)"
 
 # ---------------------------------------------------------------------------
@@ -67,6 +74,10 @@ render-opencode:
 
 # Marketplace mode is the default. It removes only manifest-owned project skills
 # before using the tracked, package-checked repo marketplace.
+package:
+	$(PYTHON) -m evidraft.cli package \
+	    --plugin $(PLUGIN_SRC) --out $(PLUGIN_OUT)
+
 package-check:
 	$(PYTHON) -m evidraft.cli package \
 	    --plugin $(PLUGIN_SRC) --out plugins/scholar --check
@@ -79,7 +90,7 @@ install-codex-plugin: package-check remove-codex-project-skills
 	$(PYTHON) -m evidraft.cli install-codex-plugin \
 	    --repo-root . \
 	    --marketplace .agents/plugins/marketplace.json \
-	    --plugin plugins/scholar
+	    --plugin $(PLUGIN_OUT)
 
 install-codex: install-codex-plugin
 
@@ -94,14 +105,25 @@ sync-codex-skills: package-check codex-project-mode-preflight
 
 install-codex-project: sync-codex-skills
 
-install-claude: render-claude
-	@echo ""
-	@echo "[install-claude] rendered to $(CC_OUT)/"
-	@echo "[install-claude] to (re)install at project scope, run:"
-	@echo "    claude plugin marketplace add ./  --scope project  # if not already added"
-	@echo "    claude plugin install scholar@scholar-ip-copilot --scope project"
+install-claude: package-check plugin-validate-claude
+	@set -eu; \
+	  root=$$(pwd -P); \
+	  if output=$$(claude plugin marketplace add ./ --scope project 2>&1); then \
+	    printf '%s\n' "$$output"; \
+	  elif printf '%s\n' "$$output" | grep -F "already configured" >/dev/null \
+	    && printf '%s\n' "$$output" | grep -F "$$root" >/dev/null; then \
+	    printf '%s\n' "$$output"; \
+	    echo "[install-claude] marketplace already configured at identical root: $$root"; \
+	  else \
+	    printf '%s\n' "$$output" >&2; \
+	    exit 1; \
+	  fi
+	claude plugin update scholar@scholar-ip-copilot --scope project
+	claude plugin enable scholar@scholar-ip-copilot --scope project
 
-install-opencode: render-opencode
+install-opencode: package-check
+	$(PYTHON) -m packages.adapters.opencode.generate \
+	    --plugin $(PLUGIN_SRC) --out $(OPENCODE_OUT)
 	@echo ""
 	@echo "[install-opencode] rendered to $(OPENCODE_OUT)/"
 	@echo "[install-opencode] opencode auto-discovers .opencode/{commands,agents,private}/ on next session."
@@ -120,54 +142,49 @@ test:
 lint:
 	$(PYTHON) -m ruff check src packages tests
 
-plugin-validate: render-claude
+plugin-validate-codex:
+	@test -f "$(PLUGIN_CREATOR_ROOT)/scripts/validate_plugin.py" || { \
+	  echo "Codex plugin validator not found; set PLUGIN_CREATOR_ROOT" >&2; exit 1; }
+	$(PYTHON) $(PLUGIN_CREATOR_ROOT)/scripts/validate_plugin.py plugins/scholar
+
+plugin-validate-claude:
 	@command -v claude >/dev/null || { echo "claude CLI is required" >&2; exit 1; }
-	claude plugin validate $(CC_OUT)
+	claude plugin validate plugins/scholar
+
+plugin-validate: plugin-validate-codex plugin-validate-claude
+
+opencode-inventory:
+	@set -eu; root=$$(mktemp -d /tmp/evidraft-opencode.XXXXXX); \
+	  trap 'rm -rf "$$root"' EXIT; \
+	  $(PYTHON) -m packages.adapters.opencode.generate \
+	    --plugin $(PLUGIN_SRC) --out "$$root/opencode"; \
+	  $(PYTHON) -c 'import pathlib; r=pathlib.Path("'"$$root"'")/"opencode"; assert len(list((r/"commands").glob("scholar-*.md"))) == 7; assert (r/"private/policies/policy.yaml").is_file(); assert (r/"private/capabilities/index.yaml").is_file()'
 
 wheel:
 	@rm -rf $(DIST_DIR) build *.egg-info src/*.egg-info packages/*.egg-info
 	$(PYTHON) -m build --wheel --outdir $(DIST_DIR)
-	$(PYTHON) -c 'import pathlib,zipfile; p=next(pathlib.Path("$(DIST_DIR)").glob("*.whl")); n=set(zipfile.ZipFile(p).namelist()); required={"evidraft/schemas/workflow.schema.json"}; forbidden={"packages/adapters/_shared/loader.py","packages/adapters/_shared/bundle.py","packages/core/src/__init__.py","packages/core/src/migrate.py"}; assert required <= n, required-n; assert not forbidden & n, forbidden & n'
+	$(PYTHON) -c 'import pathlib,zipfile; p=next(pathlib.Path("$(DIST_DIR)").glob("*.whl")); n=set(zipfile.ZipFile(p).namelist()); required={"evidraft/schemas/workflow.schema.json"}; forbidden={"packages/adapters/_shared/loader.py","packages/adapters/_shared/bundle.py","packages/core/src/__init__.py","packages/core/src/migrate.py"}; prefixes=("plugins/",".codex-plugin/",".claude-plugin/","skills/"); leaked=sorted(x for x in n if x.startswith(prefixes)); assert required <= n, required-n; assert not forbidden & n, forbidden & n; assert not leaked, leaked'
 
 wheel-smoke: wheel
 	@rm -rf $(SMOKE_VENV)
 	$(PYTHON) -m venv $(SMOKE_VENV)
-	$(SMOKE_VENV)/bin/python -m pip install --quiet $(DIST_DIR)/*.whl
-	@cd /tmp && $(CURDIR)/$(SMOKE_VENV)/bin/evidraft --help >/dev/null
-	@cd /tmp && $(CURDIR)/$(SMOKE_VENV)/bin/evidraft-claude-code --help >/dev/null
-	@cd /tmp && $(CURDIR)/$(SMOKE_VENV)/bin/evidraft-codex-cli --help >/dev/null
-	@cd /tmp && $(CURDIR)/$(SMOKE_VENV)/bin/evidraft-opencode --help >/dev/null
+	$(SMOKE_ENV) $(SMOKE_VENV)/bin/python -m pip install --quiet $(DIST_DIR)/*.whl
+	@cd /tmp && $(SMOKE_ENV) $(CURDIR)/$(SMOKE_VENV)/bin/evidraft --help >/dev/null
+	@cd /tmp && $(SMOKE_ENV) $(CURDIR)/$(SMOKE_VENV)/bin/evidraft-claude-code --help >/dev/null
+	@cd /tmp && $(SMOKE_ENV) $(CURDIR)/$(SMOKE_VENV)/bin/evidraft-codex-cli --help >/dev/null
+	@cd /tmp && $(SMOKE_ENV) $(CURDIR)/$(SMOKE_VENV)/bin/evidraft-opencode --help >/dev/null
 	@set -eu; root=$$(mktemp -d /tmp/evidraft-wheel-smoke.XXXXXX); trap 'rm -rf "$$root"' EXIT; \
 	  cp -R $(PLUGIN_SRC) "$$root/plugin"; \
 	  cd /tmp; \
-	  $(CURDIR)/$(SMOKE_VENV)/bin/evidraft-claude-code --plugin "$$root/plugin" --out "$$root/claude"; \
-	  $(CURDIR)/$(SMOKE_VENV)/bin/evidraft-codex-cli --plugin "$$root/plugin" --out "$$root/codex"; \
-	  $(CURDIR)/$(SMOKE_VENV)/bin/evidraft-opencode --plugin "$$root/plugin" --out "$$root/opencode"; \
-	  $(CURDIR)/$(SMOKE_VENV)/bin/python -c 'import pathlib; r=pathlib.Path("'"$$root"'"); assert len(list((r/"claude/commands").glob("*.md"))) == 7; assert len(list((r/"codex/skills").glob("scholar-*/SKILL.md"))) == 7; assert len(list((r/"opencode/commands").glob("scholar-*.md"))) == 7'
+	  $(SMOKE_ENV) $(CURDIR)/$(SMOKE_VENV)/bin/evidraft-claude-code --plugin "$$root/plugin" --out "$$root/claude"; \
+	  $(SMOKE_ENV) $(CURDIR)/$(SMOKE_VENV)/bin/evidraft-codex-cli --plugin "$$root/plugin" --out "$$root/codex"; \
+	  $(SMOKE_ENV) $(CURDIR)/$(SMOKE_VENV)/bin/evidraft-opencode --plugin "$$root/plugin" --out "$$root/opencode"; \
+	  $(SMOKE_ENV) $(CURDIR)/$(SMOKE_VENV)/bin/python -c 'import pathlib; r=pathlib.Path("'"$$root"'"); assert len(list((r/"claude/commands").glob("*.md"))) == 7; assert len(list((r/"codex/skills").glob("scholar-*/SKILL.md"))) == 7; assert len(list((r/"opencode/commands").glob("scholar-*.md"))) == 7'
 
-release-check: test lint plugin-validate wheel-smoke
+verify: package-check test lint plugin-validate wheel-smoke
 
-verify: install test
-	@echo ""
-	@echo "[verify] host CLI detection:"
-	@command -v claude >/dev/null   && echo "  ✓ claude   $$(claude --version 2>&1 | head -1)" || echo "  ✗ claude   (not on PATH)"
-	@command -v codex >/dev/null    && echo "  ✓ codex    $$(codex --version 2>&1 | head -1)" || echo "  ✗ codex    (not on PATH)"
-	@command -v opencode >/dev/null && echo "  ✓ opencode $$(opencode --version 2>&1 | head -1)" || echo "  ✗ opencode (not on PATH)"
-	@echo ""
-	@echo "[verify] rendered output:"
-	@test -f $(CC_OUT)/.claude-plugin/plugin.json   && echo "  ✓ $(CC_OUT)/.claude-plugin/plugin.json" || echo "  ✗ $(CC_OUT)/.claude-plugin/plugin.json (missing)"
-	@test -f $(CC_OUT)/private/policies/policy.yaml  && echo "  ✓ $(CC_OUT)/private/policies/policy.yaml" || echo "  ✗ $(CC_OUT)/private/policies/policy.yaml (missing)"
-	@test -f $(CODEX_OUT)/.codex-plugin/plugin.json && echo "  ✓ $(CODEX_OUT)/.codex-plugin/plugin.json" || echo "  ✗ $(CODEX_OUT)/.codex-plugin/plugin.json (missing)"
-	@test -d $(OPENCODE_OUT)/private                && echo "  ✓ $(OPENCODE_OUT)/private"              || echo "  ✗ $(OPENCODE_OUT)/private (missing)"
-	@n=$$($(PYTHON) -c 'import json, pathlib; p=pathlib.Path("$(CODEX_SKILLS_INSTALL)/.evidraft-ownership.json"); print(len(json.loads(p.read_text())["owned_paths"]) if p.is_file() else 0)'); \
-	  [ "$$n" -eq 7 ] && echo "  ✓ $(CODEX_SKILLS_INSTALL) (7 owned entries)" || echo "  ✗ $(CODEX_SKILLS_INSTALL) (expected 7 owned entries; run 'make install-codex')"
-	@echo ""
-	@echo "[verify] next step per host:"
-	@echo "  claude:   claude plugin marketplace add ./ --scope project &&"
-	@echo "            claude plugin install scholar@scholar-ip-copilot --scope project"
-	@echo "  codex:    codex plugin marketplace add ./ &&"
-	@echo "            codex -c 'model_reasoning_effort=\"xhigh\"' plugin add scholar@scholar-ip-copilot"
-	@echo "  opencode: open opencode in this repo (auto-discovery), or install the rendered .opencode tree"
+release-check: verify opencode-inventory
+	git diff --exit-code
 
 clean:
 	$(PYTHON) -m evidraft.cli clean-rendered --out $(CC_OUT)

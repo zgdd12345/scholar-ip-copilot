@@ -55,9 +55,10 @@ Three policy IDs describe the shared behavior:
 | `scope` | Advisory project intent, constraints, and success criteria |
 | `evidence-integrity` | Final evidence audit with `PASS`, `WARN`, or `FAIL` findings |
 
-Only `workspace-safety` can block workflow preflight. Scope and evidence gaps are
-reported without preventing draft generation; `paper.check` and `patent.review` own the
-strict final verdict.
+Scope and evidence checks report warnings without preventing draft generation, and
+audit findings are advisory; `paper.check` and `patent.review` own the strict final
+verdict. Path confinement, sensitive-file protection, overwrite approval, and
+publication boundaries remain hard.
 
 ## Deterministic core
 
@@ -111,6 +112,13 @@ venue packages under `submissions/`. See [data-model.md](data-model.md).
 
 ## Package boundary
 
-The installable package is `src/evidraft/`. Four console scripts are published:
-`evidraft`, `evidraft-claude-code`, `evidraft-codex-cli`, and `evidraft-opencode`.
-The three host scripts are thin wrappers over the same renderer.
+`plugins/scholar-ip` is the authored source. `plugins/scholar` is the deterministic,
+tracked Codex and Claude release package. Codex marketplace mode is the default;
+project-local `.agents/skills` is a mutually exclusive compatibility mode.
+
+The wheel contains the installable renderer and CLI code from `src/evidraft/`, never the
+authored or rendered plugin trees. Four console scripts are published: `evidraft`,
+`evidraft-claude-code`, `evidraft-codex-cli`, and `evidraft-opencode`. The three host
+scripts are thin wrappers over the same renderer and require an external `--plugin`
+path. Release verification checks the tracked package and uses temporary host fixtures;
+it does not install into Codex, Claude, or OpenCode.

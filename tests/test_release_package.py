@@ -249,6 +249,33 @@ def test_tracked_release_package_has_no_drift() -> None:
     assert release_package_drift(PLUGIN, ROOT / "plugins/scholar") == []
 
 
+def test_wheel_gate_forbids_plugin_payload() -> None:
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+
+    for prefix in ("plugins/", ".codex-plugin/", ".claude-plugin/", "skills/"):
+        assert prefix in makefile
+
+
+def test_wheel_smoke_clears_checkout_pythonpath() -> None:
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+
+    assert "SMOKE_ENV    := env -u PYTHONPATH" in makefile
+    assert "$(SMOKE_ENV) $(SMOKE_VENV)/bin/python -m pip install" in makefile
+    assert "cd /tmp && $(SMOKE_ENV)" in makefile
+
+
+def test_portable_codex_manifest_contract() -> None:
+    manifest = json.loads(
+        (ROOT / "plugins/scholar/.codex-plugin/plugin.json").read_text(encoding="utf-8")
+    )
+
+    assert manifest["name"] == "scholar"
+    assert manifest["version"] == "3.0.0"
+    assert manifest["skills"] == "./skills/"
+    assert manifest["interface"]["displayName"] == "EviDraft"
+    assert len(list((ROOT / "plugins/scholar/skills").glob("scholar-*/SKILL.md"))) == 7
+
+
 def test_release_package_markdown_files_have_diff_style_eof_hygiene(
     tmp_path: Path,
 ) -> None:

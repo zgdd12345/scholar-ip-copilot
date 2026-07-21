@@ -32,6 +32,11 @@ The `research explain` action writes its academic note to
 The removed v1 command names are not compatibility aliases. Use the workflow/action
 form above.
 
+`research.guide` was removed and guidance routes through `using`.
+`research.explain` always attempts similar and current methods, schedules up to 15 ready
+tasks, and degrades to a `partial` note with named gaps when external work fails or is
+unavailable. Audit findings are advisory and do not by themselves stop synthesis.
+
 ## Source layout
 
 | Path | Contract |
@@ -47,6 +52,13 @@ form above.
 
 Capabilities are not host skills and role modes are not additional agents. Public
 discovery remains bounded to seven entries on every host.
+
+This directory is the authored source. `plugins/scholar` is the deterministic, tracked
+Codex and Claude release package. Codex marketplace mode is the default, while
+project-local `.agents/skills` is a mutually exclusive compatibility mode. The Python
+wheel contains renderer and CLI code only and requires an external `--plugin` path.
+After reinstall, users must restart their host session; Codex users must open a new
+task.
 
 See [plugin-format.md](../../docs/plugin-format.md) for the authoring contract,
 [architecture.md](../../docs/architecture.md) for component boundaries, and

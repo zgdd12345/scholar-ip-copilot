@@ -31,6 +31,16 @@ PUBLIC_WORKFLOWS = {
 }
 
 
+def _make_recipe(makefile: str, target: str) -> str:
+    match = re.search(
+        rf"^{re.escape(target)}:[^\n]*\n(?P<body>(?:\t.*\n)+)",
+        makefile,
+        flags=re.MULTILINE,
+    )
+    assert match is not None
+    return match.group("body")
+
+
 def test_release_versions_and_console_scripts_are_v3() -> None:
     import evidraft
     import packages.adapters
@@ -142,13 +152,31 @@ def test_makefile_and_ci_define_all_release_gates() -> None:
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
     ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
 
-    for target in ("test:", "lint:", "plugin-validate:", "wheel:", "wheel-smoke:", "release-check:"):
+    for target in (
+        "package:",
+        "package-check:",
+        "test:",
+        "lint:",
+        "plugin-validate-codex:",
+        "plugin-validate-claude:",
+        "plugin-validate:",
+        "opencode-inventory:",
+        "wheel:",
+        "wheel-smoke:",
+        "release-check:",
+    ):
         assert target in makefile
+    assert "verify: package-check test lint plugin-validate wheel-smoke" in makefile
+    assert "verify: install" not in makefile
+    assert "release-check: install" not in makefile
+    assert "PLUGIN_CREATOR_ROOT ?=" in makefile
+    assert "$(PLUGIN_CREATOR_ROOT)/scripts/validate_plugin.py plugins/scholar" in makefile
+    assert "claude plugin validate plugins/scholar" in makefile
     assert "-m pytest tests/" in makefile
     assert "-m ruff check" in makefile
-    assert "claude plugin validate" in makefile
     assert "evidraft/schemas/workflow.schema.json" in makefile
     assert "evidraft-opencode --plugin" in makefile
+    assert "git diff --exit-code" in makefile
 
     for os_name in ("ubuntu-latest", "macos-latest"):
         assert os_name in ci
@@ -166,5 +194,60 @@ def test_makefile_and_ci_define_all_release_gates() -> None:
         'bin/evidraft-opencode" --help',
         'bin/evidraft-opencode" --plugin',
         "evidraft/schemas/workflow.schema.json",
+        "package --plugin plugins/scholar-ip --out plugins/scholar --check",
+        ".agents/plugins/marketplace.json",
+        ".claude-plugin/marketplace.json",
+        "claude plugin validate plugins/scholar",
+        "test_portable_codex_manifest_contract",
+        "mktemp -d",
+        ".agents/skills/.evidraft-ownership.json",
+        "git diff --exit-code",
     ):
         assert gate in ci
+
+
+def test_release_documentation_states_topology_behavior_and_safety_contracts() -> None:
+    documents = "\n".join(
+        (ROOT / path).read_text(encoding="utf-8")
+        for path in (
+            "README.md",
+            "docs/architecture.md",
+            "docs/plugin-format.md",
+            "docs/migration-v3.md",
+            "plugins/scholar-ip/README.md",
+            "plugins/scholar-ip/docs/architecture.md",
+        )
+    )
+
+    for statement in (
+        "`plugins/scholar-ip` is the authored source",
+        "`plugins/scholar` is the deterministic, tracked Codex and Claude release package",
+        "Codex marketplace mode is the default",
+        "mutually exclusive compatibility mode",
+        "`research.guide` was removed",
+        "similar and current methods",
+        "up to 15 ready tasks",
+        "`partial` note",
+        "Audit findings are advisory",
+        "Scope and evidence checks report warnings",
+        "Path confinement, sensitive-file protection, overwrite approval, and publication boundaries remain hard",
+        "external `--plugin` path",
+        "restart their host session",
+        "Codex users must open a new task",
+    ):
+        assert statement in documents
+
+
+def test_claude_install_tolerates_only_an_identical_configured_marketplace() -> None:
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    recipe = _make_recipe(makefile, "install-claude")
+
+    assert "pwd -P" in recipe
+    assert 'grep -F "already configured"' in recipe
+    assert 'grep -F "$$root"' in recipe
+    assert "marketplace already configured at identical root" in recipe
+    assert "else" in recipe
+    assert "exit 1" in recipe
+    assert "claude plugin update scholar@scholar-ip-copilot --scope project" in recipe
+    assert "claude plugin enable scholar@scholar-ip-copilot --scope project" in recipe
+    assert ".claude/plugins/scholar-ip" not in recipe

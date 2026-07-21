@@ -48,6 +48,12 @@ The complete action map is:
 The v1 command files are not emitted by the v3 renderer. The redundant
 `research guide` action was removed; use `using` for orientation.
 
+`research.guide` was removed and all orientation now routes through `using`.
+`research.explain` always attempts similar and current methods. It schedules up to 15
+ready tasks, records unavailable or failed external work in a `partial` note, and still
+synthesizes the available evidence. Audit findings are advisory rather than a reason to
+discard otherwise valid analysis.
+
 ## Stable output contract
 
 The public interface changed, but project artefact locations did not:
@@ -110,6 +116,12 @@ tier mapping, and hook projection. More detail is in
 
 ## Install and render
 
+`plugins/scholar-ip` is the authored source.
+`plugins/scholar` is the deterministic, tracked Codex and Claude release package
+generated from it. Codex marketplace mode is the default. Project-local
+`.agents/skills` is an explicit, mutually exclusive compatibility mode; do not enable
+both discovery modes at once.
+
 Create the project environment and install the package:
 
 ```bash
@@ -136,6 +148,11 @@ evidraft-opencode
 Every render writes `.evidraft-render-manifest.json`. Re-rendering removes only paths
 owned by the previous manifest; adjacent user files are preserved.
 
+The wheel contains the renderer and CLI code, not an embedded plugin tree. Rendering
+from an installed wheel therefore requires an external `--plugin` path. After a
+reinstall, users must restart their host session so host caches reload.
+Codex users must open a new task after every reinstall.
+
 ## Deterministic core
 
 ```bash
@@ -159,16 +176,17 @@ make plugin-validate
 make release-check
 ```
 
-The release gate runs the full test suite, Ruff, the host plugin validator, wheel build,
-and repository-external console-script smoke tests. CI covers Python 3.10-3.12 on Ubuntu
-and macOS.
+The release gate is read-only: it checks tracked-package drift, both plugin formats,
+temporary three-host inventory, the full test suite, Ruff, the wheel boundary, and
+repository-external console-script smoke tests. It never installs a host or synchronizes
+project skills. CI covers Python 3.10-3.12 on Ubuntu and macOS.
 
 ## Safety and legal boundaries
 
 The three shared policies are `workspace-safety`, `scope`, and `evidence-integrity`.
-Sensitive paths such as `.env`, private keys, and credentials remain blocked. Scope is
-advisory, while evidence integrity is evaluated by final paper and patent audits rather
-than blocking ordinary draft generation.
+Sensitive paths such as `.env`, private keys, and credentials remain blocked. Scope and
+evidence checks report warnings for the workflow to surface.
+Path confinement, sensitive-file protection, overwrite approval, and publication boundaries remain hard.
 
 EviDraft never files a patent, gives a patentability or freedom-to-operate opinion,
 submits a paper, or guarantees novelty or publication. Patent claims and disclosures

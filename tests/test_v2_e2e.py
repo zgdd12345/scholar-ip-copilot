@@ -45,3 +45,13 @@ def test_full_paper_flow_is_executable_across_all_hosts(tmp_path: Path) -> None:
 
 def test_full_patent_flow_is_executable_across_all_hosts(tmp_path: Path) -> None:
     _assert_flow(tmp_path, "patent_full.yaml")
+
+
+def test_ci_checks_temporary_opencode_inventory_without_project_skill_ownership() -> None:
+    ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+    assert "evidraft-opencode --plugin plugins/scholar-ip" in ci
+    assert 'glob("scholar-*.md")' in ci
+    assert "== 7" in ci
+    assert ".agents/skills/.evidraft-ownership.json" in ci
+    assert "test ! -e" in ci
