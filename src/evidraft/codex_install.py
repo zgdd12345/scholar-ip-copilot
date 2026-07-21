@@ -50,6 +50,16 @@ class InstalledPlugin:
     plugin_root: Path
 
 
+def _public_skill_bundles(skills_root: Path) -> set[str]:
+    if not skills_root.is_dir():
+        return set()
+    return {
+        path.name
+        for path in skills_root.iterdir()
+        if path.is_dir() and (path / "SKILL.md").is_file()
+    }
+
+
 def validate_marketplace_plugin(
     repo_root: Path,
     marketplace_path: Path,
@@ -79,11 +89,7 @@ def validate_marketplace_plugin(
     manifest_document = json.loads(manifest.read_text(encoding="utf-8"))
     if manifest_document.get("name") != plugin_name:
         raise ValueError(f"tracked package name must be {plugin_name}")
-    public_skills = {
-        path.parent.name
-        for path in (plugin_root / "skills").glob("scholar-*/SKILL.md")
-        if path.is_file()
-    }
+    public_skills = _public_skill_bundles(plugin_root / "skills")
     if public_skills != PUBLIC_CODEX_SKILLS:
         raise ValueError("tracked plugin must expose exactly seven public skills")
     return MarketplacePlugin(document["name"], plugin_name, plugin_root)
@@ -216,11 +222,7 @@ def _validate_installed_plugin(
         raise RuntimeError("post-validate: installed cache manifest is invalid") from exc
     if cached.get("name") != selected.plugin_name or cached.get("version") != installed_version:
         raise RuntimeError("post-validate: installed cache manifest provenance is invalid")
-    public_skills = {
-        path.parent.name
-        for path in (cache_root / "skills").glob("scholar-*/SKILL.md")
-        if path.is_file()
-    }
+    public_skills = _public_skill_bundles(cache_root / "skills")
     if public_skills != PUBLIC_CODEX_SKILLS:
         raise RuntimeError("post-validate: installed cache must expose exactly seven public skills")
 

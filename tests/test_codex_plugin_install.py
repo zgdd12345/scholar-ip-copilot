@@ -330,6 +330,25 @@ def test_reinstall_rejects_installed_cache_without_exact_public_skills(
         )
 
 
+def test_reinstall_rejects_nonprefixed_public_skill_in_installed_cache(
+    tmp_path: Path,
+) -> None:
+    repo, marketplace, release, creator = _build_release(tmp_path)
+
+    with pytest.raises(RuntimeError, match="exactly seven public skills"):
+        reinstall_codex_plugin(
+            repo,
+            marketplace,
+            release,
+            creator,
+            runner=_runner(
+                release,
+                [],
+                installed_skills=PUBLIC_CODEX_SKILLS | {"rogue"},
+            ),
+        )
+
+
 def test_side_effect_free_validator_failure_preserves_compatibility_state(
     tmp_path: Path,
 ) -> None:
@@ -730,6 +749,16 @@ def test_validate_rejects_wrong_set_of_seven_public_skills(tmp_path: Path) -> No
     (release / "skills" / "scholar-using").rename(
         release / "skills" / "scholar-unexpected"
     )
+
+    with pytest.raises(ValueError, match="exactly seven public skills"):
+        validate_marketplace_plugin(repo, marketplace)
+
+
+def test_validate_rejects_nonprefixed_public_skill(tmp_path: Path) -> None:
+    repo, marketplace, release, _ = _build_release(tmp_path)
+    rogue = release / "skills" / "rogue" / "SKILL.md"
+    rogue.parent.mkdir()
+    rogue.write_text("# rogue\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="exactly seven public skills"):
         validate_marketplace_plugin(repo, marketplace)
