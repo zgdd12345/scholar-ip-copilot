@@ -143,6 +143,42 @@ def test_project_mode_refuses_active_plugin_from_current_inventory_table(
 @pytest.mark.parametrize(
     "plugin_list_output",
     [
+        (
+            "PLUGIN  STATUS  VERSION  PATH\n"
+            f"{PLUGIN_REF}  installed, disabled  3.0.0  /tmp/first\n"
+            f"{PLUGIN_REF}  installed, disabled  3.0.0  /tmp/second\n"
+        ),
+        (
+            "PLUGIN  STATUS  VERSION  PATH\n"
+            f"{PLUGIN_REF} installed, disabled 3.0.0 /tmp/scholar\n"
+        ),
+        (
+            "PLUGIN  STATUS  VERSION  PATH\n"
+            f"{PLUGIN_REF}  installed, unknown  3.0.0  /tmp/scholar\n"
+        ),
+    ],
+    ids=["duplicate", "malformed", "ambiguous-status"],
+)
+def test_project_mode_fails_closed_for_untrustworthy_scholar_table_records(
+    tmp_path: Path,
+    plugin_list_output: str,
+) -> None:
+    calls: list[list[str]] = []
+
+    def runner(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0, plugin_list_output, "")
+
+    with pytest.raises(RuntimeError, match="plugin inventory"):
+        codex_project_mode_preflight(tmp_path, runner=runner)
+
+    assert len(calls) == 1
+    assert calls[0][-2:] == ["plugin", "list"]
+
+
+@pytest.mark.parametrize(
+    "plugin_list_output",
+    [
         f"{PLUGIN_REF} available, enabled\n",
         f"{PLUGIN_REF} installed, disabled\n",
         f"{PLUGIN_REF} installed, enabled: false\n",

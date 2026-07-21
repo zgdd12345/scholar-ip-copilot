@@ -146,11 +146,12 @@ def _installed_plugin_records(
             continue
         if not in_table:
             continue
-        fields = re.split(r"\s{2,}", line.strip(), maxsplit=3)
-        if not fields or fields[0] != plugin_ref:
+        tokens = line.strip().split()
+        if not tokens or tokens[0] != plugin_ref:
             continue
-        if len(fields) != 4:
-            raise RuntimeError(f"post-validate: malformed installed record for {plugin_ref}")
+        fields = re.split(r"\s{2,}", line.strip(), maxsplit=3)
+        if len(fields) != 4 or fields[0] != plugin_ref:
+            raise RuntimeError(f"plugin inventory: malformed installed record for {plugin_ref}")
         matches.append(InstalledPlugin(fields[0], fields[1], fields[2], Path(fields[3])))
     return saw_table, matches
 
@@ -165,7 +166,15 @@ def _installed_plugin(output: str, plugin_ref: str) -> InstalledPlugin:
 def _plugin_is_enabled(output: str, plugin_ref: str) -> bool:
     saw_table, records = _installed_plugin_records(output, plugin_ref)
     if saw_table:
-        return any(record.status == "installed, enabled" for record in records)
+        if len(records) > 1:
+            raise RuntimeError(f"plugin inventory: multiple records found for {plugin_ref}")
+        if not records:
+            return False
+        if records[0].status == "installed, enabled":
+            return True
+        if records[0].status == "installed, disabled":
+            return False
+        raise RuntimeError(f"plugin inventory: ambiguous status for {plugin_ref}")
     for line in output.splitlines():
         fields = line.strip().split(maxsplit=1)
         if fields == [plugin_ref, "installed, enabled"]:
