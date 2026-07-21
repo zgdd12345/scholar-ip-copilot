@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
+from .claude_install import install_claude_plugin
 from .codex_install import codex_project_mode_preflight, reinstall_codex_plugin
 from .core import (
     append_evidence,
@@ -76,6 +77,8 @@ def build_parser() -> argparse.ArgumentParser:
     install_codex_plugin.add_argument("--marketplace", required=True, type=Path)
     install_codex_plugin.add_argument("--plugin", required=True, type=Path)
     install_codex_plugin.add_argument("--plugin-creator", type=Path)
+    install_claude_plugin_parser = commands.add_parser("install-claude-plugin")
+    install_claude_plugin_parser.add_argument("--repo-root", required=True, type=Path)
     remove_project_skills = commands.add_parser("remove-codex-project-skills")
     remove_project_skills.add_argument("--dest", required=True, type=Path)
     project_mode_preflight = commands.add_parser("codex-project-mode-preflight")
@@ -174,6 +177,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                 {
                     "plugin_ref": result.plugin_ref,
                     "installed_version": result.installed_version,
+                }
+            )
+        )
+    elif args.command == "install-claude-plugin":
+        result = install_claude_plugin(args.repo_root)
+        print(
+            json.dumps(
+                {
+                    "marketplace_added": result.marketplace_added,
+                    "plugin_ref": result.plugin_ref,
                 }
             )
         )

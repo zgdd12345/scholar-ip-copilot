@@ -7,7 +7,8 @@ CODEX_OUT    := .codex/plugins/scholar
 OPENCODE_OUT := .opencode
 DIST_DIR     := dist
 SMOKE_VENV   := .release-smoke-venv
-SMOKE_ENV    := env -u PYTHONPATH
+READ_ONLY_PYTHON := env PYTHONDONTWRITEBYTECODE=1
+SMOKE_ENV    := env -u PYTHONPATH PYTHONDONTWRITEBYTECODE=1
 # Where Codex auto-discovers skills (cwd walked up to worktree root).
 CODEX_SKILLS_INSTALL := .agents/skills
 
@@ -79,7 +80,7 @@ package:
 	    --plugin $(PLUGIN_SRC) --out $(PLUGIN_OUT)
 
 package-check:
-	$(PYTHON) -m evidraft.cli package \
+	$(READ_ONLY_PYTHON) $(PYTHON) -m evidraft.cli package \
 	    --plugin $(PLUGIN_SRC) --out plugins/scholar --check
 
 remove-codex-project-skills:
@@ -106,20 +107,7 @@ sync-codex-skills: package-check codex-project-mode-preflight
 install-codex-project: sync-codex-skills
 
 install-claude: package-check plugin-validate-claude
-	@set -eu; \
-	  root=$$(pwd -P); \
-	  if output=$$(claude plugin marketplace add ./ --scope project 2>&1); then \
-	    printf '%s\n' "$$output"; \
-	  elif printf '%s\n' "$$output" | grep -F "already configured" >/dev/null \
-	    && printf '%s\n' "$$output" | grep -F "$$root" >/dev/null; then \
-	    printf '%s\n' "$$output"; \
-	    echo "[install-claude] marketplace already configured at identical root: $$root"; \
-	  else \
-	    printf '%s\n' "$$output" >&2; \
-	    exit 1; \
-	  fi
-	claude plugin update scholar@scholar-ip-copilot --scope project
-	claude plugin enable scholar@scholar-ip-copilot --scope project
+	$(PYTHON) -m evidraft.cli install-claude-plugin --repo-root .
 
 install-opencode: package-check
 	$(PYTHON) -m packages.adapters.opencode.generate \
@@ -137,15 +125,15 @@ _install-all: install-claude install-codex install-opencode
 # misc
 
 test:
-	$(PYTHON) -m pytest tests/
+	$(READ_ONLY_PYTHON) $(PYTHON) -m pytest -p no:cacheprovider tests/
 
 lint:
-	$(PYTHON) -m ruff check src packages tests
+	$(PYTHON) -m ruff check --no-cache src packages tests
 
 plugin-validate-codex:
 	@test -f "$(PLUGIN_CREATOR_ROOT)/scripts/validate_plugin.py" || { \
 	  echo "Codex plugin validator not found; set PLUGIN_CREATOR_ROOT" >&2; exit 1; }
-	$(PYTHON) $(PLUGIN_CREATOR_ROOT)/scripts/validate_plugin.py plugins/scholar
+	$(READ_ONLY_PYTHON) $(PYTHON) $(PLUGIN_CREATOR_ROOT)/scripts/validate_plugin.py plugins/scholar
 
 plugin-validate-claude:
 	@command -v claude >/dev/null || { echo "claude CLI is required" >&2; exit 1; }
@@ -156,30 +144,33 @@ plugin-validate: plugin-validate-codex plugin-validate-claude
 opencode-inventory:
 	@set -eu; root=$$(mktemp -d /tmp/evidraft-opencode.XXXXXX); \
 	  trap 'rm -rf "$$root"' EXIT; \
-	  $(PYTHON) -m packages.adapters.opencode.generate \
+	  $(READ_ONLY_PYTHON) $(PYTHON) -m packages.adapters.opencode.generate \
 	    --plugin $(PLUGIN_SRC) --out "$$root/opencode"; \
-	  $(PYTHON) -c 'import pathlib; r=pathlib.Path("'"$$root"'")/"opencode"; assert len(list((r/"commands").glob("scholar-*.md"))) == 7; assert (r/"private/policies/policy.yaml").is_file(); assert (r/"private/capabilities/index.yaml").is_file()'
+	  $(READ_ONLY_PYTHON) $(PYTHON) -c 'import pathlib; r=pathlib.Path("'"$$root"'")/"opencode"; assert len(list((r/"commands").glob("scholar-*.md"))) == 7; assert (r/"private/policies/policy.yaml").is_file(); assert (r/"private/capabilities/index.yaml").is_file()'
 
 wheel:
 	@rm -rf $(DIST_DIR) build *.egg-info src/*.egg-info packages/*.egg-info
 	$(PYTHON) -m build --wheel --outdir $(DIST_DIR)
 	$(PYTHON) -c 'import pathlib,zipfile; p=next(pathlib.Path("$(DIST_DIR)").glob("*.whl")); n=set(zipfile.ZipFile(p).namelist()); required={"evidraft/schemas/workflow.schema.json"}; forbidden={"packages/adapters/_shared/loader.py","packages/adapters/_shared/bundle.py","packages/core/src/__init__.py","packages/core/src/migrate.py"}; prefixes=("plugins/",".codex-plugin/",".claude-plugin/","skills/"); leaked=sorted(x for x in n if x.startswith(prefixes)); assert required <= n, required-n; assert not forbidden & n, forbidden & n; assert not leaked, leaked'
 
-wheel-smoke: wheel
-	@rm -rf $(SMOKE_VENV)
-	$(PYTHON) -m venv $(SMOKE_VENV)
-	$(SMOKE_ENV) $(SMOKE_VENV)/bin/python -m pip install --quiet $(DIST_DIR)/*.whl
-	@cd /tmp && $(SMOKE_ENV) $(CURDIR)/$(SMOKE_VENV)/bin/evidraft --help >/dev/null
-	@cd /tmp && $(SMOKE_ENV) $(CURDIR)/$(SMOKE_VENV)/bin/evidraft-claude-code --help >/dev/null
-	@cd /tmp && $(SMOKE_ENV) $(CURDIR)/$(SMOKE_VENV)/bin/evidraft-codex-cli --help >/dev/null
-	@cd /tmp && $(SMOKE_ENV) $(CURDIR)/$(SMOKE_VENV)/bin/evidraft-opencode --help >/dev/null
-	@set -eu; root=$$(mktemp -d /tmp/evidraft-wheel-smoke.XXXXXX); trap 'rm -rf "$$root"' EXIT; \
-	  cp -R $(PLUGIN_SRC) "$$root/plugin"; \
-	  cd /tmp; \
-	  $(SMOKE_ENV) $(CURDIR)/$(SMOKE_VENV)/bin/evidraft-claude-code --plugin "$$root/plugin" --out "$$root/claude"; \
-	  $(SMOKE_ENV) $(CURDIR)/$(SMOKE_VENV)/bin/evidraft-codex-cli --plugin "$$root/plugin" --out "$$root/codex"; \
-	  $(SMOKE_ENV) $(CURDIR)/$(SMOKE_VENV)/bin/evidraft-opencode --plugin "$$root/plugin" --out "$$root/opencode"; \
-	  $(SMOKE_ENV) $(CURDIR)/$(SMOKE_VENV)/bin/python -c 'import pathlib; r=pathlib.Path("'"$$root"'"); assert len(list((r/"claude/commands").glob("*.md"))) == 7; assert len(list((r/"codex/skills").glob("scholar-*/SKILL.md"))) == 7; assert len(list((r/"opencode/commands").glob("scholar-*.md"))) == 7'
+wheel-smoke:
+	@set -eu; root=$$(mktemp -d /tmp/evidraft-wheel-smoke.XXXXXX); \
+	  trap 'rm -rf "$$root"' EXIT; \
+	  $(READ_ONLY_PYTHON) $(PYTHON) -c 'import sys; from pathlib import Path; from evidraft.release import stage_wheel_source; stage_wheel_source(Path(sys.argv[1]), Path(sys.argv[2]))' "$(CURDIR)" "$$root/source"; \
+	  $(SMOKE_ENV) $(PYTHON) -m build --wheel --outdir "$$root/dist" "$$root/source"; \
+	  $(SMOKE_ENV) $(PYTHON) -c 'import pathlib,sys,zipfile; p=next(pathlib.Path(sys.argv[1]).glob("*.whl")); n=set(zipfile.ZipFile(p).namelist()); required={"evidraft/schemas/workflow.schema.json"}; forbidden={"packages/adapters/_shared/loader.py","packages/adapters/_shared/bundle.py","packages/core/src/__init__.py","packages/core/src/migrate.py"}; prefixes=("plugins/",".codex-plugin/",".claude-plugin/","skills/"); leaked=sorted(x for x in n if x.startswith(prefixes)); assert required <= n, required-n; assert not forbidden & n, forbidden & n; assert not leaked, leaked' "$$root/dist"; \
+	  $(SMOKE_ENV) $(PYTHON) -m venv "$$root/venv"; \
+	  $(SMOKE_ENV) "$$root/venv/bin/python" -m pip install --quiet "$$root"/dist/*.whl; \
+	  cp -R "$(PLUGIN_SRC)" "$$root/plugin"; \
+	  cd "$$root"; \
+	  $(SMOKE_ENV) "$$root/venv/bin/evidraft" --help >/dev/null; \
+	  $(SMOKE_ENV) "$$root/venv/bin/evidraft-claude-code" --help >/dev/null; \
+	  $(SMOKE_ENV) "$$root/venv/bin/evidraft-codex-cli" --help >/dev/null; \
+	  $(SMOKE_ENV) "$$root/venv/bin/evidraft-opencode" --help >/dev/null; \
+	  $(SMOKE_ENV) "$$root/venv/bin/evidraft-claude-code" --plugin "$$root/plugin" --out "$$root/claude"; \
+	  $(SMOKE_ENV) "$$root/venv/bin/evidraft-codex-cli" --plugin "$$root/plugin" --out "$$root/codex"; \
+	  $(SMOKE_ENV) "$$root/venv/bin/evidraft-opencode" --plugin "$$root/plugin" --out "$$root/opencode"; \
+	  $(SMOKE_ENV) "$$root/venv/bin/python" -c 'import pathlib; r=pathlib.Path("'"$$root"'"); assert len(list((r/"claude/commands").glob("*.md"))) == 7; assert len(list((r/"codex/skills").glob("scholar-*/SKILL.md"))) == 7; assert len(list((r/"opencode/commands").glob("scholar-*.md"))) == 7'
 
 verify: package-check test lint plugin-validate wheel-smoke
 

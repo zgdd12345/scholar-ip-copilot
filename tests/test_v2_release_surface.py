@@ -172,10 +172,10 @@ def test_makefile_and_ci_define_all_release_gates() -> None:
     assert "PLUGIN_CREATOR_ROOT ?=" in makefile
     assert "$(PLUGIN_CREATOR_ROOT)/scripts/validate_plugin.py plugins/scholar" in makefile
     assert "claude plugin validate plugins/scholar" in makefile
-    assert "-m pytest tests/" in makefile
+    assert "-m pytest -p no:cacheprovider tests/" in makefile
     assert "-m ruff check" in makefile
     assert "evidraft/schemas/workflow.schema.json" in makefile
-    assert "evidraft-opencode --plugin" in makefile
+    assert re.search(r'evidraft-opencode"? --plugin', makefile)
     assert "git diff --exit-code" in makefile
 
     for os_name in ("ubuntu-latest", "macos-latest"):
@@ -204,6 +204,13 @@ def test_makefile_and_ci_define_all_release_gates() -> None:
         "git diff --exit-code",
     ):
         assert gate in ci
+
+    assert ci.count("unset PYTHONPATH") >= 2
+    smoke_step = ci.split(
+        "- name: Clean-install wheel and smoke all console scripts outside repository",
+        maxsplit=1,
+    )[1]
+    assert smoke_step.index('cd "$RUNNER_TEMP"') < smoke_step.index("pip install")
 
 
 def test_release_documentation_states_topology_behavior_and_safety_contracts() -> None:
@@ -242,12 +249,24 @@ def test_claude_install_tolerates_only_an_identical_configured_marketplace() -> 
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
     recipe = _make_recipe(makefile, "install-claude")
 
-    assert "pwd -P" in recipe
-    assert 'grep -F "already configured"' in recipe
-    assert 'grep -F "$$root"' in recipe
-    assert "marketplace already configured at identical root" in recipe
-    assert "else" in recipe
-    assert "exit 1" in recipe
-    assert "claude plugin update scholar@scholar-ip-copilot --scope project" in recipe
-    assert "claude plugin enable scholar@scholar-ip-copilot --scope project" in recipe
+    assert "evidraft.cli install-claude-plugin --repo-root ." in recipe
+    assert "grep" not in recipe
+    assert "claude plugin marketplace add" not in recipe
     assert ".claude/plugins/scholar-ip" not in recipe
+
+
+def test_release_targets_disable_repository_caches() -> None:
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+
+    assert "READ_ONLY_PYTHON := env PYTHONDONTWRITEBYTECODE=1" in makefile
+    assert "SMOKE_ENV    := env -u PYTHONPATH PYTHONDONTWRITEBYTECODE=1" in makefile
+    assert "-m pytest -p no:cacheprovider tests/" in _make_recipe(makefile, "test")
+    assert "ruff check --no-cache" in _make_recipe(makefile, "lint")
+    for target in (
+        "package-check",
+        "test",
+        "plugin-validate-codex",
+        "opencode-inventory",
+        "wheel-smoke",
+    ):
+        assert "$(READ_ONLY_PYTHON)" in _make_recipe(makefile, target)

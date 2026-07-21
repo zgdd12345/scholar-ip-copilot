@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import re
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -15,6 +19,7 @@ from evidraft.release import (
     render_plugin_package,
     source_sha256,
 )
+import evidraft.release as release_module
 from evidraft.render import RENDERER_VERSION, Host
 
 
@@ -28,6 +33,30 @@ def _tree_bytes(root: Path) -> dict[str, bytes]:
         for path in sorted(root.rglob("*"))
         if path.is_file()
     }
+
+
+def _release_artifact_inventory() -> dict[str, tuple[str, str]]:
+    roots = [ROOT / name for name in ("dist", "build", ".release-smoke-venv")]
+    roots.extend(ROOT.glob("*.egg-info"))
+    roots.extend((ROOT / "src").glob("*.egg-info"))
+    roots.extend((ROOT / "packages").glob("*.egg-info"))
+    inventory: dict[str, tuple[str, str]] = {}
+    for root in sorted(set(roots)):
+        if not root.exists() and not root.is_symlink():
+            continue
+        paths = [root, *sorted(root.rglob("*"))] if root.is_dir() else [root]
+        for path in paths:
+            relative = path.relative_to(ROOT).as_posix()
+            if path.is_symlink():
+                inventory[relative] = ("symlink", os.readlink(path))
+            elif path.is_file():
+                inventory[relative] = (
+                    "file",
+                    hashlib.sha256(path.read_bytes()).hexdigest(),
+                )
+            elif path.is_dir():
+                inventory[relative] = ("directory", "")
+    return inventory
 
 
 def _fake_renderer(shared: bytes, *, distinct_by_host: bool = False):
@@ -260,8 +289,83 @@ def test_wheel_smoke_clears_checkout_pythonpath() -> None:
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
 
     assert "SMOKE_ENV    := env -u PYTHONPATH" in makefile
-    assert "$(SMOKE_ENV) $(SMOKE_VENV)/bin/python -m pip install" in makefile
-    assert "cd /tmp && $(SMOKE_ENV)" in makefile
+    assert '$(SMOKE_ENV) "$$root/venv/bin/python" -m pip install' in makefile
+    assert 'cd "$$root"' in makefile
+
+
+def test_wheel_smoke_contract_uses_one_external_temporary_root() -> None:
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    header = next(line for line in makefile.splitlines() if line.startswith("wheel-smoke:"))
+    match = re.search(
+        r"^wheel-smoke:[^\n]*\n(?P<body>(?:\t.*\n)+)",
+        makefile,
+        flags=re.MULTILINE,
+    )
+    assert match is not None
+    recipe = header + "\n" + match.group("body")
+
+    assert header == "wheel-smoke:"
+    assert "mktemp -d /tmp/evidraft-wheel-smoke" in recipe
+    assert "stage_wheel_source" in recipe
+    assert "trap 'rm -rf \"$$root\"' EXIT" in recipe
+    for external in ("$$root/source", "$$root/dist", "$$root/venv", "$$root/plugin"):
+        assert external in recipe
+    assert "$(DIST_DIR)" not in recipe
+    assert "$(SMOKE_VENV)" not in recipe
+
+
+def test_real_wheel_smoke_preserves_repo_release_artifacts() -> None:
+    before = _release_artifact_inventory()
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = "src:."
+
+    subprocess.run(
+        ["make", f"PYTHON={sys.executable}", "wheel-smoke"],
+        cwd=ROOT,
+        env=environment,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert _release_artifact_inventory() == before
+
+
+def test_wheel_source_staging_copies_current_tree_without_build_artifacts(
+    tmp_path: Path,
+) -> None:
+    stage = getattr(release_module, "stage_wheel_source", None)
+    assert stage is not None
+    repo = tmp_path / "repo"
+    (repo / "src/evidraft/__pycache__").mkdir(parents=True)
+    (repo / "packages/adapters").mkdir(parents=True)
+    for name in ("pyproject.toml", "README.md", "LICENSE"):
+        (repo / name).write_text(f"current {name}\n", encoding="utf-8")
+    (repo / "src/evidraft/current.py").write_text("CURRENT = True\n", encoding="utf-8")
+    (repo / "src/evidraft/__pycache__/stale.pyc").write_bytes(b"stale")
+    (repo / "packages/adapters/current.py").write_text("CURRENT = True\n", encoding="utf-8")
+    (repo / "packages/adapters/stale.egg-info").mkdir()
+    out = tmp_path / "outside" / "source"
+
+    stage(repo, out)
+
+    assert (out / "src/evidraft/current.py").read_text() == "CURRENT = True\n"
+    assert (out / "packages/adapters/current.py").read_text() == "CURRENT = True\n"
+    assert not (out / "src/evidraft/__pycache__").exists()
+    assert not (out / "packages/adapters/stale.egg-info").exists()
+
+
+def test_wheel_source_staging_refuses_repository_output(tmp_path: Path) -> None:
+    stage = getattr(release_module, "stage_wheel_source", None)
+    assert stage is not None
+    repo = tmp_path / "repo"
+    (repo / "src").mkdir(parents=True)
+    (repo / "packages").mkdir()
+    for name in ("pyproject.toml", "README.md", "LICENSE"):
+        (repo / name).write_text(name, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="outside repository"):
+        stage(repo, repo / "build-source")
 
 
 def test_portable_codex_manifest_contract() -> None:

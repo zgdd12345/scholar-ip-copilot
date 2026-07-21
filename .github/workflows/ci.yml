@@ -68,15 +68,17 @@ jobs:
 
       - name: Build wheel
         run: |
+          unset PYTHONPATH
           rm -rf dist build *.egg-info src/*.egg-info packages/*.egg-info
           .venv/bin/python -m build --wheel --outdir dist
           .venv/bin/python -c 'import pathlib,zipfile; p=next(pathlib.Path("dist").glob("*.whl")); n=set(zipfile.ZipFile(p).namelist()); required={"evidraft/schemas/workflow.schema.json"}; forbidden={"packages/adapters/_shared/loader.py","packages/adapters/_shared/bundle.py","packages/core/src/__init__.py","packages/core/src/migrate.py"}; prefixes=("plugins/",".codex-plugin/",".claude-plugin/","skills/"); leaked=sorted(x for x in n if x.startswith(prefixes)); assert required <= n, required-n; assert not forbidden & n, forbidden & n; assert not leaked, leaked'
       - name: Clean-install wheel and smoke all console scripts outside repository
         shell: bash
         run: |
+          unset PYTHONPATH
+          cd "$RUNNER_TEMP"
           python -m venv "$RUNNER_TEMP/evidraft-smoke"
           "$RUNNER_TEMP/evidraft-smoke/bin/python" -m pip install "$GITHUB_WORKSPACE"/dist/*.whl
-          cd "$RUNNER_TEMP"
           "$RUNNER_TEMP/evidraft-smoke/bin/evidraft" --help
           "$RUNNER_TEMP/evidraft-smoke/bin/evidraft-claude-code" --help
           "$RUNNER_TEMP/evidraft-smoke/bin/evidraft-codex-cli" --help

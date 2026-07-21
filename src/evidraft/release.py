@@ -14,6 +14,8 @@ from .transaction import replace_owned_tree
 
 RELEASE_MANIFEST = ".evidraft-release-manifest.json"
 RELEASE_FORMAT_VERSION = 1
+WHEEL_SOURCE_FILES = ("pyproject.toml", "README.md", "LICENSE")
+WHEEL_SOURCE_DIRECTORIES = ("src", "packages/adapters")
 
 
 def _safe_relative(value: str) -> Path:
@@ -78,6 +80,41 @@ def source_sha256(plugin_root: Path) -> str:
         digest.update(len(body).to_bytes(8, "big"))
         digest.update(body)
     return digest.hexdigest()
+
+
+def stage_wheel_source(repo_root: Path, out_dir: Path) -> list[Path]:
+    """Copy current wheel build inputs to a location outside the repository."""
+    repo_root = Path(repo_root).resolve()
+    out_dir = Path(out_dir).resolve(strict=False)
+    if out_dir == repo_root or out_dir.is_relative_to(repo_root):
+        raise ValueError("wheel source output must be outside repository")
+    if out_dir.exists() or out_dir.is_symlink():
+        raise FileExistsError(f"wheel source output already exists: {out_dir}")
+
+    sources = [repo_root / name for name in WHEEL_SOURCE_FILES]
+    sources.extend(repo_root / name for name in WHEEL_SOURCE_DIRECTORIES)
+    missing = [path.relative_to(repo_root).as_posix() for path in sources if not path.exists()]
+    if missing:
+        raise FileNotFoundError(f"missing wheel source inputs: {', '.join(missing)}")
+
+    out_dir.parent.mkdir(parents=True, exist_ok=True)
+    ignored = shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo", "*.egg-info")
+    with tempfile.TemporaryDirectory(
+        prefix=".evidraft-wheel-source-", dir=out_dir.parent
+    ) as raw:
+        staged = Path(raw) / "source"
+        staged.mkdir()
+        for name in WHEEL_SOURCE_FILES:
+            shutil.copy2(repo_root / name, staged / name)
+        shutil.copytree(repo_root / "src", staged / "src", ignore=ignored)
+        (staged / "packages").mkdir()
+        shutil.copytree(
+            repo_root / "packages/adapters",
+            staged / "packages/adapters",
+            ignore=ignored,
+        )
+        staged.rename(out_dir)
+    return sorted(path for path in out_dir.rglob("*") if path.is_file())
 
 
 def render_plugin_package(plugin_root: Path, out_dir: Path) -> list[Path]:
