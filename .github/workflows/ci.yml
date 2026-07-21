@@ -72,8 +72,8 @@ jobs:
           unset PYTHONPATH
           export PYTHONDONTWRITEBYTECODE=1
           repo_python="$GITHUB_WORKSPACE/.venv/bin/python"
-          "$repo_python" -c 'import sys; from pathlib import Path; from evidraft.release import stage_wheel_source; stage_wheel_source(Path(sys.argv[1]), Path(sys.argv[2]))' "$GITHUB_WORKSPACE" "$RUNNER_TEMP/source"
           cd "$RUNNER_TEMP"
+          "$repo_python" -c 'import sys; from pathlib import Path; from evidraft.release import stage_wheel_source; stage_wheel_source(Path(sys.argv[1]), Path(sys.argv[2]))' "$GITHUB_WORKSPACE" "$RUNNER_TEMP/source"
           "$repo_python" -m build --wheel --outdir "$RUNNER_TEMP/dist" "$RUNNER_TEMP/source"
           "$repo_python" -c 'import pathlib,sys,zipfile; p=next(pathlib.Path(sys.argv[1]).glob("*.whl")); n=set(zipfile.ZipFile(p).namelist()); required={"evidraft/schemas/workflow.schema.json"}; forbidden={"packages/adapters/_shared/loader.py","packages/adapters/_shared/bundle.py","packages/core/src/__init__.py","packages/core/src/migrate.py"}; prefixes=("plugins/",".codex-plugin/",".claude-plugin/","skills/"); leaked=sorted(x for x in n if x.startswith(prefixes)); assert required <= n, required-n; assert not forbidden & n, forbidden & n; assert not leaked, leaked' "$RUNNER_TEMP/dist"
       - name: Clean-install wheel and smoke all console scripts outside repository

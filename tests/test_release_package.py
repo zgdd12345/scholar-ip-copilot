@@ -332,6 +332,13 @@ def test_wheel_smoke_resolves_python_before_running_entire_smoke_from_tmp() -> N
 
     external_recipe = recipe.split(change_directory, maxsplit=1)[1]
     assert "$(PYTHON)" not in external_recipe
+    assert "stage_wheel_source" in external_recipe
+    staging_prefix = external_recipe.split("stage_wheel_source", maxsplit=1)[0]
+    assert '$(SMOKE_ENV) "$$python" -c' in staging_prefix
+    assert '"$(CURDIR)/src"' in external_recipe
+    assert '"$(CURDIR)" "$$root/source"' in external_recipe
+    assert 'cp -R "$(CURDIR)/$(PLUGIN_SRC)" "$$root/plugin"' in external_recipe
+    assert external_recipe.index("stage_wheel_source") < external_recipe.index("cp -R")
     for command in (
         '$(SMOKE_ENV) "$$python" -m build',
         '$(SMOKE_ENV) "$$python" -m venv',

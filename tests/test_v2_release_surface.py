@@ -217,6 +217,12 @@ def test_makefile_and_ci_define_all_release_gates() -> None:
     assert "stage_wheel_source" in build_step
     assert '"$GITHUB_WORKSPACE" "$RUNNER_TEMP/source"' in build_step
     assert 'cd "$RUNNER_TEMP"' in build_step
+    assert build_step.index('repo_python="$GITHUB_WORKSPACE/.venv/bin/python"') < (
+        build_step.index('cd "$RUNNER_TEMP"')
+    )
+    assert build_step.index('cd "$RUNNER_TEMP"') < build_step.index(
+        "stage_wheel_source"
+    )
     assert build_step.index('cd "$RUNNER_TEMP"') < build_step.index("-m build")
     assert '--outdir "$RUNNER_TEMP/dist" "$RUNNER_TEMP/source"' in build_step
     assert "rm -rf dist build" not in build_step
@@ -280,6 +286,6 @@ def test_release_targets_disable_repository_caches() -> None:
         "test",
         "plugin-validate-codex",
         "opencode-inventory",
-        "wheel-smoke",
     ):
         assert "$(READ_ONLY_PYTHON)" in _make_recipe(makefile, target)
+    assert "$(SMOKE_ENV)" in _make_recipe(makefile, "wheel-smoke")
