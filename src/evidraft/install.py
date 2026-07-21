@@ -202,7 +202,7 @@ def remove_codex_project_skills(destination: Path) -> list[Path]:
         for name in sorted(owned)
         if (destination / name).exists() or (destination / name).is_symlink()
     ]
-    if not owned:
+    if not owned and not manifest.is_file():
         return []
     with tempfile.TemporaryDirectory(prefix="evidraft-remove-skills-") as raw:
         staged = Path(raw) / "empty"
@@ -213,7 +213,6 @@ def remove_codex_project_skills(destination: Path) -> list[Path]:
             new_owned=set(),
             old_owned={Path(name) for name in owned},
             manifest=manifest,
-            manifest_data={"version": 2, "owned_paths": []},
+            manifest_data=None,
         )
-        manifest.unlink()
     return removed

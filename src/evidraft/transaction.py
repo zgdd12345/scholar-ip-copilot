@@ -124,7 +124,7 @@ def replace_owned_tree(
     new_owned: set[Path],
     old_owned: set[Path],
     manifest: Path,
-    manifest_data: dict,
+    manifest_data: dict | None,
 ) -> None:
     """Replace owned paths as one recoverable transaction under a persistent lock."""
     root = root.absolute()
@@ -167,6 +167,7 @@ def replace_owned_tree(
             "new_owned": sorted(path.as_posix() for path in new_owned),
             "backup_roots": [path.as_posix() for path in backup_roots],
             "manifest_existed": manifest_existed,
+            "manifest_after_commit": "absent" if manifest_data is None else "present",
         }
         _atomic_json(transaction / "journal.json", journal)
         try:
@@ -174,7 +175,10 @@ def replace_owned_tree(
                 _remove(root / relative)
             for relative in sorted(new_owned):
                 _copy_node(staged_root / relative, root / relative)
-            _atomic_json(manifest, manifest_data)
+            if manifest_data is None:
+                manifest.unlink(missing_ok=True)
+            else:
+                _atomic_json(manifest, manifest_data)
             journal["phase"] = "committed"
             _atomic_json(transaction / "journal.json", journal)
         except BaseException:

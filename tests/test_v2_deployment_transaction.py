@@ -5,7 +5,7 @@ import multiprocessing
 import os
 from pathlib import Path
 
-from evidraft.install import sync_codex_skills
+from evidraft.install import remove_codex_project_skills, sync_codex_skills
 from evidraft.render import Host, render_plugin
 
 
@@ -44,6 +44,46 @@ def _crash_after_prepare(kind: str, source: str, destination: str) -> None:
 def _render_worker(destination: str, ready: multiprocessing.synchronize.Event) -> None:
     ready.wait()
     render_plugin(PLUGIN, Path(destination), Host.CODEX)
+
+
+def _sync_worker(source: str, destination: str) -> None:
+    sync_codex_skills(Path(source), Path(destination))
+
+
+def _crash_remove_before_commit(destination: str) -> None:
+    import evidraft.transaction as transaction
+
+    manifest = Path(destination) / ".evidraft-ownership.json"
+    real_atomic_json = transaction._atomic_json
+
+    def terminate_before_commit(path: Path, document: dict) -> None:
+        if Path(path).name == "journal.json" and document.get("phase") == "committed":
+            if manifest.exists():
+                os._exit(94)
+            os._exit(93)
+        real_atomic_json(path, document)
+
+    transaction._atomic_json = terminate_before_commit
+    remove_codex_project_skills(Path(destination))
+
+
+def _pause_remove_after_transaction(
+    destination: str,
+    transaction_complete: multiprocessing.synchronize.Event,
+    allow_return: multiprocessing.synchronize.Event,
+) -> None:
+    import evidraft.install as install
+
+    real_replace = install.replace_owned_tree
+
+    def pause_after_replace(**kwargs: object) -> None:
+        real_replace(**kwargs)
+        transaction_complete.set()
+        if not allow_return.wait(30):
+            os._exit(95)
+
+    install.replace_owned_tree = pause_after_replace
+    install.remove_codex_project_skills(Path(destination))
 
 
 def _crash_during_recovery(destination: str) -> None:
@@ -177,3 +217,62 @@ def test_concurrent_renderers_serialize_to_one_complete_bundle(tmp_path: Path) -
     )
     assert len(manifest["owned_paths"]) == len(set(manifest["owned_paths"]))
     assert not (tmp_path / ".codex.evidraft-transaction").exists()
+
+
+def test_remove_recovers_stale_prepared_journal_with_absent_manifest(tmp_path: Path) -> None:
+    rendered = tmp_path / "rendered"
+    render_plugin(PLUGIN, rendered, Host.CODEX)
+    destination = tmp_path / "skills"
+    sync_codex_skills(rendered, destination)
+
+    context = multiprocessing.get_context("fork")
+    process = context.Process(target=_crash_remove_before_commit, args=(str(destination),))
+    process.start()
+    process.join(30)
+
+    assert process.exitcode == 93
+    assert not (destination / ".evidraft-ownership.json").exists()
+    transaction = tmp_path / ".skills.evidraft-transaction"
+    assert transaction.is_dir()
+    journal = json.loads((transaction / "journal.json").read_text(encoding="utf-8"))
+    assert journal["phase"] == "prepared"
+    assert journal["manifest_after_commit"] == "absent"
+
+    sync_codex_skills(rendered, destination)
+
+    assert not transaction.exists()
+    assert _public_codex_skills(destination) == PUBLIC
+    manifest = json.loads(
+        (destination / ".evidraft-ownership.json").read_text(encoding="utf-8")
+    )
+    assert len(manifest["owned_paths"]) == 7
+
+
+def test_concurrent_remove_then_sync_keeps_the_serialized_sync_manifest(tmp_path: Path) -> None:
+    rendered = tmp_path / "rendered"
+    render_plugin(PLUGIN, rendered, Host.CODEX)
+    destination = tmp_path / "skills"
+    sync_codex_skills(rendered, destination)
+    context = multiprocessing.get_context("fork")
+    transaction_complete = context.Event()
+    allow_remove_return = context.Event()
+    remove = context.Process(
+        target=_pause_remove_after_transaction,
+        args=(str(destination), transaction_complete, allow_remove_return),
+    )
+    remove.start()
+    assert transaction_complete.wait(30)
+
+    sync = context.Process(target=_sync_worker, args=(str(rendered), str(destination)))
+    sync.start()
+    sync.join(30)
+    assert sync.exitcode == 0
+    allow_remove_return.set()
+    remove.join(30)
+
+    assert remove.exitcode == 0
+    assert _public_codex_skills(destination) == PUBLIC
+    manifest = json.loads(
+        (destination / ".evidraft-ownership.json").read_text(encoding="utf-8")
+    )
+    assert len(manifest["owned_paths"]) == 7

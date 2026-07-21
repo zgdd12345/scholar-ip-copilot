@@ -216,3 +216,77 @@ def test_remove_codex_project_skills_is_idempotent_without_manifest(tmp_path: Pa
 
     assert remove_codex_project_skills(destination) == []
     assert user_skill.is_dir()
+
+
+def test_remove_commits_manifest_absence_before_journal_commit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    destination = tmp_path / "skills"
+    owned = destination / "scholar-paper"
+    owned.mkdir(parents=True)
+    (owned / "SKILL.md").write_text("prior", encoding="utf-8")
+    manifest = destination / ".evidraft-ownership.json"
+    manifest.write_text(
+        json.dumps({"version": 2, "owned_paths": ["scholar-paper"]}),
+        encoding="utf-8",
+    )
+    import evidraft.transaction as transaction
+
+    real_atomic_json = transaction._atomic_json
+    absent_at_commit: list[bool] = []
+
+    def observe_commit(path: Path, document: dict) -> None:
+        if Path(path).name == "journal.json" and document.get("phase") == "committed":
+            absent_at_commit.append(not manifest.exists())
+        real_atomic_json(path, document)
+
+    monkeypatch.setattr(transaction, "_atomic_json", observe_commit)
+
+    remove_codex_project_skills(destination)
+
+    assert absent_at_commit == [True]
+    assert not owned.exists()
+    assert not manifest.exists()
+
+
+def test_remove_rollback_restores_exact_tree_and_manifest_after_absence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    destination = tmp_path / "skills"
+    skill = destination / "scholar-paper" / "SKILL.md"
+    skill.parent.mkdir(parents=True)
+    original_skill = b"prior skill\n"
+    skill.write_bytes(original_skill)
+    manifest = destination / ".evidraft-ownership.json"
+    original_manifest = b'{"version":2,"owned_paths":["scholar-paper"]}\n'
+    manifest.write_bytes(original_manifest)
+    import evidraft.transaction as transaction
+
+    real_atomic_json = transaction._atomic_json
+    absent_at_failure: list[bool] = []
+
+    def fail_commit(path: Path, document: dict) -> None:
+        if Path(path).name == "journal.json" and document.get("phase") == "committed":
+            absent_at_failure.append(not manifest.exists())
+            raise OSError("injected commit failure")
+        real_atomic_json(path, document)
+
+    monkeypatch.setattr(transaction, "_atomic_json", fail_commit)
+
+    with pytest.raises(OSError, match="injected commit failure"):
+        remove_codex_project_skills(destination)
+
+    assert absent_at_failure == [True]
+    assert skill.read_bytes() == original_skill
+    assert manifest.read_bytes() == original_manifest
+
+
+def test_remove_deletes_an_empty_ownership_manifest(tmp_path: Path) -> None:
+    destination = tmp_path / "skills"
+    destination.mkdir()
+    manifest = destination / ".evidraft-ownership.json"
+    manifest.write_text('{"version": 2, "owned_paths": []}\n', encoding="utf-8")
+
+    assert remove_codex_project_skills(destination) == []
+
+    assert not manifest.exists()
