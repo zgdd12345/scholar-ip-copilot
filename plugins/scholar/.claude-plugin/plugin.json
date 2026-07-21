@@ -1,0 +1,18 @@
+{
+  "name": "scholar",
+  "version": "3.0.0",
+  "description": "Evidence-grounded academic and patent copilot for codebases, experiments, literature, LaTeX papers, and invention disclosures.",
+  "author": {
+    "name": "scholar-ip-copilot contributors"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/zgdd12345/scholar-ip-copilot",
+  "repository": "https://github.com/zgdd12345/scholar-ip-copilot",
+  "keywords": [
+    "research",
+    "literature-review",
+    "academic-writing",
+    "patents",
+    "evidence"
+  ]
+}

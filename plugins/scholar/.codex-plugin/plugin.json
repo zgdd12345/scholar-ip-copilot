@@ -1,0 +1,37 @@
+{
+  "name": "scholar",
+  "version": "3.0.0",
+  "description": "Evidence-grounded academic and patent copilot for codebases, experiments, literature, LaTeX papers, and invention disclosures.",
+  "skills": "./skills/",
+  "license": "MIT",
+  "author": {
+    "name": "scholar-ip-copilot contributors"
+  },
+  "homepage": "https://github.com/zgdd12345/scholar-ip-copilot",
+  "repository": "https://github.com/zgdd12345/scholar-ip-copilot",
+  "keywords": [
+    "research",
+    "literature-review",
+    "academic-writing",
+    "patents",
+    "evidence"
+  ],
+  "interface": {
+    "displayName": "EviDraft",
+    "shortDescription": "Evidence-grounded research and patent workflows",
+    "longDescription": "Seven compact workflows for literature, papers, patents, evidence, and review.",
+    "developerName": "scholar-ip-copilot contributors",
+    "category": "Productivity",
+    "websiteURL": "https://github.com/zgdd12345/scholar-ip-copilot",
+    "defaultPrompt": [
+      "Orient me in this EviDraft project.",
+      "Continue the evidence-backed paper workflow.",
+      "Review the current patent disclosure and claims."
+    ],
+    "capabilities": [
+      "Read",
+      "Write",
+      "Research"
+    ]
+  }
+}

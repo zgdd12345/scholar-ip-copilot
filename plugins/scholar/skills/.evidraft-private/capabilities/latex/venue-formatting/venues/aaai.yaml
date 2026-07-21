@@ -1,0 +1,33 @@
+id: aaai
+name: "AAAI Conference on Artificial Intelligence"
+documentclass: '\documentclass[letterpaper]{article}'
+class_files_url: "https://aaai.org/authorkit<year>.zip (aaai<year>.sty)"
+bib_style: aaai<year>
+anonymous_review: true
+page_limit:
+  main: 7
+  refs: 2
+  supplement: unlimited
+column_layout: two-column
+font_size: 10pt
+usepackage_required:
+  - aaai<year>              # \usepackage{aaai<year>}
+  - times
+  - helvet
+  - courier
+  - graphicx
+  - amsmath
+  - amssymb
+  - booktabs
+usepackage_forbidden:
+  - hyperref                # AAAI commonly forbids hyperref in camera-ready (verify per year)
+  - natbib
+caption_convention: "Figure N: Caption."
+section_numbering: yes
+line_numbers_for_review: true
+notes: >
+  Double-blind review. AAAI is strict: typically 7 main pages + 2
+  reference pages, no extra references budget, hyperref usually
+  forbidden in camera-ready (verify the year's instructions — recent
+  years have relaxed). The class file is provided in the official
+  AAAI author kit; fetch from aaai.org — not vendored.

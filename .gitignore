@@ -8,7 +8,6 @@
 .agents/.*.evidraft-transaction/
 .superpowers/
 .worktrees/
-.claude-plugin/
 # Python
 __pycache__/
 *.py[cod]

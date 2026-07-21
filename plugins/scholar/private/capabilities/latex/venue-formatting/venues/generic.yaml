@@ -1,0 +1,32 @@
+id: generic
+name: "Generic / unspecified venue (plain article fallback)"
+documentclass: '\documentclass[11pt]{article}'
+class_files_url: "n/a — base LaTeX article class (TeX Live)"
+bib_style: plainnat
+anonymous_review: false
+page_limit:
+  main: unlimited
+  refs: unlimited
+  supplement: unlimited
+column_layout: one-column
+font_size: 11pt
+usepackage_required:
+  - geometry
+  - microtype
+  - amsmath
+  - amssymb
+  - booktabs
+  - graphicx
+  - caption
+  - hyperref
+  - natbib
+usepackage_forbidden: []
+caption_convention: "Figure N: Caption."
+section_numbering: yes
+line_numbers_for_review: false
+notes: >
+  Use when the target venue is unknown or has no public class file. This
+  is effectively the same as the arXiv-neutral default, retained as a
+  separate id so workflow:paper.venue can be invoked deterministically. When the
+  real venue is decided, clone this spec into a venues/<id>.yaml and fill
+  it in.

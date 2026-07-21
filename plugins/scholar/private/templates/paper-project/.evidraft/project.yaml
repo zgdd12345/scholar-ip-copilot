@@ -1,0 +1,31 @@
+# EviDraft project descriptor — paper template.
+# Validated against packages/core/schemas/project.schema.json.
+# workflow:paper.init fills in title, field, target_venue, and authors at scaffold time.
+format_version: 2
+project_type: paper
+title: "TODO: paper title"
+field: ""
+target_venue: "arXiv"
+language: "en"
+authors: []
+status:
+  literature: not_started
+  idea: not_started
+  codebase: not_started
+  experiments: not_started
+  manuscript: not_started
+  patent: not_started
+artifacts:
+  evidence: ".evidraft/evidence/evidence.jsonl"
+  bib: ".evidraft/literature/references.bib"
+  manuscript: "manuscript/main.tex"
+rules:
+  require_citation_for_claims: true
+  require_experiment_source_for_numbers: true
+  require_code_trace_for_code_claims: true
+  allow_unverified_claims: false
+scope:
+  required: true
+  staleness_days: 14
+# Drafting style: arxiv-neutral. workflow:paper.venue converts to a target venue at
+# submission time. Do not switch styles inside this file directly.

@@ -1,0 +1,30 @@
+id: ieee
+name: "IEEE Transactions / generic IEEEtran"
+documentclass: '\documentclass[journal,twoside,11pt]{IEEEtran}'
+class_files_url: "https://www.ieee.org/conferences/publishing/templates.html (IEEEtran.cls + IEEEtran.bst)"
+bib_style: IEEEtran
+anonymous_review: false
+page_limit:
+  main: unlimited
+  refs: unlimited
+  supplement: n/a
+column_layout: two-column
+font_size: 11pt
+usepackage_required:
+  - graphicx
+  - amsmath
+  - amssymb
+  - booktabs
+  - cite
+  - hyperref
+usepackage_forbidden:
+  - natbib                  # IEEEtran uses its own \cite via cite.sty
+caption_convention: "Fig. N. Caption."
+section_numbering: yes
+line_numbers_for_review: false
+notes: >
+  Single-blind by default at most IEEE transactions; some conferences
+  are double-blind — verify per venue. Use [journal] for transactions,
+  [conference] for IEEE conference proceedings; many transactions also
+  accept [conference]. Page limits vary by transaction. Fetch
+  IEEEtran.cls from the IEEE templates page — not vendored.

@@ -8,7 +8,7 @@
       "name": "scholar",
       "source": {
         "source": "local",
-        "path": "./.codex/plugins/scholar"
+        "path": "./plugins/scholar"
       },
       "policy": {
         "installation": "AVAILABLE",

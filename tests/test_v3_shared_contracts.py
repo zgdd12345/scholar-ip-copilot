@@ -152,3 +152,19 @@ def test_v3_install_and_capability_index_require_explanation_contracts() -> None
         entry = index[capability_id]
         bundle = PLUGIN / "capabilities" / Path(entry["spec"]).parent
         assert entry["bundle_sha256"] == _bundle_sha256(bundle)
+
+
+def test_repo_marketplaces_point_to_tracked_scholar_package() -> None:
+    codex = json.loads((ROOT / ".agents/plugins/marketplace.json").read_text())
+    claude = json.loads((ROOT / ".claude-plugin/marketplace.json").read_text())
+
+    assert codex["plugins"][0]["source"] == {
+        "source": "local",
+        "path": "./plugins/scholar",
+    }
+    assert codex["plugins"][0]["policy"] == {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL",
+    }
+    assert codex["plugins"][0]["category"] == "Productivity"
+    assert claude["plugins"][0]["source"] == "./plugins/scholar"

@@ -1,0 +1,37 @@
+id: scope
+description: Clarify and persist advisory project intent and constraints.
+actions:
+  run:
+    legacy_id: brainstorming
+    procedure: stages/run.md
+    defaults: {branch: auto, mode: fast}
+    inputs:
+    - name: branch
+      type: enum
+      values:
+      - paper
+      - patent
+      - mixed
+      - auto
+      optional: true
+      default: auto
+      description: paper|patent|mixed select the project's project_type axis explicitly; auto = read .evidraft/project.yaml.project_type (and ask once if mixed).
+    - name: mode
+      type: enum
+      values:
+      - full
+      - fast
+      optional: true
+      default: fast
+    - name: seed_idea
+      type: string
+      optional: true
+    outputs:
+    - path: .evidraft/scope/YYYY-MM-DD-<slug>.md
+      required: false
+    policies: []
+    roles:
+    - id: researcher
+      mode: brainstormer
+      tier: standard
+    retention: {}

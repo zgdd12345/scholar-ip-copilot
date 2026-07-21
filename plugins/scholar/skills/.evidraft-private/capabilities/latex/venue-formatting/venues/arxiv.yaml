@@ -1,0 +1,30 @@
+id: arxiv
+name: "arXiv preprint (neutral default)"
+documentclass: '\documentclass[11pt]{article}'
+class_files_url: "n/a — uses base LaTeX article class (TeX Live)"
+bib_style: plainnat
+anonymous_review: false
+page_limit:
+  main: unlimited
+  refs: unlimited
+  supplement: unlimited
+column_layout: one-column
+font_size: 11pt
+usepackage_required:
+  - geometry
+  - microtype
+  - amsmath
+  - amssymb
+  - booktabs
+  - graphicx
+  - caption
+  - hyperref
+  - natbib
+usepackage_forbidden: []
+caption_convention: "Figure N: Caption."
+section_numbering: yes
+line_numbers_for_review: false
+notes: >
+  arXiv preprints use no enforced template. EviDraft's manuscript/ default is
+  this style; conversion is effectively a no-op. License: arXiv requires that
+  the submission compile on their build system; avoid exotic packages.

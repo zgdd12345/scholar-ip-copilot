@@ -1,0 +1,43 @@
+% EviDraft paper template — arXiv-neutral style.
+%
+% This is the default drafting style. Do NOT switch to a venue-specific
+% documentclass here. At submission time, run `workflow:paper.venue` to convert
+% this manuscript into the target venue's template (CVPR, NeurIPS, ICCV, ECCV,
+% ICML, ICLR, EMNLP, ACL, AAAI, IEEEtran, ACM-generic, ...).
+%
+% TODO: Replace title/author placeholders. Do not invent author names.
+
+\documentclass[10pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{natbib}
+
+\bibliographystyle{plainnat}
+
+\title{TODO: Paper Title}
+\author{TODO: Author Name(s)}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+% TODO: abstract goes here. Keep claims tied to evidence ids in
+% .evidraft/evidence/evidence.jsonl.
+\end{abstract}
+
+\input{sections/introduction}
+\input{sections/related_work}
+\input{sections/method}
+\input{sections/experiments}
+\input{sections/conclusion}
+
+\bibliography{references}
+
+\end{document}

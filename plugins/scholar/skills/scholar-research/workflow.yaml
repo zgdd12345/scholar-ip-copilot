@@ -1,0 +1,154 @@
+id: research
+description: Route reading lists, single-paper explanation, and deep literature research.
+actions:
+  reading-list:
+    legacy_id: reading-list
+    procedure: stages/reading-list.md
+    defaults: {max: 20}
+    inputs:
+    - name: topic
+      type: string
+      optional: false
+      description: 'The search topic / question. Used verbatim as the query and slugged for the output filename.
+
+        '
+    - name: max
+      type: integer
+      optional: true
+      default: 20
+      description: Maximum number of candidates to consider (before verification rejects).
+    - name: out
+      type: path
+      optional: true
+      description: 'Override the default output path. Default: .evidraft/notes/<topic-slug>-<UTC-date>.md
+
+        '
+    outputs:
+    - path: .evidraft/notes/<topic-slug>-<date>.md
+    policies: []
+    roles:
+    - id: researcher
+      mode: literature-reviewer
+      tier: standard
+    retention: {}
+  explain:
+    legacy_id: paper-explain
+    procedure: stages/explain.md
+    defaults: {mode: graduate}
+    inputs:
+    - name: source
+      type: string
+      optional: false
+      description: Local PDF path, arXiv identifier or URL, DOI, or paper URL.
+    - name: mode
+      type: enum
+      values: [beginner, graduate, reviewer]
+      optional: true
+      default: graduate
+      description: Explanation emphasis; every mode retains the complete note schema.
+    - name: out
+      type: path
+      optional: true
+      description: Override .evidraft/notes/paper-explanations/<paper-slug>.md.
+    outputs:
+    - path: .evidraft/notes/paper-explanations/<paper-slug>.md
+      required: false
+    policies: []
+    roles:
+    - id: researcher
+      mode: paper-indexer
+      tier: standard
+    - id: researcher
+      mode: paper-analysis-worker
+      tier: standard
+    - id: researcher
+      mode: paper-reasoning-worker
+      tier: deep
+    - id: evidence-reviewer
+      mode: explanation-evidence-auditor
+      tier: standard
+    - id: researcher
+      mode: paper-explainer
+      tier: deep
+    retention: {}
+  deep:
+    legacy_id: deepresearch
+    procedure: stages/deep.md
+    defaults:
+      breadth: 6
+      depth: 2
+      providers: [arxiv, semantic-scholar, openalex]
+      mode: fast
+    inputs:
+    - name: topic
+      type: string
+      optional: true
+      description: Free-text research focus. Falls back to project.yaml.topic when omitted.
+    - name: breadth
+      type: integer
+      optional: true
+      default: 6
+      description: Maximum sub-queries per fan-out at every stage.
+    - name: depth
+      type: integer
+      optional: true
+      default: 2
+      description: Recursion depth for follow-up queries (citations / references).
+    - name: providers
+      type: list
+      optional: true
+      default:
+      - arxiv
+      - semantic-scholar
+      - openalex
+      description: Ordered retrieval backends consumed by capability:scholar-search. Records `source` per row; never blends silently.
+    - name: mode
+      type: enum
+      values:
+      - fast
+      - full
+      optional: true
+      default: fast
+      description: '`fast` halves breadth+depth and skips per-paper SWOT; `full` runs all 6 stages.'
+    - name: resume_from
+      type: enum
+      values:
+      - frame
+      - retrieve
+      - screen
+      - cluster
+      - critique
+      - synthesise
+      optional: true
+      description: Skip all earlier stages and resume at the named stage.
+    outputs:
+    - path: .evidraft/literature/plan.yaml
+    - path: .evidraft/literature/candidates.jsonl
+    - path: .evidraft/literature/screening_log.csv
+    - path: .evidraft/literature/clusters.yaml
+    - path: .evidraft/literature/evidence_map.json
+    - path: .evidraft/literature/critique/
+      required: false
+    - path: .evidraft/literature/related_work.draft.md
+    - path: .evidraft/literature/citation_audit.json
+      required: false
+    policies:
+    - scope
+    - evidence-integrity
+    roles:
+    - id: researcher
+      mode: deep-research-orchestrator
+      tier: deep
+    - id: researcher
+      mode: screener
+      tier: fast
+    - id: researcher
+      mode: paper-critic
+      tier: standard
+    - id: researcher
+      mode: literature-reviewer
+      tier: standard
+    - id: evidence-reviewer
+      mode: evidence-auditor
+      tier: standard
+    retention: {}

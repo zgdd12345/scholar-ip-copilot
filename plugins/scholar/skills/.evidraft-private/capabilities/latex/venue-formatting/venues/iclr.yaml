@@ -1,0 +1,30 @@
+id: iclr
+name: "International Conference on Learning Representations"
+documentclass: '\documentclass{article}'
+class_files_url: "https://iclr.cc/Conferences/<year>/AuthorGuide (iclr<year>_conference.sty)"
+bib_style: iclr<year>_conference
+anonymous_review: true
+page_limit:
+  main: 10
+  refs: unlimited
+  supplement: unlimited
+column_layout: one-column
+font_size: 10pt
+usepackage_required:
+  - iclr<year>_conference   # \usepackage{iclr<year>_conference}; pass [final] only at camera-ready
+  - graphicx
+  - amsmath
+  - amssymb
+  - booktabs
+  - natbib
+  - hyperref
+usepackage_forbidden: []
+caption_convention: "Figure N: Caption."
+section_numbering: yes
+line_numbers_for_review: true
+notes: >
+  Double-blind review on OpenReview. Style file is
+  iclr<year>_conference.sty; pass [final] only at camera-ready. Main
+  paper is 10 pages excluding references; appendices come after.
+  Reviewer numbering (\\iclrfinalcopy / line numbers) is handled by the
+  style options. Fetch from the year's Author Guide — not vendored.

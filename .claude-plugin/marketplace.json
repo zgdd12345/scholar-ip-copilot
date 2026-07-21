@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "scholar",
-      "source": "./.claude/plugins/scholar-ip",
+      "source": "./plugins/scholar",
       "description": "Evidence-grounded academic and patent copilot for codebases, experiments, literature, LaTeX papers, and invention disclosures."
     }
   ]

@@ -1,0 +1,33 @@
+id: neurips
+name: "Conference on Neural Information Processing Systems"
+documentclass: '\documentclass{article}'
+class_files_url: "https://neurips.cc/Conferences/<year>/PaperInformation/StyleFiles (neurips_<year>.sty)"
+bib_style: plainnat
+anonymous_review: true
+page_limit:
+  main: 9
+  refs: unlimited
+  supplement: unlimited
+column_layout: one-column
+font_size: 10pt
+usepackage_required:
+  - neurips_<year>          # imported via \usepackage with [final] removed during review
+  - graphicx
+  - amsmath
+  - amssymb
+  - booktabs
+  - natbib
+  - hyperref
+usepackage_forbidden: []
+caption_convention: "Figure N: Caption."
+section_numbering: yes
+line_numbers_for_review: true
+notes: >
+  Double-blind review. The NeurIPS style is a \\usepackage{neurips_<year>}
+  on top of \\documentclass{article}. During review do NOT pass the
+  [final] option (that reveals authors). At camera-ready, switch to
+  \\usepackage[final]{neurips_<year>}. Main paper is 9 pages excluding
+  references and appendix; appendix lives in the same PDF but after
+  references. The Checklist (Reproducibility / Broader Impact / etc.) is
+  mandatory in recent years — read the year's CFP. Class file is not
+  vendored.

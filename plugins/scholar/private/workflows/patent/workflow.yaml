@@ -1,0 +1,188 @@
+id: patent
+description: Route the complete invention-disclosure and claim-drafting lifecycle.
+actions:
+  init:
+    legacy_id: patent-init
+    procedure: stages/init.md
+    defaults: {project_type: patent, jurisdiction: US}
+    inputs:
+    - name: project_type
+      type: enum
+      values:
+      - patent
+      - mixed
+      optional: true
+      default: patent
+    - name: title
+      type: string
+      optional: true
+    - name: jurisdiction
+      type: enum
+      values:
+      - US
+      - EP
+      - CN
+      - JP
+      - PCT
+      - OTHER
+      optional: true
+      default: US
+    outputs:
+    - path: .evidraft/project.yaml
+    - path: .evidraft/patent/invention_disclosure.md
+      required: false
+    - path: .evidraft/patent/invention_candidates.md
+      required: false
+    - path: .evidraft/patent/prior_art_map.md
+      required: false
+    - path: .evidraft/patent/claim_chart.md
+      required: false
+    policies:
+    - workspace-safety
+    roles: []
+    retention: {}
+  scout:
+    legacy_id: patent-scout
+    procedure: stages/scout.md
+    defaults: {}
+    inputs: []
+    outputs:
+    - path: .evidraft/patent/invention_candidates.md
+    - path: .evidraft/evidence/evidence.jsonl
+      required: false
+    policies:
+    - evidence-integrity
+    - workspace-safety
+    roles:
+    - id: code-reviewer
+      mode: codebase-analyst
+      tier: standard
+    - id: patent-reviewer
+      mode: patent-engineer
+      tier: deep
+    - id: patent-reviewer
+      mode: novelty-critic
+      tier: deep
+    retention: {}
+  prior-art:
+    legacy_id: patent-prior-art
+    procedure: stages/prior-art.md
+    defaults: {}
+    inputs:
+    - name: seed_patents
+      type: list
+      optional: true
+    - name: seed_papers
+      type: list
+      optional: true
+    outputs:
+    - path: .evidraft/patent/prior_art_map.md
+    - path: .evidraft/patent/claim_chart.md
+      required: false
+    policies:
+    - evidence-integrity
+    roles:
+    - id: researcher
+      mode: literature-reviewer
+      tier: standard
+    - id: patent-reviewer
+      mode: patent-engineer
+      tier: deep
+    - id: patent-reviewer
+      mode: novelty-critic
+      tier: deep
+    retention: {}
+  disclosure:
+    legacy_id: patent-disclosure
+    procedure: stages/disclosure.md
+    defaults: {}
+    inputs:
+    - name: candidate_id
+      type: string
+      optional: true
+      description: C-001 etc. If omitted, work on every candidate.
+    outputs:
+    - path: .evidraft/patent/invention_disclosure.md
+    policies:
+    - evidence-integrity
+    - workspace-safety
+    roles:
+    - id: patent-reviewer
+      mode: patent-engineer
+      tier: deep
+    - id: code-reviewer
+      mode: methodology-reviewer
+      tier: standard
+    - id: evidence-reviewer
+      mode: evidence-auditor
+      tier: standard
+    retention: {}
+  claims:
+    legacy_id: patent-claims
+    procedure: stages/claims.md
+    defaults: {independent_count: 1, dependent_count: 6}
+    inputs:
+    - name: candidate_id
+      type: string
+      optional: true
+    - name: independent_count
+      type: integer
+      optional: true
+      default: 1
+    - name: dependent_count
+      type: integer
+      optional: true
+      default: 6
+    outputs:
+    - path: .evidraft/patent/claims.md
+    - path: .evidraft/patent/claims_parsed.json
+      required: false
+    - path: .evidraft/patent/claim_chart.md
+      required: false
+    - path: .evidraft/patent/claim_chart-<ts>.json
+      required: false
+    policies:
+    - evidence-integrity
+    roles:
+    - id: patent-reviewer
+      mode: claim-drafter
+      tier: deep
+    - id: patent-reviewer
+      mode: patent-engineer
+      tier: deep
+    - id: patent-reviewer
+      mode: novelty-critic
+      tier: deep
+    - id: evidence-reviewer
+      mode: evidence-auditor
+      tier: standard
+    retention: {}
+  review:
+    legacy_id: patent-review
+    procedure: stages/review.md
+    defaults: {}
+    inputs: []
+    outputs:
+    - path: .evidraft/patent/patent_review_report.md
+    policies:
+    - evidence-integrity
+    roles:
+    - id: patent-reviewer
+      mode: patent-engineer
+      tier: deep
+    - id: patent-reviewer
+      mode: claim-drafter
+      tier: deep
+    - id: patent-reviewer
+      mode: novelty-critic
+      tier: deep
+    - id: code-reviewer
+      mode: methodology-reviewer
+      tier: standard
+    - id: evidence-reviewer
+      mode: evidence-auditor
+      tier: standard
+    - id: evidence-reviewer
+      mode: consistency-checker
+      tier: fast
+    retention: {}

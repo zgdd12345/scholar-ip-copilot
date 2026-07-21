@@ -1,0 +1,31 @@
+id: acm-generic
+name: "ACM acmart (generic, sigconf format)"
+documentclass: '\documentclass[sigconf,anonymous,review]{acmart}'
+class_files_url: "https://www.acm.org/publications/proceedings-template (acmart.cls + ACM-Reference-Format.bst)"
+bib_style: ACM-Reference-Format
+anonymous_review: true
+page_limit:
+  main: unlimited           # ACM varies wildly by conference (SIGGRAPH 8-12, CHI 10, CCS 12, ...)
+  refs: unlimited
+  supplement: unlimited
+column_layout: two-column
+font_size: 10pt
+usepackage_required:
+  - graphicx
+  - amsmath
+  - amssymb
+  - booktabs
+  - hyperref
+usepackage_forbidden: []
+caption_convention: "Figure N. Caption."
+section_numbering: yes
+line_numbers_for_review: true
+notes: >
+  ACM acmart with sigconf format is the most common ACM proceedings
+  layout (KDD, CCS, CHI, SIGIR, SIGGRAPH, ...). Pass [anonymous,review]
+  during review; switch to [sigconf] (or [acmtog], [acmsmall] for
+  journals) at camera-ready. The CCS concepts block, keywords, and
+  ACM Reference Format block are mandatory at camera-ready. Page
+  limits are conference-specific — fill the spec accordingly when
+  cloning this for a specific ACM venue. Class files via the official
+  ACM template — not vendored.

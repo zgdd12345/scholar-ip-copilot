@@ -1,0 +1,29 @@
+id: eccv
+name: "European Conference on Computer Vision"
+documentclass: '\documentclass[runningheads]{llncs}'
+class_files_url: "https://eccv.ecva.net/Conferences/<year>/AuthorKit (uses Springer LNCS llncs.cls)"
+bib_style: splncs04
+anonymous_review: true
+page_limit:
+  main: 14
+  refs: unlimited
+  supplement: unlimited
+column_layout: one-column
+font_size: 10pt
+usepackage_required:
+  - graphicx
+  - amsmath
+  - amssymb
+  - booktabs
+  - hyperref
+usepackage_forbidden: []
+caption_convention: "Fig. N. Caption."
+section_numbering: yes
+line_numbers_for_review: true
+notes: >
+  Double-blind review. Built on Springer LNCS (llncs.cls + splncs04.bst).
+  Anonymise during review; camera-ready de-anonymises and adds the LNCS
+  author/affiliation block. Page limit historically 14 main pages
+  (excluding references) but verify the year's CFP — recent ECCVs vary.
+  Class files are part of the Springer LNCS author kit and the official
+  ECCV submission kit — not vendored.

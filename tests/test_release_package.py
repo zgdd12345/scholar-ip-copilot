@@ -243,3 +243,23 @@ def test_package_cli_check_does_not_create_missing_target(
 
     assert "missing: .claude-plugin/plugin.json" in capsys.readouterr().out
     assert not out.exists()
+
+
+def test_tracked_release_package_has_no_drift() -> None:
+    assert release_package_drift(PLUGIN, ROOT / "plugins/scholar") == []
+
+
+def test_release_package_markdown_files_have_diff_style_eof_hygiene(
+    tmp_path: Path,
+) -> None:
+    out = tmp_path / "scholar"
+
+    render_plugin_package(PLUGIN, out)
+
+    findings = [
+        path.relative_to(out).as_posix()
+        for path in sorted(out.rglob("*.md"))
+        if not path.read_bytes().endswith(b"\n") or path.read_bytes().endswith(b"\n\n")
+    ]
+
+    assert findings == []

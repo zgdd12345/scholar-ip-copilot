@@ -1,0 +1,84 @@
+id: scholar
+manifest_version: "3.0.0"
+name: EviDraft
+version: "3.0.0"
+description: >
+  Evidence-grounded academic and patent copilot for codebases, experiments,
+  literature, LaTeX papers, and invention disclosures.
+license: MIT
+homepage: https://github.com/zgdd12345/scholar-ip-copilot
+repository: https://github.com/zgdd12345/scholar-ip-copilot
+keywords: [research, literature-review, academic-writing, patents, evidence]
+authors:
+  - name: scholar-ip-copilot contributors
+
+# V3 source-of-truth. Host-specific paths and syntax live in renderer profiles.
+entrypoints:
+  workflows: workflows/
+  roles: roles/roles.yaml
+  policies: policies/policy.yaml
+  capabilities: capabilities/
+  templates: templates/
+
+project_types: [paper, patent, mixed]
+
+adapters:
+  - id: claude-code
+    status: stable
+    out: .claude/plugins/scholar-ip/
+  - id: codex-cli
+    status: stable
+    out: .codex/plugins/scholar/
+  - id: opencode
+    status: stable
+    out: .opencode/
+
+mcp_servers: []
+
+# The only public interface. Actions are omitted for direct-entry workflows.
+workflows:
+  - id: using
+    actions: []
+  - id: scope
+    actions: []
+  - id: research
+    actions: [reading-list, explain, deep]
+  - id: paper
+    actions: [init, lit, idea, code-audit, experiment, review, draft, check, venue]
+  - id: patent
+    actions: [init, scout, prior-art, disclosure, claims, review]
+  - id: polish
+    actions: []
+  - id: xreview
+    actions: []
+
+naming:
+  claude: "/scholar:<workflow> [action]"
+  codex: "$scholar-<workflow> [action]"
+  opencode: "/scholar-<workflow> [action]"
+
+output_contracts:
+  evidence_root: .evidraft/
+  manuscript_root: manuscript/
+  submission_root: submissions/
+
+paper_defaults:
+  draft_style: arxiv
+  supported_venues:
+    - arxiv
+    - cvpr
+    - iccv
+    - eccv
+    - neurips
+    - icml
+    - iclr
+    - emnlp
+    - acl
+    - aaai
+    - ieee
+    - acm-generic
+    - generic
+
+patent_defaults:
+  primary_deliverable: invention_disclosure
+  jurisdictions: [US, EP, CN, JP, PCT, OTHER]

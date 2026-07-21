@@ -36,6 +36,13 @@ def _file_bytes(root: Path) -> dict[str, bytes]:
     return files
 
 
+def _normalize_markdown_eof(root: Path) -> None:
+    for path in root.rglob("*.md"):
+        body = path.read_bytes()
+        if body:
+            path.write_bytes(body.rstrip(b"\n") + b"\n")
+
+
 def _read_release_owned_paths(root: Path) -> set[Path]:
     manifest = Path(root) / RELEASE_MANIFEST
     if not manifest.is_file():
@@ -87,6 +94,7 @@ def render_plugin_package(plugin_root: Path, out_dir: Path) -> list[Path]:
         for host in (Host.CLAUDE, Host.CODEX):
             rendered_root = temporary / host.value
             rendered = render_plugin(plugin_root, rendered_root, host)
+            _normalize_markdown_eof(rendered_root)
             relative_files = sorted(
                 path.relative_to(rendered_root)
                 for path in rendered

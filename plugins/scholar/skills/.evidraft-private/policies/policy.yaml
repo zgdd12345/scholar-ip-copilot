@@ -1,0 +1,52 @@
+policies:
+  workspace-safety:
+    description: Keep all operations inside the project root and protect sensitive paths.
+    always:
+      root_confinement:
+        base: project-root
+        reject_absolute: true
+        reject_parent_traversal: true
+      sensitive_path_deny:
+        - .env
+        - '**/.env'
+        - '**/.env.*'
+        - secrets/**
+        - credentials.json
+        - '**/*.pem'
+        - '**/*.key'
+        - '**/id_rsa*'
+    project_extension: safety.forbidden_paths
+    tool_access:
+      default_allowed_tools:
+        - Read
+        - Glob
+        - Grep
+        - Edit
+        - Write
+        - 'Bash:git*'
+        - 'Bash:ls*'
+        - 'Bash:cat*'
+        - 'Bash:latexmk*'
+        - 'Bash:evidraft workflow preflight*'
+        - 'Bash:evidraft workflow prepare-output*'
+        - 'Bash:evidraft workflow finalize*'
+        - 'Bash:evidraft evidence audit*'
+        - 'Bash:evidraft paper-explanation validate-return*'
+      forbidden_tool_patterns:
+        - 'Bash:rm -rf*'
+        - 'Bash:sudo*'
+    operation_write_zones:
+      xreview.run:
+        - .evidraft/reviews/**
+        - .evidraft/reviews/.tmp/**
+  scope:
+    description: Provide optional project intent and constraints without blocking generation.
+    enforcement: advisory
+  evidence-integrity:
+    description: Audit resolvable, verified, non-superseded evidence during final checks.
+    enforcement: audit
+    verdicts: [PASS, WARN, FAIL]
+    requirements:
+      - Resolve citation and evidence identifiers against the project stores.
+      - Reject supersession cycles and unverified evidence.
+      - Preserve citations and evidence identifiers during rewrites.

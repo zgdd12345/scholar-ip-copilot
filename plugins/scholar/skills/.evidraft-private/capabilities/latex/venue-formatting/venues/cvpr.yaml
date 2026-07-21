@@ -1,0 +1,31 @@
+id: cvpr
+name: "IEEE/CVF Computer Vision and Pattern Recognition"
+documentclass: '\documentclass[10pt,twocolumn,letterpaper]{article}'
+class_files_url: "https://cvpr.thecvf.com/Conferences/<year>/AuthorKit"
+bib_style: ieeenat_fullname
+anonymous_review: true
+page_limit:
+  main: 8
+  refs: unlimited
+  supplement: unlimited
+column_layout: two-column
+font_size: 10pt
+usepackage_required:
+  - cvpr
+  - times
+  - epsfig
+  - graphicx
+  - amsmath
+  - amssymb
+  - booktabs
+usepackage_forbidden: []
+caption_convention: "Figure N. Caption."
+section_numbering: yes
+line_numbers_for_review: true
+notes: >
+  Double-blind review. Anonymise authors, acknowledgements, funding, and
+  repository links during review (the cvpr class typically has \\cvprfinalcopy
+  toggled for camera-ready). References do not count toward the 8-page limit
+  but supplementary material and figures inside the main paper do. Fetch the
+  current year's author kit (cvpr.sty, cvpr_eso.sty, ieeenat_fullname.bst)
+  from the AuthorKit URL — class files are NOT vendored here.

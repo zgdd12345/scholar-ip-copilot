@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scholar-ip-copilot/schemas/evidence.schema.json",
+  "title": "EviDraft evidence record",
+  "description": "Validates one JSON object in `.evidraft/evidence/evidence.jsonl`. The file itself is JSON-Lines (one object per line).",
+  "type": "object",
+  "required": ["id", "type", "source", "claim", "support", "confidence", "verified"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^ev_[0-9]{4,}$",
+      "description": "Stable identifier, e.g. ev_0001"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["paper", "experiment", "code", "patent", "note"]
+    },
+    "source_kind": {
+      "type": "string",
+      "enum": ["paper", "blog", "engineering_report", "docs", "tutorial", "spec"],
+      "default": "paper",
+      "description": "Sub-type within type=paper. Default 'paper' means a formal academic publication. Non-paper kinds (blog, engineering_report, docs, tutorial, spec) require a local durable snapshot under .evidraft/literature/snapshots/ and a file_path + line_range pointing at it — the live URL line numbers are not stable. Snapshots are immutable SHA-256 content-addressed evidence backing (no TTL); refresh via new content hash + supersedes. Legacy .evidraft/literature/.cache/webfetch/ paths are accepted during v1 migration."
+    },
+    "source": {
+      "type": "string",
+      "description": "URI-like pointer: arxiv:..., doi:..., file path, patent number, URL."
+    },
+    "claim": {
+      "type": "string",
+      "description": "One sentence, no hedging."
+    },
+    "support": {
+      "type": "string",
+      "description": "Where in the source the claim is backed up (table, equation, line range, paragraph)."
+    },
+    "citation_key": {
+      "type": "string",
+      "minLength": 1,
+      "description": "BibTeX key in references.bib. Required when type=paper."
+    },
+    "file_path": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Existing non-sensitive path relative to project root. Required when type=code or type=experiment."
+    },
+    "line_range": {
+      "type": "string",
+      "pattern": "^[0-9]+:[0-9]+$",
+      "description": "Inclusive start:end line range."
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low"]
+    },
+    "verified": {
+      "type": "boolean"
+    },
+    "supersedes": {
+      "type": ["string", "null"],
+      "pattern": "^ev_[0-9]{4,}$",
+      "description": "Id of a previous evidence record this one replaces."
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "added_by": {
+      "type": "string",
+      "description": "Command or agent that wrote the record."
+    },
+    "added_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "paper" } } },
+      "then": { "required": ["citation_key"] }
+    },
+    {
+      "if": { "properties": { "type": { "const": "code" } } },
+      "then": { "required": ["file_path", "line_range"] }
+    },
+    {
+      "if": { "properties": { "type": { "const": "experiment" } } },
+      "then": { "required": ["file_path", "line_range"] }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": { "const": "paper" },
+          "source_kind": { "enum": ["blog", "engineering_report", "docs", "tutorial", "spec"] }
+        },
+        "required": ["type", "source_kind"]
+      },
+      "then": { "required": ["citation_key", "file_path", "line_range"] }
+    }
+  ]
+}

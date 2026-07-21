@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scholar-ip-copilot/schemas/project.schema.json",
+  "title": "EviDraft project descriptor",
+  "description": "Validates the on-disk file `.evidraft/project.yaml` of an EviDraft project.",
+  "type": "object",
+  "required": ["project_type", "title", "status", "artifacts", "rules"],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": {
+      "type": "integer",
+      "const": 2,
+      "description": "On-disk EviDraft data format. Absence denotes a legacy v1 project until migrated."
+    },
+    "project_type": { "$ref": "#/$defs/project_type" },
+    "title":         { "type": "string" },
+    "field":         { "type": "string" },
+    "target_venue":  { "type": "string" },
+    "language":      { "type": "string", "default": "en" },
+    "authors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": false,
+        "properties": {
+          "name":        { "type": "string" },
+          "affiliation": { "type": "string" },
+          "orcid":       { "type": "string" },
+          "email":       { "type": "string", "format": "email" }
+        }
+      }
+    },
+    "status": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "literature":  { "$ref": "#/$defs/stage" },
+        "idea":        { "$ref": "#/$defs/stage" },
+        "codebase":    { "$ref": "#/$defs/stage" },
+        "experiments": { "$ref": "#/$defs/stage" },
+        "manuscript":  { "$ref": "#/$defs/stage" },
+        "patent":      { "$ref": "#/$defs/stage" }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "evidence":             { "type": "string" },
+        "bib":                  { "type": "string" },
+        "manuscript":           { "type": "string" },
+        "invention_disclosure": { "type": "string" }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "require_citation_for_claims":         { "type": "boolean", "default": true },
+        "require_experiment_source_for_numbers": { "type": "boolean", "default": true },
+        "require_code_trace_for_code_claims":  { "type": "boolean", "default": true },
+        "allow_unverified_claims":             { "type": "boolean", "default": false }
+      }
+    },
+    "hooks": {
+      "type": "object",
+      "description": "Legacy v1 hook settings preserved for migration compatibility but ignored by the authoritative v2 kernel.",
+      "additionalProperties": false,
+      "properties": {
+        "citation_guard":             { "$ref": "#/$defs/hook_mode" },
+        "evidence_consistency":       { "$ref": "#/$defs/hook_mode" },
+        "latex_compile":              { "$ref": "#/$defs/hook_mode" },
+        "sensitive_file_guard":       { "$ref": "#/$defs/hook_mode" },
+        "scope_required":             { "$ref": "#/$defs/hook_mode" },
+        "external_write_zone":        { "$ref": "#/$defs/hook_mode" },
+        "humanize_evidence_preserve": { "$ref": "#/$defs/hook_mode" }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "description": "Scope-clarification settings consumed by workflow:scope.run and policy:scope.",
+      "additionalProperties": false,
+      "properties": {
+        "required":       { "type": "boolean", "default": true },
+        "staleness_days": { "type": "integer", "default": 14, "minimum": 1 }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "description": "Project-specific extensions to workspace safety policy.",
+      "additionalProperties": false,
+      "properties": {
+        "forbidden_paths": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "style": {
+      "type": "object",
+      "description": "Style settings consumed by workflow:polish.run.",
+      "additionalProperties": false,
+      "properties": {
+        "humanize": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "model":              { "type": "string", "description": "Provider:model id. Env-var auth, never embed keys." },
+            "fallback_chain":     { "type": "array", "items": { "type": "string" } },
+            "preserve_citations": { "type": "boolean", "default": true },
+            "max_delta_ratio":    { "type": "number", "default": 0.35, "minimum": 0, "maximum": 1 }
+          }
+        }
+      }
+    },
+    "reviewers": {
+      "type": "object",
+      "description": "External-agent review settings consumed by workflow:xreview.run.",
+      "additionalProperties": false,
+      "properties": {
+        "allowed": { "type": "array", "items": { "$ref": "#/$defs/external_agent" } }
+      }
+    },
+    "lit_deep": {
+      "type": "object",
+      "description": "Heavy literature settings consumed by workflow:research.deep.",
+      "additionalProperties": false,
+      "properties": {
+        "breadth":         { "type": "integer", "default": 6,  "minimum": 1, "maximum": 12, "description": "Max sub-queries per fan-out. Worst-case candidate count is breadth*50; cap at 12 to bound budget." },
+        "depth":           { "type": "integer", "default": 2,  "minimum": 1, "maximum": 3,  "description": "Recursive follow-up depth. Bound at 3 to avoid exponential token blow-up." },
+        "max_concurrency": { "type": "integer", "default": 8,  "minimum": 1, "maximum": 16, "description": "Maximum parallel provider × sub-query calls in flight during Stage 2 retrieve. Adapters honour `min(breadth, max_concurrency)`." },
+        "providers":       { "type": "array", "items": { "$ref": "#/$defs/lit_provider" } }
+      }
+    },
+    "paper": {
+      "type": "object",
+      "description": "Paper-side extension fields (used when project_type ∈ paper, mixed).",
+      "additionalProperties": false,
+      "properties": {
+        "draft_style": { "type": "string", "default": "arxiv" },
+        "submission_dir": { "type": "string" }
+      }
+    },
+    "patent": {
+      "type": "object",
+      "description": "Patent-side extension fields (used when project_type ∈ patent, mixed).",
+      "additionalProperties": false,
+      "properties": {
+        "jurisdiction": {
+          "type": "string",
+          "enum": ["US", "EP", "CN", "JP", "PCT", "OTHER"],
+          "default": "US"
+        },
+        "primary_deliverable": { "type": "string", "default": "invention_disclosure", "description": "Primary patent-side artifact; defaults to the invention disclosure." }
+      }
+    }
+  },
+  "$defs": {
+    "stage": {
+      "type": "string",
+      "enum": ["not_started", "in_progress", "done"]
+    },
+    "hook_mode": {
+      "type": "string",
+      "enum": ["enabled", "block", "warn", "disabled"],
+      "description": "Legacy v1 override mode. `enabled` aliases `block`; v2 uses canonical policy operation mappings."
+    },
+    "project_type": {
+      "type": "string",
+      "enum": ["paper", "patent", "mixed"]
+    },
+    "external_agent": {
+      "type": "string",
+      "enum": ["codex", "claude-bare", "opencode"]
+    },
+    "lit_provider": {
+      "type": "string",
+      "enum": ["arxiv", "semantic-scholar", "openalex"],
+      "description": "Host-native retrieval providers configured in `lit_deep.providers`; each result records its source explicitly."
+    }
+  }
+}
