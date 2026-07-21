@@ -59,6 +59,14 @@ with one deterministic packaging and installation workflow.
 - Bundling the canonical plugin content inside the Python wheel.
 - Adding placeholder logos, screenshots, privacy policies, or terms URLs.
 
+## Research Guide Compatibility
+
+`research.guide` remains removed in EviDraft 3.0. Guidance and orientation
+intents route through `using`; the release does not add a compatibility alias
+or restore `workflows/research/stages/guide.md`. The public surface therefore
+remains seven workflows and 22 actions, with `research` exposing exactly
+`reading-list`, `explain`, and `deep`.
+
 ## Authoritative Source and Version
 
 `plugins/scholar-ip/` remains the only hand-authored workflow source.
