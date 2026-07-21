@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 from typing import Callable
@@ -9,6 +10,16 @@ import pytest
 
 import evidraft.codex_install as codex_install
 from evidraft.codex_install import reinstall_codex_plugin, validate_marketplace_plugin
+from evidraft.install import PUBLIC_CODEX_SKILLS
+
+
+MARKETPLACE_HEADER = "MARKETPLACE  ROOT\n"
+PLUGIN_HEADER = "PLUGIN  STATUS  VERSION  PATH\n"
+
+
+@pytest.fixture(autouse=True)
+def _isolated_codex_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path / "codex-home"))
 
 
 def _build_release(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
@@ -62,16 +73,27 @@ def _build_release(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
     return repo, marketplace, release, creator
 
 
+def _plugin_list(version: str, path: Path, *, status: str = "installed, enabled") -> str:
+    return (
+        PLUGIN_HEADER
+        + f"scholar@scholar-ip-copilot  {status}  {version}  {path.resolve()}\n"
+    )
+
+
 def _runner(
     release: Path,
     calls: list[list[str]],
     *,
     failing_step: str | None = None,
-    marketplace_list: str = "scholar-ip-copilot /tmp/repo\n",
-    plugin_list_output: str = "scholar@scholar-ip-copilot installed, enabled\n",
+    marketplace_list: str | None = None,
+    plugin_list_output: str | None = None,
+    installed_skills: set[str] | None = None,
     operation_error: BaseException | None = None,
 ) -> Callable[..., subprocess.CompletedProcess[str]]:
+    marketplace_added = False
+
     def run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        nonlocal marketplace_added
         assert kwargs == {
             "cwd": release.parents[1].resolve(),
             "check": True,
@@ -90,10 +112,33 @@ def _runner(
                 raise operation_error or RuntimeError("cachebuster")
             return subprocess.CompletedProcess(command, 0, "", "")
         if command[-3:] == ["plugin", "marketplace", "list"]:
-            return subprocess.CompletedProcess(command, 0, marketplace_list, "")
+            output = marketplace_list or (
+                MARKETPLACE_HEADER
+                + f"scholar-ip-copilot  {release.parents[1].resolve()}\n"
+            )
+            if marketplace_added and "scholar-ip-copilot" not in output:
+                output += f"scholar-ip-copilot  {release.parents[1].resolve()}\n"
+            return subprocess.CompletedProcess(command, 0, output, "")
+        if command[-4:-1] == ["plugin", "marketplace", "add"]:
+            marketplace_added = True
+            return subprocess.CompletedProcess(command, 0, "", "")
         if command[-3:-1] == ["plugin", "add"]:
             if failing_step == "plugin-add":
                 raise operation_error or RuntimeError("plugin-add")
+            manifest = release / ".codex-plugin" / "plugin.json"
+            version = json.loads(manifest.read_text(encoding="utf-8"))["version"]
+            cache = (
+                Path(os.environ["CODEX_HOME"])
+                / "plugins/cache/scholar-ip-copilot/scholar"
+                / version
+            )
+            cached_manifest = cache / ".codex-plugin" / "plugin.json"
+            cached_manifest.parent.mkdir(parents=True, exist_ok=True)
+            cached_manifest.write_bytes(manifest.read_bytes())
+            for name in PUBLIC_CODEX_SKILLS if installed_skills is None else installed_skills:
+                skill = cache / "skills" / name / "SKILL.md"
+                skill.parent.mkdir(parents=True, exist_ok=True)
+                skill.write_text(f"# {name}\n", encoding="utf-8")
             return subprocess.CompletedProcess(command, 0, "", "")
         if command[-2:] == ["plugin", "list"]:
             if failing_step == "post-validate":
@@ -108,7 +153,15 @@ def _runner(
             return subprocess.CompletedProcess(
                 command,
                 0,
-                plugin_list_output,
+                plugin_list_output
+                or (
+                    PLUGIN_HEADER
+                    + "scholar@scholar-ip-copilot  installed, enabled  "
+                    + json.loads(
+                        (release / ".codex-plugin/plugin.json").read_text(encoding="utf-8")
+                    )["version"]
+                    + f"  {release.resolve()}\n"
+                ),
                 "",
             )
         return subprocess.CompletedProcess(command, 0, "", "")
@@ -141,6 +194,93 @@ def test_reinstall_restores_base_manifest_after_success(tmp_path: Path) -> None:
     assert calls[3][1].endswith("update_plugin_cachebuster.py")
     assert calls[4][-3:] == ["plugin", "add", result.plugin_ref]
     assert calls[5][-2:] == ["plugin", "list"]
+
+
+def test_reinstall_rejects_same_name_marketplace_with_wrong_root_before_mutation(
+    tmp_path: Path,
+) -> None:
+    repo, marketplace, release, creator = _build_release(tmp_path)
+    calls: list[list[str]] = []
+
+    with pytest.raises(ValueError, match="marketplace root"):
+        reinstall_codex_plugin(
+            repo,
+            marketplace,
+            release,
+            creator,
+            runner=_runner(
+                release,
+                calls,
+                marketplace_list=(
+                    MARKETPLACE_HEADER
+                    + f"scholar-ip-copilot  {tmp_path / 'different-repo'}\n"
+                ),
+            ),
+        )
+
+    assert all(
+        not command[1].endswith("update_plugin_cachebuster.py")
+        and command[-4:-1] != ["plugin", "marketplace", "add"]
+        and command[-3:-1] != ["plugin", "add"]
+        for command in calls
+    )
+
+
+@pytest.mark.parametrize(
+    ("fault", "message"),
+    [
+        ("version", "installed version"),
+        ("root", "installed root|provenance"),
+    ],
+    ids=["wrong-version", "wrong-root"],
+)
+def test_reinstall_rejects_wrong_installed_provenance_record(
+    tmp_path: Path,
+    fault: str,
+    message: str,
+) -> None:
+    repo, marketplace, release, creator = _build_release(tmp_path)
+    if fault == "version":
+        plugin_list_output = _plugin_list("3.0.0+codex.wrong", release)
+    else:
+        plugin_list_output = _plugin_list("3.0.0+codex.test", tmp_path / "wrong-plugin")
+
+    with pytest.raises(RuntimeError, match=message):
+        reinstall_codex_plugin(
+            repo,
+            marketplace,
+            release,
+            creator,
+            runner=_runner(
+                release,
+                [],
+                plugin_list_output=plugin_list_output,
+            ),
+        )
+
+
+@pytest.mark.parametrize(
+    "installed_skills",
+    [
+        PUBLIC_CODEX_SKILLS - {"scholar-using"},
+        (PUBLIC_CODEX_SKILLS - {"scholar-using"}) | {"scholar-substituted"},
+    ],
+    ids=["missing-skill", "substituted-extra-skill"],
+)
+def test_reinstall_rejects_installed_cache_without_exact_public_skills(
+    tmp_path: Path,
+    installed_skills: set[str],
+) -> None:
+    repo, marketplace, release, creator = _build_release(tmp_path)
+
+    with pytest.raises(RuntimeError, match="exactly seven public skills"):
+        reinstall_codex_plugin(
+            repo,
+            marketplace,
+            release,
+            creator,
+            runner=_runner(release, [], installed_skills=installed_skills),
+        )
 
 
 @pytest.mark.parametrize("failing_step", ["cachebuster", "plugin-add", "post-validate"])
@@ -313,7 +453,11 @@ def test_reinstall_configures_repo_marketplace_before_cachebusting(tmp_path: Pat
         marketplace,
         release,
         creator,
-        runner=_runner(release, calls, marketplace_list="other /tmp/other\n"),
+        runner=_runner(
+            release,
+            calls,
+            marketplace_list=MARKETPLACE_HEADER + "other  /tmp/other\n",
+        ),
     )
 
     add_marketplace = next(
