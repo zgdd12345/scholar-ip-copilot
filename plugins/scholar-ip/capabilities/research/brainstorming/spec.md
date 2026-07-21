@@ -4,17 +4,15 @@ title: "Scope-clarification discipline: question schema, verdict matrix, scope f
 kind: skill
 phase: shared
 description: >
-  Load when workflow:scope.run runs, or when a downstream creative command
-  (paper-idea, patent-scout, paper-draft, patent-claims, deepresearch, polish)
-  finds the scope file missing or stale. Provides the per-branch question
+  Load when workflow:scope.run runs, or when a user wants to refresh missing or stale
+  project intent. Provides the per-branch question
   schema, the Pursue/Refine/Kill verdict matrix, the canonical scope-file
   template (paper and patent variants, bilingual section labels), and the
   14-day staleness rule.
 triggers:
   - "workflow:scope.run"
-  - "downstream command finds .evidraft/scope/ missing"
-  - "downstream command finds scope file stale"
-  - "policy:scope preflight blocks"
+  - "user asks to clarify missing project scope"
+  - "user asks to refresh stale project scope"
 provides:
   - question-schema-paper
   - question-schema-patent
@@ -41,7 +39,10 @@ references:
 
 ## When to use
 
-Pull this skill the moment `workflow:scope.run` starts, or whenever a downstream command fails the `policy:scope` gate (missing or stale scope file) and the user has to redo this stage. It owns the question schema, the verdict matrix, the scope file template, and the staleness rule. Every other artefact about scope defers to this one for shape.
+Pull this skill when `workflow:scope.run` starts or the user chooses to refresh missing
+or stale project intent. Scope is advisory: downstream generation may report its absence
+but continues best-effort. This capability owns the question schema, verdict matrix,
+scope file template, and staleness rule.
 
 This skill never drafts method, experiments, related-work prose, or claim text. It only clarifies *what the project is for*.
 
@@ -66,7 +67,7 @@ Run these phases in order. Load only the reference you need for the phase you ar
 | 2 | Gap-surfacing + path selection (full mode) | [carlini-and-approaches.md](references/carlini-and-approaches.md) | Carlini conclusion-first test recipe, 2–3-approaches-with-tradeoffs technique |
 | 3 | Verdict decision | [verdict-matrix.md](references/verdict-matrix.md) | Pursue / Refine / Kill matrix, conditions, fast-mode caveat |
 | 4 | Write the scope file | [scope-file-template.md](references/scope-file-template.md) | path / slug rules, canonical frontmatter, paper body, patent body |
-| 5 | Lifecycle | [staleness-rule.md](references/staleness-rule.md) | 14-day default, project.yaml override, policy:scope preflight interaction |
+| 5 | Lifecycle | [staleness-rule.md](references/staleness-rule.md) | 14-day advisory freshness and project.yaml override |
 | — | Always avoid | [anti-patterns.md](references/anti-patterns.md) | what NOT to do |
 
 Fast mode skips phase 2; otherwise the order is fixed.

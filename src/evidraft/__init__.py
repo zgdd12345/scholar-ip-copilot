@@ -1,8 +1,9 @@
 """EviDraft deterministic project core."""
 
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 
 from .core import (
+    EvidenceAuditResult,
     EvidenceError,
     FinalizeResult,
     MigrationError,
@@ -10,20 +11,20 @@ from .core import (
     PreflightError,
     PreflightResult,
     append_evidence,
+    audit_evidence,
     detect_format_version,
     is_sensitive_path,
     migrate_project,
     prune_retention,
     resolve_evidence,
-    scope_policy,
     store_snapshot,
     workflow_finalize,
     workflow_prepare_output,
     workflow_preflight,
-    workflow_validate_paper_explanation_return,
 )
 
 __all__ = [
+    "EvidenceAuditResult",
     "EvidenceError",
     "FinalizeResult",
     "MigrationError",
@@ -31,15 +32,14 @@ __all__ = [
     "PreflightError",
     "PreflightResult",
     "append_evidence",
+    "audit_evidence",
     "detect_format_version",
     "is_sensitive_path",
     "migrate_project",
     "prune_retention",
     "resolve_evidence",
-    "scope_policy",
     "store_snapshot",
     "workflow_finalize",
     "workflow_prepare_output",
     "workflow_preflight",
-    "workflow_validate_paper_explanation_return",
 ]

@@ -1,6 +1,6 @@
 # Claude Code host profile
 
-The Claude Code adapter is a thin wrapper over the shared v2 renderer:
+The Claude Code adapter is a thin wrapper over the shared v3 renderer:
 
 ```bash
 .venv/bin/evidraft-claude-code \

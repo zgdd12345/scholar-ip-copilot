@@ -1,58 +1,47 @@
 # workflow:paper.init
 
-Scaffold an EviDraft paper project in the **current working directory**. Treat the cwd as the user's project (which may already contain code and experiments). Do not move or rewrite existing files; only create new EviDraft artefacts.
+Perform lightweight, lazy initialization in the current working directory. Create
+only these four required core files, plus their parent directories:
+
+- `.evidraft/project.yaml`
+- `.evidraft/evidence/evidence.jsonl`
+- `.evidraft/literature/references.bib`
+- `manuscript/main.tex`
+
+Later actions materialize matrices, analyses, section files, and other stage-owned
+artifacts when first needed. Initialization is best effort: unknown optional
+metadata is recorded as a gap.
 
 ## Steps
 
-1. **Inspect.** Use `ls`, `git ls-files`, and `Glob` to see what the project already contains. Note:
-   - whether `manuscript/`, `paper/`, or `latex/` already exists,
-   - whether `experiments/`, `results/`, or `data/` exist,
-   - whether `.evidraft/` already exists (if so, ask the user before overwriting),
-   - top-level language / framework (`pyproject.toml`, `package.json`, etc.).
-2. **Infer or ask** for: `project_type`, `title`, `field`, `target_venue`. Prefer asking concise questions over guessing; default to `project_type=paper` if the user is non-committal.
-3. **Materialise the template.** Copy `../../../templates/paper-project/` into the project root, **without overwriting** any existing file. Specifically create:
-   - `.evidraft/project.yaml`
-   - `.evidraft/evidence/evidence.jsonl` (empty file)
-   - `.evidraft/literature/references.bib` (empty `% BibTeX entries go here`)
-   - `.evidraft/literature/matrix.md`
-   - `.evidraft/ideas/novelty_matrix.md`
-   - `.evidraft/code/method_to_code.md`
-   - `manuscript/main.tex`
-   - `manuscript/sections/{introduction,related_work,method,experiments,conclusion}.tex`
-   - a symlink (or fallback copy on Windows) `manuscript/references.bib → ../.evidraft/literature/references.bib`
-4. **Verify the bibliography link.** Recursive template copy materialises the symlink as a plain file on most platforms, so check after step 3:
-   ```bash
-   test -L manuscript/references.bib \
-     && readlink manuscript/references.bib \
-        | grep -q '^\.\./\.evidraft/literature/references\.bib$'
-   ```
-   - On POSIX (macOS/Linux) when the check fails: `rm manuscript/references.bib && ln -s ../.evidraft/literature/references.bib manuscript/references.bib`, then re-run the check.
-   - On Windows or any platform where `ln -s` is unavailable: keep the copy and record in chat **"manuscript/references.bib is a snapshot; workflow:paper.lit will re-sync on every run."**
-   - In either case, report `bib_link: symlink | snapshot` in the chat next-steps block.
-5. **Fill the project.yaml** with the values you collected. Validate against `../../../schemas/project.schema.json` (schema lookup is local, never network-dependent).
-6. **If the repo has code**, run a *fast* repo summary into `.evidraft/code/repo_summary.md`:
-   - language(s), entry points, top-level modules, configs, test command if obvious.
-   - mark unknowns as `TODO` — do not guess.
-7. **Print a short next-steps block** in chat:
-   ```
-   Next:
-     workflow:paper.lit         start literature work
-     workflow:paper.code-audit  map your code to the planned method
-     workflow:paper.experiment  analyse experiment outputs (if any)
-
-   bib_link: symlink | snapshot   # from step 4
-   ```
+1. Inspect the project without reading sensitive paths. Note existing code,
+   experiments, manuscripts, and any of the four core files.
+2. When `.evidraft/project.yaml` is missing, infer or ask only for values needed
+   now: `project_type`, `title`, `field`, and `target_venue`. Leave unknown optional
+   values unset rather than inventing them.
+3. Create each missing core file and its parent directory. Use the smallest
+   schema-valid record for `.evidraft/project.yaml`, an empty append-only JSONL
+   store for `.evidraft/evidence/evidence.jsonl`, an empty canonical bibliography
+   for `.evidraft/literature/references.bib`, and the neutral manuscript skeleton
+   for `manuscript/main.tex`.
+4. Leave every existing core file unchanged. Report any difference between supplied
+   metadata and the existing project record for a later explicit edit; init never
+   rewrites the record.
+5. Validate the project record against `../../../schemas/project.schema.json`.
+6. Report existing later-stage artifacts, but do not create them. In particular,
+   init does not create `manuscript/sections/`.
 
 ## Constraints
 
-- Do **not** invent author names, affiliations, or venues.
-- Do **not** delete or rewrite the user's existing manuscript files; create alongside.
-- Respect `policy:workspace-safety`: skip `.env`, `secrets/`, etc.
-- If `.evidraft/` already exists, summarise its current contents and ask before any write.
+- Respect `policy:workspace-safety`; it is the only condition that can block init.
+- Do not invent author names, affiliations, venues, commands, or project metadata.
+- Never overwrite any existing file, including an existing manuscript,
+  bibliography, or evidence store.
 
 ## Done criteria
 
-- `.evidraft/project.yaml` exists and validates.
-- `manuscript/main.tex` exists with a working `\documentclass` skeleton.
-- `manuscript/references.bib` is either a symlink to `../.evidraft/literature/references.bib` (POSIX) **or** the chat output explicitly declares `bib_link: snapshot` together with the re-sync notice.
-- Chat output ends with the "Next" block, including the `bib_link:` line.
+- All four required core files exist; `.evidraft/project.yaml` validates.
+- Status is `complete` when the requested metadata was recorded,
+  `complete_with_gaps` when optional metadata remains unknown, or `blocked` only
+  when workspace safety prevents writing the core files.
+- Chat output recommends the next action that matches the material already present.

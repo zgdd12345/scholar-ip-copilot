@@ -54,20 +54,13 @@ def _validate_source(rendered_root: Path) -> tuple[dict[str, Path], Path]:
         if path.is_dir() and not path.is_symlink() and (path / "SKILL.md").is_file()
     }
     if set(bundles) != PUBLIC_CODEX_SKILLS:
-        raise ValueError("rendered Codex source must contain exactly seven v2 public skills")
+        raise ValueError("rendered Codex source must contain exactly seven v3 public skills")
     private = skills_root / ".evidraft-private"
     required = (
         private / "capabilities" / "index.yaml",
         private / "capabilities" / "research" / "paper-explanation" / "spec.md",
-        private / "capabilities" / "research" / "paper-explanation" / "task-graph.yaml",
-        private / "capabilities" / "research" / "paper-explanation" / "paper-map.schema.json",
-        private / "capabilities" / "research" / "paper-explanation" / "analysis-packet.schema.json",
         skills_root / "scholar-research" / "stages" / "explain.md",
         private / "roles" / "roles.yaml",
-        private / "roles" / "modes" / "paper-indexer.md",
-        private / "roles" / "modes" / "paper-analysis-worker.md",
-        private / "roles" / "modes" / "paper-reasoning-worker.md",
-        private / "roles" / "modes" / "explanation-evidence-auditor.md",
         private / "roles" / "modes" / "paper-explainer.md",
         private / "policies" / "policy.yaml",
         private / "templates" / "paper-project" / "manuscript" / "main.tex",

@@ -1,6 +1,6 @@
 # Architecture
 
-EviDraft 2.0 has one source model, one deterministic Python core, and one renderer.
+EviDraft 3.0 has one source model, one deterministic Python core, and one renderer.
 Claude Code, Codex, and OpenCode are host profiles rather than separate implementations.
 
 ## Source model
@@ -13,7 +13,7 @@ plugins/scholar-ip/
 │       ├── workflow.yaml      action contract
 │       └── stages/*.md        on-demand LLM procedure
 ├── roles/roles.yaml           six semantic roles and modes
-├── policies/policy.yaml       three executable policies
+├── policies/policy.yaml       safety, advisory scope, and evidence audit
 ├── capabilities/              private reference material
 └── templates/                 project artefact templates
 ```
@@ -47,27 +47,27 @@ concurrently.
 
 ## Policies
 
-Only three policy IDs are executable:
+Three policy IDs describe the shared behavior:
 
 | Policy | Responsibility |
 |---|---|
 | `workspace-safety` | Project-root confinement, sensitive paths, and operation write zones |
-| `scope` | `block`, `warn`, or `pass` by canonical operation ID and approved scope state |
-| `evidence-integrity` | Evidence identity, verification, supersession, snapshots, and publish gates |
+| `scope` | Advisory project intent, constraints, and success criteria |
+| `evidence-integrity` | Final evidence audit with `PASS`, `WARN`, or `FAIL` findings |
 
-Canonical scope operations include `paper.draft`, `patent.claims`, `polish.run`,
-`paper.idea`, `patent.scout`, and `research.deep`. Host hooks can enforce an additional
-boundary, but the Python policy result is authoritative and host-independent.
+Only `workspace-safety` can block workflow preflight. Scope and evidence gaps are
+reported without preventing draft generation; `paper.check` and `patent.review` own the
+strict final verdict.
 
 ## Deterministic core
 
 `src/evidraft/` owns the operations that must not depend on model judgment:
 
 - v1-to-v2 project migration;
-- workflow preflight and retention finalization;
-- evidence append and resolve;
+- safety-only workflow preflight and retention finalization;
+- evidence append, resolve, and full audit;
 - content-addressed web snapshots;
-- shared policy evaluation;
+- deterministic workspace and evidence validation;
 - atomic writes and ownership-aware rendering.
 
 Retrieval, critique, experiment interpretation, patent reasoning, and prose generation
@@ -83,7 +83,7 @@ is idempotent.
 
 Evidence append uses an exclusive cross-process lock and a single writer. IDs are stable
 and monotonic; `supersedes` must refer to a valid acyclic history. Invalid legacy rows
-are preserved in quarantine and block publish-class operations until resolved.
+are preserved in quarantine and produce a failing final evidence audit until resolved.
 
 Snapshot identity is `sha256(raw_body)`. Migration retains URL-hash files and adds the
 content-addressed copy before updating evidence paths.
@@ -114,4 +114,3 @@ venue packages under `submissions/`. See [data-model.md](data-model.md).
 The installable package is `src/evidraft/`. Four console scripts are published:
 `evidraft`, `evidraft-claude-code`, `evidraft-codex-cli`, and `evidraft-opencode`.
 The three host scripts are thin wrappers over the same renderer.
-

@@ -1,6 +1,6 @@
 ---
 name: scholar-scope
-description: Clarify and persist the project scope before gated drafting work.
+description: Clarify and persist advisory project intent and constraints.
 ---
 
 # Scope workflow router
@@ -14,4 +14,3 @@ Run deterministic workflow preflight before writes and finalize after the stage 
 
 If no action is supplied and this workflow has multiple actions, show the valid action
 names and stop. For a single-action workflow, default to `run`.
-

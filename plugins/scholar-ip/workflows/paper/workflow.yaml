@@ -25,10 +25,15 @@ actions:
       optional: true
     outputs:
     - path: .evidraft/project.yaml
+      required: true
     - path: .evidraft/evidence/evidence.jsonl
+      required: true
     - path: .evidraft/literature/references.bib
+      required: true
     - path: manuscript/main.tex
+      required: true
     - path: manuscript/sections/
+      required: false
     policies:
     - workspace-safety
     roles: []
@@ -59,6 +64,7 @@ actions:
     - path: .evidraft/literature/matrix.md
     - path: .evidraft/evidence/evidence.jsonl
     - path: .evidraft/literature/related_work_outline.md
+      required: false
     - path: .evidraft/literature/lit_run.yaml
     policies:
     - evidence-integrity
@@ -83,7 +89,6 @@ actions:
     - path: .evidraft/ideas/risk_matrix.md
     - path: .evidraft/ideas/experiment_to_validate.md
     policies:
-    - scope
     - evidence-integrity
     roles:
     - id: researcher
@@ -139,6 +144,7 @@ actions:
     outputs:
     - path: .evidraft/experiments/result_analysis.md
     - path: .evidraft/experiments/tables/
+      required: false
     - path: .evidraft/evidence/evidence.jsonl
     policies:
     - evidence-integrity
@@ -178,7 +184,9 @@ actions:
         '
     outputs:
     - path: manuscript/sections/related_work.tex
+      required: false
     - path: .evidraft/literature/related_work.md
+      required: false
     - path: .evidraft/literature/related_work_outline.md
     policies:
     - evidence-integrity
@@ -221,8 +229,9 @@ actions:
     outputs:
     - path: manuscript/main.tex
     - path: manuscript/sections/
+    - path: .evidraft/manuscript/validation_gaps.md
+      required: false
     policies:
-    - scope
     - evidence-integrity
     roles:
     - id: writing-reviewer

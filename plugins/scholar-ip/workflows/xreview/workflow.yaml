@@ -33,7 +33,6 @@ actions:
     - path: .evidraft/reviews/.last.yaml
       description: Index of the most recent xreview invocation (agent, persona, target, output_path, ts, tokens, cost_usd).
     policies:
-    - scope
     - workspace-safety
     roles: []
     retention:

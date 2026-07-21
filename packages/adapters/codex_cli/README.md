@@ -1,6 +1,6 @@
 # Codex host profile
 
-The Codex adapter is a thin wrapper over the shared v2 renderer:
+The Codex adapter is a thin wrapper over the shared v3 renderer:
 
 ```bash
 .venv/bin/evidraft-codex-cli \

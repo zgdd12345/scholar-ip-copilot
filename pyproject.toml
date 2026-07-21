@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scholar-ip-copilot"
-version = "2.0.0"
+version = "3.0.0"
 description = "EviDraft — evidence-grounded academic and patent copilot for codebases, experiments, literature, LaTeX papers, and invention disclosures."
 readme = "README.md"
 license = { file = "LICENSE" }

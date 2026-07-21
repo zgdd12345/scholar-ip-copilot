@@ -14,20 +14,24 @@ import tempfile
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
 from typing import Iterator, Mapping, Sequence
 
 import jsonschema
 import yaml
 
-from .paper_explanation import validate_paper_explanation_instance
-
 FORMAT_VERSION = 2
-PUBLISH_OPERATIONS = frozenset({"paper.draft", "patent.claims", "polish.run"})
-WARN_SCOPE_OPERATIONS = frozenset({"paper.idea", "patent.scout", "research.deep"})
-_PROJECTLESS_NOTE_OPERATIONS = frozenset(
-    {"research.reading-list", "research.explain"}
+_PROJECTLESS_OPERATIONS = frozenset(
+    {
+        "paper.init",
+        "patent.init",
+        "polish.run",
+        "research.explain",
+        "research.reading-list",
+        "scope.run",
+        "xreview.run",
+    }
 )
 DEFAULT_SENSITIVE_PATTERNS = (
     ".env",
@@ -70,8 +74,14 @@ class MigrationResult:
 @dataclass(frozen=True)
 class PreflightResult:
     operation: str
-    scope: str
     warnings: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class EvidenceAuditResult:
+    valid: bool
+    findings: tuple[str, ...] = ()
+    checked_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -95,7 +105,9 @@ def _load_schema(name: str) -> dict:
     raise FileNotFoundError(f"packaged schema does not exist: {name}")
 
 
-def _validate(document: Mapping[str, object], schema_name: str, error_type: type[Exception]) -> None:
+def _validate(
+    document: Mapping[str, object], schema_name: str, error_type: type[Exception]
+) -> None:
     try:
         jsonschema.Draft202012Validator(
             _load_schema(schema_name), format_checker=jsonschema.FormatChecker()
@@ -360,9 +372,7 @@ def _recover_interrupted_migration(
         return False
 
     journal = _load_migration_journal(journal_path)
-    backup_dir = _safe_transaction_path(
-        evidraft_dir, journal.get("backup_dir"), label="backup_dir"
-    )
+    backup_dir = _safe_transaction_path(evidraft_dir, journal.get("backup_dir"), label="backup_dir")
     backups_root = (evidraft_dir / "backups").resolve()
     try:
         backup_dir.relative_to(backups_root)
@@ -375,9 +385,7 @@ def _recover_interrupted_migration(
             raise MigrationError("migration journal entry must be an object")
         if entry.get("replaced") is not True:
             continue
-        target = _safe_transaction_path(
-            evidraft_dir, entry.get("path"), label="entry.path"
-        )
+        target = _safe_transaction_path(evidraft_dir, entry.get("path"), label="entry.path")
         existed = entry.get("existed")
         if not isinstance(existed, bool):
             raise MigrationError("migration journal entry.existed must be boolean")
@@ -427,9 +435,7 @@ def _assert_existing_snapshot_matches(path: Path, expected: bytes) -> None:
     expected_digest = hashlib.sha256(expected).hexdigest()
     actual_digest = hashlib.sha256(actual).hexdigest()
     if actual != expected or actual_digest != expected_digest:
-        raise MigrationError(
-            f"snapshot content hash mismatch or corrupt destination: {path}"
-        )
+        raise MigrationError(f"snapshot content hash mismatch or corrupt destination: {path}")
 
 
 def _graph_invalid_indexes(candidates: Sequence[tuple[dict, str]]) -> set[int]:
@@ -674,10 +680,10 @@ def _ensure_v2(root: Path) -> None:
     migrate_project(root, wait_for_lock=True)
 
 
-def _read_evidence(path: Path) -> list[dict]:
+def _parse_evidence_lines(path: Path) -> list[tuple[int, object]]:
     if not path.exists():
         return []
-    records: list[dict] = []
+    documents: list[tuple[int, object]] = []
     for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
         if not line.strip():
             continue
@@ -685,6 +691,13 @@ def _read_evidence(path: Path) -> list[dict]:
             record = json.loads(line)
         except json.JSONDecodeError as exc:
             raise EvidenceError(f"invalid JSON on evidence line {line_number}: {exc.msg}") from exc
+        documents.append((line_number, record))
+    return documents
+
+
+def _read_evidence(path: Path) -> list[dict]:
+    records: list[dict] = []
+    for line_number, record in _parse_evidence_lines(path):
         if not isinstance(record, dict):
             raise EvidenceError(f"evidence line {line_number} is not an object")
         _validate(record, "evidence.schema.json", EvidenceError)
@@ -718,7 +731,9 @@ def append_evidence(root: Path | str, record: Mapping[str, object]) -> dict:
             _validate_record_storage(root, result)
             evidence_path.parent.mkdir(parents=True, exist_ok=True)
             with evidence_path.open("ab") as handle:
-                handle.write((json.dumps(result, sort_keys=True, separators=(",", ":")) + "\n").encode())
+                handle.write(
+                    (json.dumps(result, sort_keys=True, separators=(",", ":")) + "\n").encode()
+                )
                 handle.flush()
                 os.fsync(handle.fileno())
             return result
@@ -803,9 +818,7 @@ def _validate_record_storage(root: Path, record: Mapping[str, object]) -> None:
         raise EvidenceError(f"web evidence snapshot hash mismatch: {file_path}")
 
 
-def resolve_evidence(
-    root: Path | str, identifier: str, *, follow_supersedes: bool = True
-) -> dict:
+def resolve_evidence(root: Path | str, identifier: str, *, follow_supersedes: bool = True) -> dict:
     """Resolve a stable evidence ID to a verified current record."""
     root = Path(root).resolve()
     _validated_evidraft_dir(root, EvidenceError)
@@ -825,6 +838,65 @@ def resolve_evidence(
     return dict(record)
 
 
+def audit_evidence(root: Path | str, identifiers: Sequence[str] = ()) -> EvidenceAuditResult:
+    """Audit current or selected evidence after validating the full supersession graph."""
+    root = Path(root).resolve()
+    _ensure_v2(root)
+    evidence_path = _internal_path(root, "evidence/evidence.jsonl", EvidenceError)
+    quarantine_path = _internal_path(root, "evidence/quarantine.jsonl", EvidenceError)
+    findings: list[str] = []
+    if quarantine_path.exists() and quarantine_path.read_text(encoding="utf-8").strip():
+        findings.append("evidence quarantine is not empty")
+
+    records: list[dict] = []
+    lines = evidence_path.read_text(encoding="utf-8").splitlines() if evidence_path.exists() else []
+    for line_number, line in enumerate(lines, start=1):
+        if not line.strip():
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError as exc:
+            findings.append(f"invalid JSON on evidence line {line_number}: {exc.msg}")
+            continue
+        if not isinstance(record, dict):
+            findings.append(f"evidence line {line_number} is not an object")
+            continue
+        try:
+            _validate(record, "evidence.schema.json", EvidenceError)
+        except EvidenceError as exc:
+            findings.append(f"evidence line {line_number}: {exc}")
+            continue
+        records.append(record)
+    try:
+        by_id, superseded_by = _index_evidence(records)
+    except EvidenceError as exc:
+        findings.append(str(exc))
+        return EvidenceAuditResult(valid=False, findings=tuple(findings))
+
+    requested = tuple(dict.fromkeys(identifiers))
+    checked_ids = requested or tuple(
+        identifier for identifier in by_id if identifier not in superseded_by
+    )
+    for identifier in checked_ids:
+        record = by_id.get(identifier)
+        if record is None:
+            findings.append(f"evidence does not exist: {identifier}")
+            continue
+        if identifier in superseded_by:
+            findings.append(f"evidence is superseded: {identifier} by {superseded_by[identifier]}")
+        if record.get("verified") is not True:
+            findings.append(f"evidence is not verified: {identifier}")
+        try:
+            _validate_record_storage(root, record)
+        except EvidenceError as exc:
+            findings.append(f"{identifier}: {exc}")
+    return EvidenceAuditResult(
+        valid=not findings,
+        findings=tuple(findings),
+        checked_ids=checked_ids,
+    )
+
+
 def store_snapshot(root: Path | str, url: str, raw: bytes) -> Path:
     """Store immutable raw content under its SHA-256 digest."""
     if not isinstance(raw, bytes):
@@ -841,14 +913,6 @@ def store_snapshot(root: Path | str, url: str, raw: bytes) -> Path:
         return path
     _atomic_replace(path, raw)
     return path
-
-
-def scope_policy(operation: str) -> str:
-    if operation in PUBLISH_OPERATIONS:
-        return "block"
-    if operation in WARN_SCOPE_OPERATIONS:
-        return "warn"
-    return "pass"
 
 
 def is_sensitive_path(
@@ -882,38 +946,14 @@ def is_sensitive_path(
 
 def _resolve_within(root: Path, value: Path | str, *, label: str) -> Path:
     candidate = Path(value)
-    resolved = candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
+    if candidate.is_absolute():
+        raise PreflightError(f"{label} must be project-relative: {value}")
+    resolved = (root / candidate).resolve()
     try:
         resolved.relative_to(root)
     except ValueError as exc:
         raise PreflightError(f"{label} escapes the project root: {value}") from exc
     return resolved
-
-
-def _has_quarantine(root: Path) -> bool:
-    path = _internal_path(root, "evidence/quarantine.jsonl", PreflightError)
-    return path.exists() and bool(path.read_text(encoding="utf-8").strip())
-
-
-def _validate_preflight_evidence(root: Path, evidence_ids: Sequence[str]) -> None:
-    path = _internal_path(root, "evidence/evidence.jsonl", PreflightError)
-    try:
-        records = _read_evidence(path)
-        by_id, superseded_by = _index_evidence(records)
-        for identifier, record in by_id.items():
-            if identifier not in superseded_by:
-                _validate_record_storage(root, record)
-        for identifier in evidence_ids:
-            if identifier not in by_id:
-                raise EvidenceError(f"required evidence does not exist: {identifier}")
-            if identifier in superseded_by:
-                raise EvidenceError(
-                    f"required evidence is superseded: {identifier} by {superseded_by[identifier]}"
-                )
-            if by_id[identifier].get("verified") is not True:
-                raise EvidenceError(f"required evidence is not verified: {identifier}")
-    except EvidenceError as exc:
-        raise PreflightError(f"evidence-integrity: {exc}") from exc
 
 
 def workflow_preflight(
@@ -923,14 +963,12 @@ def workflow_preflight(
     read_paths: Sequence[Path | str] = (),
     target_paths: Sequence[Path | str] = (),
     write_zone: Path | str | None = None,
-    evidence_ids: Sequence[str] = (),
-    today: date | None = None,
 ) -> PreflightResult:
-    """Enforce executable workspace, scope, and evidence-integrity policies."""
+    """Enforce migration and workspace path safety before a workflow operation."""
     root = Path(root).resolve()
     project_path = _internal_path(root, "project.yaml", PreflightError)
     project: Mapping[str, object] = {}
-    if project_path.is_file() or operation not in _PROJECTLESS_NOTE_OPERATIONS:
+    if project_path.is_file() or operation not in _PROJECTLESS_OPERATIONS:
         try:
             _ensure_v2(root)
         except (EvidenceError, MigrationError) as exc:
@@ -949,6 +987,13 @@ def workflow_preflight(
             read_path,
             PreflightError,
             label="read path",
+        )
+    for target_path in target_paths:
+        _reject_symlink_components(
+            root,
+            target_path,
+            PreflightError,
+            label="target path",
         )
     if operation == "xreview.run":
         if not target_paths:
@@ -972,9 +1017,7 @@ def workflow_preflight(
             if requested_zone != canonical_zone:
                 raise PreflightError("xreview.run write zone is fixed to .evidraft/reviews")
         write_zone = ".evidraft/reviews"
-    resolved_targets = [
-        _resolve_within(root, path, label="target path") for path in target_paths
-    ]
+    resolved_targets = [_resolve_within(root, path, label="target path") for path in target_paths]
     resolved_reads = [_resolve_within(root, path, label="read path") for path in read_paths]
     unsafe = [
         str(path.relative_to(root))
@@ -995,20 +1038,7 @@ def workflow_preflight(
             raise PreflightError(
                 f"external write zone violation ({write_zone}): {', '.join(violations)}"
             )
-    if operation in PUBLISH_OPERATIONS and _has_quarantine(root):
-        raise PreflightError("publish operation blocked: evidence quarantine is not empty")
-    _validate_preflight_evidence(root, evidence_ids)
-
-    policy = scope_policy(operation)
-    warnings: list[str] = []
-    if policy == "pass":
-        return PreflightResult(operation=operation, scope=policy)
-    reason = _scope_failure_reason(root, project, today=today or date.today())
-    if policy == "block" and reason is not None:
-        raise PreflightError(f"scope is required for {operation}: {reason}")
-    if policy == "warn" and reason is not None:
-        warnings.append(f"scope is {reason} for {operation}")
-    return PreflightResult(operation=operation, scope=policy, warnings=tuple(warnings))
+    return PreflightResult(operation=operation)
 
 
 def workflow_prepare_output(
@@ -1024,89 +1054,6 @@ def workflow_prepare_output(
         raise PreflightError("target path must name an output inside the project root")
     target.parent.mkdir(parents=True, exist_ok=True)
     return result
-
-
-def workflow_validate_paper_explanation_return(
-    bundle: Path | str,
-    instance: object,
-    *,
-    expected_task_id: str,
-    expected_attempt: int,
-) -> dict[str, object]:
-    """Validate one paper-explanation worker return before retry or synthesis."""
-    return validate_paper_explanation_instance(
-        Path(bundle),
-        instance,
-        expected_task_id=expected_task_id,
-        expected_attempt=expected_attempt,
-    )
-
-
-def _latest_scope_file(scope_dir: Path) -> Path | None:
-    files = list(scope_dir.glob("*.md")) if scope_dir.is_dir() else []
-    if not files:
-        return None
-    dated = [path for path in files if re.match(r"^\d{4}-\d{2}-\d{2}-", path.name)]
-    if dated:
-        return max(dated, key=lambda path: (path.name[:10], path.stat().st_mtime_ns, path.name))
-    return max(files, key=lambda path: (path.stat().st_mtime_ns, path.name))
-
-
-def _frontmatter(path: Path) -> dict:
-    text = path.read_text(encoding="utf-8")
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != "---":
-        return {}
-    try:
-        end = next(index for index, line in enumerate(lines[1:], start=1) if line.strip() == "---")
-    except StopIteration:
-        return {}
-    try:
-        document = yaml.safe_load("\n".join(lines[1:end]))
-    except yaml.YAMLError:
-        return {}
-    return document if isinstance(document, dict) else {}
-
-
-def _scope_failure_reason(root: Path, project: Mapping[str, object], *, today: date) -> str | None:
-    scope_dir = _internal_path(root, "scope", PreflightError)
-    _reject_symlink_components(
-        root,
-        scope_dir,
-        PreflightError,
-        label="scope directory",
-    )
-    latest = _latest_scope_file(scope_dir)
-    if latest is None:
-        return "missing"
-    _reject_symlink_components(
-        root,
-        latest,
-        PreflightError,
-        label="scope file",
-    )
-    metadata = _frontmatter(latest)
-    if metadata.get("status") != "approved":
-        return "draft-only"
-    approved_value = metadata.get("approved_date")
-    if isinstance(approved_value, datetime):
-        approved = approved_value.date()
-    elif isinstance(approved_value, date):
-        approved = approved_value
-    elif isinstance(approved_value, str):
-        try:
-            approved = date.fromisoformat(approved_value)
-        except ValueError:
-            return "stale"
-    else:
-        return "stale"
-    scope_config = project.get("scope", {})
-    staleness_days = scope_config.get("staleness_days", 14) if isinstance(scope_config, dict) else 14
-    if isinstance(staleness_days, bool) or not isinstance(staleness_days, int):
-        staleness_days = 14
-    if approved > today or today - approved > timedelta(days=staleness_days):
-        return "stale"
-    return None
 
 
 def prune_retention(
@@ -1180,7 +1127,11 @@ def workflow_finalize(
     removed = prune_retention(
         directory,
         pattern=str(retention.get("pattern", "*")),
-        keep_last=retention.get("keep_last") if isinstance(retention.get("keep_last"), int) else None,
-        max_age_days=retention.get("max_age_days") if isinstance(retention.get("max_age_days"), int) else None,
+        keep_last=retention.get("keep_last")
+        if isinstance(retention.get("keep_last"), int)
+        else None,
+        max_age_days=retention.get("max_age_days")
+        if isinstance(retention.get("max_age_days"), int)
+        else None,
     )
     return FinalizeResult(removed=removed)

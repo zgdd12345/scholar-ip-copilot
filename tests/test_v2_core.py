@@ -1,4 +1,4 @@
-"""Contract tests for the EviDraft v2 deterministic core."""
+"""Contract tests for the EviDraft deterministic core and format v2 projects."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import multiprocessing
 import os
 import subprocess
 import sys
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -26,7 +26,6 @@ from evidraft.core import (  # noqa: E402
     migrate_project,
     prune_retention,
     resolve_evidence,
-    scope_policy,
     store_snapshot,
     workflow_finalize,
     workflow_preflight,
@@ -428,9 +427,10 @@ def test_migration_quarantines_invalid_graph_rows_preserving_raw_text(
     assert result.quarantined == quarantined_count
     assert len(quarantined_lines) == quarantined_count
     assert all(line in raw_lines for line in quarantined_lines)
-    workflow_preflight(tmp_path, "paper.lit")
-    with pytest.raises(PreflightError, match="quarantine"):
-        workflow_preflight(tmp_path, "paper.draft")
+    assert workflow_preflight(tmp_path, "paper.draft").warnings == ()
+    audit = core_module.audit_evidence(tmp_path)
+    assert audit.valid is False
+    assert "quarantine" in " ".join(audit.findings)
 
 
 def test_migration_rejects_corrupt_existing_content_addressed_snapshot(tmp_path: Path) -> None:
@@ -458,9 +458,10 @@ def test_migration_rejects_corrupt_existing_content_addressed_snapshot(tmp_path:
     with pytest.raises(MigrationError, match="snapshot.*(corrupt|hash|content)"):
         migrate_project(tmp_path)
 
-    assert yaml.safe_load((tmp_path / ".evidraft/project.yaml").read_text()).get(
-        "format_version"
-    ) is None
+    assert (
+        yaml.safe_load((tmp_path / ".evidraft/project.yaml").read_text()).get("format_version")
+        is None
+    )
     assert destination.read_bytes() == b"corrupt body"
 
 
@@ -524,7 +525,9 @@ def test_evidence_append_is_process_safe_and_allocates_sequential_ids(tmp_path: 
     # All workers observe v1 initially. Exactly one migrates while the others wait,
     # then all append through the independent evidence lock.
     _write_project(tmp_path)
-    processes = [multiprocessing.Process(target=_append_worker, args=(str(tmp_path), 5)) for _ in range(3)]
+    processes = [
+        multiprocessing.Process(target=_append_worker, args=(str(tmp_path), 5)) for _ in range(3)
+    ]
     for process in processes:
         process.start()
     for process in processes:
@@ -535,7 +538,9 @@ def test_evidence_append_is_process_safe_and_allocates_sequential_ids(tmp_path: 
     records = [json.loads(line) for line in evidence_path.read_text(encoding="utf-8").splitlines()]
     assert [record["id"] for record in records] == [f"ev_{i:04d}" for i in range(1, 16)]
     assert len({record["claim"] for record in records}) == 15
-    assert yaml.safe_load((tmp_path / ".evidraft" / "project.yaml").read_text())["format_version"] == 2
+    assert (
+        yaml.safe_load((tmp_path / ".evidraft" / "project.yaml").read_text())["format_version"] == 2
+    )
     assert len(list((tmp_path / ".evidraft" / "backups").iterdir())) == 1
 
 
@@ -567,9 +572,7 @@ def test_evidence_append_recovers_sigkill_stale_owner(tmp_path: Path) -> None:
             assert writer.exitcode == 0
         records = [
             json.loads(line)
-            for line in (tmp_path / ".evidraft/evidence/evidence.jsonl")
-            .read_text()
-            .splitlines()
+            for line in (tmp_path / ".evidraft/evidence/evidence.jsonl").read_text().splitlines()
         ]
         assert [record["id"] for record in records] == [f"ev_{index:04d}" for index in range(1, 7)]
         assert lock.exists()
@@ -686,7 +689,8 @@ def test_preflight_migrates_v1_before_the_action_can_write(tmp_path: Path) -> No
 
     result = workflow_preflight(tmp_path, "paper.lit")
 
-    assert result.scope == "pass"
+    assert result.operation == "paper.lit"
+    assert result.warnings == ()
     assert yaml.safe_load(project.read_text(encoding="utf-8"))["format_version"] == 2
 
 
@@ -702,7 +706,9 @@ def test_projectless_note_preflight_preserves_default_workspace_safety(tmp_path:
         target_paths=[".evidraft/notes/topic-2026-07-13.md"],
     )
 
-    assert explanation.scope == reading_list.scope == "pass"
+    assert explanation.operation == "research.explain"
+    assert reading_list.operation == "research.reading-list"
+    assert explanation.warnings == reading_list.warnings == ()
     assert not (tmp_path / ".evidraft/project.yaml").exists()
     with pytest.raises(PreflightError, match="sensitive"):
         workflow_preflight(tmp_path, "research.explain", target_paths=[".env.local"])
@@ -732,10 +738,17 @@ def test_projectless_explanation_read_preflight_confines_local_pdf(
     paper.parent.mkdir()
     paper.write_bytes(b"%PDF-1.7")
 
-    assert workflow_preflight(
-        tmp_path, "research.explain", read_paths=[paper]
-    ).scope == "pass"
-    with pytest.raises(PreflightError, match="project root"):
+    assert (
+        workflow_preflight(
+            tmp_path,
+            "research.explain",
+            read_paths=[paper.relative_to(tmp_path)],
+        ).operation
+        == "research.explain"
+    )
+    with pytest.raises(PreflightError, match="relative"):
+        workflow_preflight(tmp_path, "research.explain", read_paths=[paper])
+    with pytest.raises(PreflightError, match="relative|project root"):
         workflow_preflight(
             tmp_path, "research.explain", read_paths=[tmp_path.parent / "outside.pdf"]
         )
@@ -761,7 +774,8 @@ def test_prepare_output_preflights_and_creates_only_the_safe_parent(
 
     result = core_module.workflow_prepare_output(tmp_path, "research.explain", target)
 
-    assert result.scope == "pass"
+    assert result.operation == "research.explain"
+    assert result.warnings == ()
     assert (tmp_path / target.parent).is_dir()
     assert not (tmp_path / target).exists()
     assert not (tmp_path / ".evidraft/project.yaml").exists()
@@ -786,7 +800,7 @@ def test_prepare_output_preflights_and_creates_only_the_safe_parent(
     )
     payload = json.loads(capsys.readouterr().out)
     assert payload["operation"] == "research.explain"
-    assert payload["scope"] == "pass"
+    assert payload == {"operation": "research.explain", "warnings": []}
     assert not (tmp_path / cli_target).exists()
 
 
@@ -853,15 +867,15 @@ def test_resolve_rejects_symlinked_evidraft_and_escaping_evidence_path(tmp_path:
     _write_project(safe, _project_doc(format_version=2))
     escaped = tmp_path / "escaped-evidence"
     escaped.mkdir()
-    (escaped / "evidence.jsonl").write_text(
-        json.dumps(_evidence_record(id="ev_0001")) + "\n"
-    )
+    (escaped / "evidence.jsonl").write_text(json.dumps(_evidence_record(id="ev_0001")) + "\n")
     (safe / ".evidraft/evidence").symlink_to(escaped, target_is_directory=True)
     with pytest.raises(EvidenceError, match="symlink|escapes"):
         resolve_evidence(safe, "ev_0001")
 
 
-def test_preflight_validates_complete_graph_and_required_current_evidence(tmp_path: Path) -> None:
+def test_evidence_audit_validates_complete_graph_and_required_current_evidence(
+    tmp_path: Path,
+) -> None:
     _write_project(tmp_path, _project_doc(format_version=2))
     evidence_path = tmp_path / ".evidraft/evidence/evidence.jsonl"
     evidence_path.parent.mkdir(parents=True)
@@ -869,21 +883,24 @@ def test_preflight_validates_complete_graph_and_required_current_evidence(tmp_pa
     two = _evidence_record(id="ev_0002", supersedes="ev_0001", verified=True)
     evidence_path.write_text(json.dumps(one) + "\n" + json.dumps(two) + "\n", encoding="utf-8")
 
-    with pytest.raises(PreflightError, match="superseded"):
-        workflow_preflight(tmp_path, "paper.lit", evidence_ids=["ev_0001"])
-    assert workflow_preflight(tmp_path, "paper.lit", evidence_ids=["ev_0002"]).scope == "pass"
+    superseded = core_module.audit_evidence(tmp_path, identifiers=["ev_0001"])
+    assert superseded.valid is False
+    assert "superseded" in " ".join(superseded.findings)
+    assert core_module.audit_evidence(tmp_path, identifiers=["ev_0002"]).valid is True
     two["verified"] = False
     evidence_path.write_text(json.dumps(one) + "\n" + json.dumps(two) + "\n", encoding="utf-8")
-    with pytest.raises(PreflightError, match="not verified"):
-        workflow_preflight(tmp_path, "paper.lit", evidence_ids=["ev_0002"])
+    unverified = core_module.audit_evidence(tmp_path, identifiers=["ev_0002"])
+    assert unverified.valid is False
+    assert "not verified" in " ".join(unverified.findings)
 
     dangling = _evidence_record(id="ev_0003", supersedes="ev_9999")
     evidence_path.write_text(json.dumps(dangling) + "\n", encoding="utf-8")
-    with pytest.raises(PreflightError, match="supersedes"):
-        workflow_preflight(tmp_path, "paper.lit")
+    invalid_graph = core_module.audit_evidence(tmp_path)
+    assert invalid_graph.valid is False
+    assert "supersedes" in " ".join(invalid_graph.findings)
 
 
-def test_preflight_revalidates_current_snapshot_hash(tmp_path: Path) -> None:
+def test_evidence_audit_revalidates_current_snapshot_hash(tmp_path: Path) -> None:
     _write_project(tmp_path, _project_doc(format_version=2))
     body = b"current source"
     snapshot = store_snapshot(tmp_path, "https://example.test/current", body)
@@ -899,8 +916,10 @@ def test_preflight_revalidates_current_snapshot_hash(tmp_path: Path) -> None:
         ),
     )
     snapshot.write_bytes(b"tampered")
-    with pytest.raises(PreflightError, match="snapshot.*hash"):
-        workflow_preflight(tmp_path, "paper.lit", evidence_ids=[record["id"]])
+    result = core_module.audit_evidence(tmp_path, identifiers=[record["id"]])
+    assert result.valid is False
+    assert "snapshot" in " ".join(result.findings)
+    assert "hash" in " ".join(result.findings)
 
 
 def test_snapshot_store_uses_body_sha256_not_url(tmp_path: Path) -> None:
@@ -951,33 +970,29 @@ def test_core_rejects_symlinked_evidraft_and_escaping_internal_paths(tmp_path: P
     _write_project(inside_root, _project_doc(format_version=2))
     redirected = inside_root / "redirected"
     redirected.mkdir()
-    (inside_root / ".evidraft/evidence").symlink_to(
-        redirected, target_is_directory=True
-    )
+    (inside_root / ".evidraft/evidence").symlink_to(redirected, target_is_directory=True)
     with pytest.raises(EvidenceError, match="symlink"):
         append_evidence(inside_root, _evidence_record())
     assert not (redirected / "evidence.jsonl").exists()
 
 
-@pytest.mark.parametrize(
-    ("operation", "expected"),
-    [
-        ("paper.draft", "block"),
-        ("patent.claims", "block"),
-        ("polish.run", "block"),
-        ("paper.idea", "warn"),
-        ("patent.scout", "warn"),
-        ("research.deep", "warn"),
-        ("paper.lit", "pass"),
-    ],
-)
-def test_scope_policy_uses_canonical_operation_ids(operation: str, expected: str) -> None:
-    assert scope_policy(operation) == expected
+def test_python_core_does_not_define_scope_action_policy() -> None:
+    assert not hasattr(core_module, "scope_policy")
+    assert not hasattr(core_module, "BLOCK_SCOPE_OPERATIONS")
+    assert not hasattr(core_module, "WARN_SCOPE_OPERATIONS")
 
 
 @pytest.mark.parametrize(
     "path",
-    [".env", "config/.env.local", "secrets/token.txt", "credentials.json", "keys/a.pem", "a.key", ".ssh/id_rsa.pub"],
+    [
+        ".env",
+        "config/.env.local",
+        "secrets/token.txt",
+        "credentials.json",
+        "keys/a.pem",
+        "a.key",
+        ".ssh/id_rsa.pub",
+    ],
 )
 def test_workspace_safety_detects_sensitive_paths(path: str) -> None:
     assert is_sensitive_path(path)
@@ -988,20 +1003,22 @@ def test_workspace_safety_allows_similar_non_sensitive_paths() -> None:
     assert not is_sensitive_path("keynote/slides.keynote")
 
 
-def test_publish_preflight_blocks_quarantine_and_sensitive_targets(tmp_path: Path) -> None:
+def test_publish_preflight_ignores_quarantine_but_blocks_sensitive_targets(
+    tmp_path: Path,
+) -> None:
     _write_project(tmp_path, _project_doc(format_version=2))
     quarantine = tmp_path / ".evidraft" / "evidence" / "quarantine.jsonl"
     quarantine.parent.mkdir(parents=True)
     quarantine.write_text("bad evidence\n", encoding="utf-8")
 
-    with pytest.raises(PreflightError, match="quarantine"):
-        workflow_preflight(tmp_path, "paper.draft")
+    assert workflow_preflight(tmp_path, "paper.draft").warnings == ()
+    assert core_module.audit_evidence(tmp_path).valid is False
     quarantine.write_text("", encoding="utf-8")
     with pytest.raises(PreflightError, match="sensitive"):
         workflow_preflight(tmp_path, "paper.lit", target_paths=[".env.local"])
 
     result = workflow_preflight(tmp_path, "paper.lit", target_paths=["notes/lit.md"])
-    assert result.scope == "pass"
+    assert result.operation == "paper.lit"
 
 
 def test_preflight_resolves_targets_within_root_and_external_write_zone(tmp_path: Path) -> None:
@@ -1018,7 +1035,7 @@ def test_preflight_resolves_targets_within_root_and_external_write_zone(tmp_path
         target_paths=[".evidraft/reviews/review.md"],
         write_zone=".evidraft/reviews",
     )
-    assert result.scope == "pass"
+    assert result.operation == "paper.lit"
     with pytest.raises(PreflightError, match="write zone"):
         workflow_preflight(
             tmp_path,
@@ -1044,7 +1061,7 @@ def test_xreview_preflight_enforces_derived_write_zone(tmp_path: Path) -> None:
         "xreview.run",
         target_paths=[".evidraft/reviews/report.md"],
     )
-    assert result.scope == "pass"
+    assert result.operation == "xreview.run"
 
 
 def test_xreview_preflight_separates_read_target_from_write_output(tmp_path: Path) -> None:
@@ -1059,7 +1076,7 @@ def test_xreview_preflight_separates_read_target_from_write_output(tmp_path: Pat
         read_paths=["manuscript/main.tex"],
         target_paths=[".evidraft/reviews/report.md"],
     )
-    assert result.scope == "pass"
+    assert result.operation == "xreview.run"
     with pytest.raises(PreflightError, match="sensitive"):
         workflow_preflight(
             tmp_path,
@@ -1087,112 +1104,23 @@ def test_xreview_rejects_symlinked_write_zone_components(tmp_path: Path, nested:
         workflow_preflight(tmp_path, "xreview.run", target_paths=[target])
 
 
-def _write_scope(root: Path, name: str, frontmatter: dict, body: str = "") -> Path:
-    path = root / ".evidraft" / "scope" / name
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        "---\n" + yaml.safe_dump(frontmatter, sort_keys=False) + "---\n" + body,
-        encoding="utf-8",
-    )
-    return path
-
-
-def test_preflight_parses_scope_frontmatter_and_enforces_freshness(tmp_path: Path) -> None:
-    _write_project(tmp_path, _project_doc(format_version=2))
-    _write_scope(
-        tmp_path,
-        "2026-07-12-topic.md",
-        {"status": "draft", "approved_date": "2026-07-12"},
-        body="status: approved\napproved_date: 2026-07-12\n",
-    )
-    with pytest.raises(PreflightError, match="scope"):
-        workflow_preflight(tmp_path, "paper.draft", today=date(2026, 7, 12))
-
-    _write_scope(
-        tmp_path,
-        "2026-07-13-topic.md",
-        {"status": "approved", "approved_date": "2026-06-27"},
-    )
-    with pytest.raises(PreflightError, match="stale"):
-        workflow_preflight(tmp_path, "paper.draft", today=date(2026, 7, 12))
-
-    _write_scope(
-        tmp_path,
-        "2026-07-14-topic.md",
-        {"status": "approved", "approved_date": "2026-06-28"},
-    )
-    assert workflow_preflight(tmp_path, "paper.draft", today=date(2026, 7, 12)).warnings == ()
-
-
-@pytest.mark.parametrize("link_kind", ["directory", "file"])
-def test_scope_policy_rejects_symlinked_scope_content(tmp_path: Path, link_kind: str) -> None:
-    _write_project(tmp_path, _project_doc(format_version=2))
-    external = tmp_path / "external-scope"
-    approved = external / "2026-07-12-approved.md"
-    approved.parent.mkdir(parents=True)
-    approved.write_text(
-        "---\nstatus: approved\napproved_date: 2026-07-12\n---\n",
-        encoding="utf-8",
-    )
-    scope_dir = tmp_path / ".evidraft/scope"
-    if link_kind == "directory":
-        scope_dir.symlink_to(external, target_is_directory=True)
-    else:
-        scope_dir.mkdir()
-        (scope_dir / approved.name).symlink_to(approved)
-
-    with pytest.raises(PreflightError, match="symlink|escapes"):
-        workflow_preflight(tmp_path, "paper.draft", today=date(2026, 7, 12))
-
-
-@pytest.mark.parametrize("override", ["disabled", "warn", "block", "enabled"])
-def test_preflight_ignores_legacy_hook_override_for_canonical_block(
-    tmp_path: Path, override: str
-) -> None:
+def test_preflight_does_not_read_scope_or_apply_legacy_scope_hooks(tmp_path: Path) -> None:
     _write_project(
         tmp_path,
-        _project_doc(format_version=2, hooks={"scope_required": override}),
+        _project_doc(
+            format_version=2,
+            hooks={"scope_required": "block"},
+            scope={"staleness_days": 1},
+        ),
     )
-
-    with pytest.raises(PreflightError, match="scope"):
-        workflow_preflight(tmp_path, "paper.draft", today=date(2026, 7, 12))
-
-
-def test_preflight_ignores_legacy_hook_override_for_canonical_warn(tmp_path: Path) -> None:
-    _write_project(
-        tmp_path,
-        _project_doc(format_version=2, hooks={"scope_required": "block"}),
-    )
-
-    result = workflow_preflight(tmp_path, "paper.idea", today=date(2026, 7, 12))
-
-    assert result.scope == "warn"
-    assert result.warnings
-
-
-def test_preflight_uses_project_scope_staleness_days(tmp_path: Path) -> None:
-    _write_project(
-        tmp_path,
-        _project_doc(format_version=2, scope={"staleness_days": 30}),
-    )
-    _write_scope(
-        tmp_path,
-        "2026-07-12-topic.md",
-        {"status": "approved", "approved_date": "2026-06-20"},
-    )
-    assert workflow_preflight(tmp_path, "paper.draft", today=date(2026, 7, 12)).warnings == ()
-
-
-def test_preflight_short_circuits_scope_reads_when_policy_does_not_run(tmp_path: Path) -> None:
-    _write_project(tmp_path, _project_doc(format_version=2))
     scope = tmp_path / ".evidraft" / "scope" / "2026-07-12-corrupt.md"
     scope.parent.mkdir(parents=True)
     scope.write_bytes(b"\xff\xfe\x00")
 
-    result = workflow_preflight(tmp_path, "paper.lit", today=date(2026, 7, 12))
-
-    assert result.scope == "pass"
-    assert result.warnings == ()
+    for operation in ("paper.draft", "paper.idea", "polish.run", "research.deep"):
+        result = workflow_preflight(tmp_path, operation)
+        assert result.operation == operation
+        assert result.warnings == ()
 
 
 def test_preflight_uses_project_defined_forbidden_paths(tmp_path: Path) -> None:
@@ -1286,23 +1214,26 @@ def test_cli_exposes_grouped_workflow_and_snapshot_commands(
 ) -> None:
     _write_project(tmp_path, _project_doc(format_version=2))
     assert cli_main(["--root", str(tmp_path), "workflow", "preflight", "paper.lit"]) == 0
-    assert json.loads(capsys.readouterr().out)["scope"] == "pass"
+    assert json.loads(capsys.readouterr().out) == {
+        "operation": "paper.lit",
+        "warnings": [],
+    }
     evidence = append_evidence(tmp_path, _evidence_record())
     assert (
         cli_main(
             [
                 "--root",
                 str(tmp_path),
-                "workflow",
-                "preflight",
-                "paper.lit",
-                "--evidence-id",
+                "evidence",
+                "audit",
+                "--id",
                 evidence["id"],
             ]
         )
         == 0
     )
-    capsys.readouterr()
+    audit = json.loads(capsys.readouterr().out)
+    assert audit == {"checked_ids": [evidence["id"]], "findings": [], "valid": True}
     with pytest.raises(PreflightError, match="write zone"):
         cli_main(
             [
@@ -1441,9 +1372,12 @@ def test_installed_package_runs_cli_outside_repository(tmp_path: Path) -> None:
         check=False,
     )
     assert migrate.returncode == 0, migrate.stderr
-    assert yaml.safe_load(
-        (installed_project / ".evidraft/project.yaml").read_text(encoding="utf-8")
-    )["format_version"] == 2
+    assert (
+        yaml.safe_load((installed_project / ".evidraft/project.yaml").read_text(encoding="utf-8"))[
+            "format_version"
+        ]
+        == 2
+    )
     metadata = subprocess.run(
         [
             sys.executable,

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import date
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -8,6 +7,7 @@ import yaml
 
 from evidraft.core import (
     append_evidence,
+    audit_evidence,
     migrate_project,
     resolve_evidence,
     workflow_finalize,
@@ -64,21 +64,16 @@ def execute_flow(
     _write_v1_project(project_root, workflow_id)
     migration = migrate_project(project_root)
     assert migration.changed
-    _approve_scope(project_root)
-
     evidence_ids: list[str] = []
     declared_outputs: list[tuple[str, ...]] = []
     for action_id in actions:
         action = workflow.actions[action_id]
         outputs = tuple(str(output["path"]) for output in action["outputs"])
         declared_outputs.append(outputs)
-        evidence_required = "evidence-integrity" in action["policies"]
         workflow_preflight(
             project_root,
             f"{workflow_id}.{action_id}",
             target_paths=outputs,
-            evidence_ids=evidence_ids if evidence_required else (),
-            today=date(2026, 7, 12),
         )
         created = _evidence_for_action(project_root, workflow_id, action_id)
         if created is not None:
@@ -87,6 +82,9 @@ def execute_flow(
 
     for identifier in evidence_ids:
         assert resolve_evidence(project_root, identifier)["id"] == identifier
+    audit = audit_evidence(project_root)
+    assert audit.valid is True
+    assert set(audit.checked_ids) == set(evidence_ids)
     project = yaml.safe_load(
         (project_root / ".evidraft" / "project.yaml").read_text(encoding="utf-8")
     )
@@ -153,15 +151,6 @@ def _write_v1_project(project_root: Path, workflow_id: str) -> None:
         yaml.safe_dump(project, sort_keys=False), encoding="utf-8"
     )
     (evidraft / "evidence" / "evidence.jsonl").write_text("", encoding="utf-8")
-
-
-def _approve_scope(project_root: Path) -> None:
-    scope = project_root / ".evidraft" / "scope" / "2026-07-12-e2e.md"
-    scope.parent.mkdir(parents=True)
-    scope.write_text(
-        "---\nstatus: approved\napproved_date: 2026-07-12\n---\n\n# E2E scope\n",
-        encoding="utf-8",
-    )
 
 
 def _evidence_for_action(

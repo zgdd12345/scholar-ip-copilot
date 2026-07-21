@@ -1,4 +1,4 @@
-"""Frozen behavioral contracts for the EviDraft v1-to-v2 workflow collapse."""
+"""Compatibility contracts for v1 mappings retained by EviDraft 3.0."""
 
 from __future__ import annotations
 
@@ -101,6 +101,25 @@ def _load_fixture() -> dict[str, Any]:
 
 CONTRACT = _load_fixture()
 MAPPINGS = CONTRACT["mappings"]
+REMOVED_LEGACY_IDS = frozenset({"using-deep-research"})
+ACTIVE_MAPPINGS = tuple(
+    mapping for mapping in MAPPINGS if mapping["legacy_id"] not in REMOVED_LEGACY_IDS
+)
+DEFAULT_OVERRIDES = {
+    ("brainstorming", "mode"): "fast",
+    ("deepresearch", "mode"): "fast",
+    ("polish", "mode"): "all",
+}
+SCOPE_ADVISORY_ACTIONS = frozenset(
+    {
+        "paper-idea",
+        "paper-draft",
+        "patent-scout",
+        "patent-claims",
+        "polish",
+        "xreview",
+    }
+)
 
 
 def _workflow_path(workflow: str) -> Path:
@@ -148,7 +167,7 @@ def _roles_for_subagents(subagents: list[str]) -> list[dict[str, str]]:
 
 def _expected_actions_by_workflow() -> dict[str, set[str]]:
     expected: dict[str, set[str]] = defaultdict(set)
-    for item in MAPPINGS:
+    for item in ACTIVE_MAPPINGS:
         expected[item["workflow"]].add(item["action"])
     return dict(expected)
 
@@ -165,16 +184,52 @@ def _assert_action_matches_contract(
     assert actual["defaults"] == {
         item["name"]: item["default"] for item in actual["inputs"] if "default" in item
     }
-    for field in ("inputs", "outputs", "policies", "roles", "retention"):
-        actual_value = actual[field]
-        if field == "retention":
-            assert set(mapping[field]).issubset(actual_value), (
-                f"{mapping['workflow']}.{mapping['action']} changed frozen {field}"
-            )
-            actual_value = {key: actual_value[key] for key in mapping[field]}
-        assert _normalize_v2_references(actual_value) == _normalize_v2_references(mapping[field]), (
-            f"{mapping['workflow']}.{mapping['action']} changed frozen {field}"
-        )
+    expected_inputs = []
+    actual_inputs = {item["name"]: item for item in actual["inputs"]}
+    for item in mapping["inputs"]:
+        expected = dict(item)
+        override = DEFAULT_OVERRIDES.get((mapping["legacy_id"], item["name"]))
+        if override is not None:
+            expected["default"] = override
+        expected_inputs.append(expected)
+    retained_inputs = [actual_inputs.get(item["name"]) for item in expected_inputs]
+    assert None not in retained_inputs, (
+        f"{mapping['workflow']}.{mapping['action']} changed frozen inputs"
+    )
+    assert _normalize_v2_references(retained_inputs) == _normalize_v2_references(
+        expected_inputs
+    ), f"{mapping['workflow']}.{mapping['action']} changed frozen inputs"
+
+    actual_outputs = {
+        item["path"]: {key: value for key, value in item.items() if key != "required"}
+        for item in actual["outputs"]
+    }
+    retained_outputs = [actual_outputs.get(item["path"]) for item in mapping["outputs"]]
+    assert None not in retained_outputs, (
+        f"{mapping['workflow']}.{mapping['action']} changed frozen outputs"
+    )
+    assert _normalize_v2_references(retained_outputs) == _normalize_v2_references(
+        mapping["outputs"]
+    ), f"{mapping['workflow']}.{mapping['action']} changed frozen outputs"
+
+    expected_policies = list(mapping["policies"])
+    if mapping["legacy_id"] in SCOPE_ADVISORY_ACTIONS:
+        expected_policies = [policy for policy in expected_policies if policy != "scope"]
+    assert actual["policies"] == expected_policies, (
+        f"{mapping['workflow']}.{mapping['action']} changed frozen policies"
+    )
+    assert actual["roles"] == mapping["roles"], (
+        f"{mapping['workflow']}.{mapping['action']} changed frozen roles"
+    )
+    assert set(mapping["retention"]).issubset(actual["retention"]), (
+        f"{mapping['workflow']}.{mapping['action']} changed frozen retention"
+    )
+    retained_retention = {
+        key: actual["retention"][key] for key in mapping["retention"]
+    }
+    assert retained_retention == mapping["retention"], (
+        f"{mapping['workflow']}.{mapping['action']} changed frozen retention"
+    )
 
 
 def _normalize_v2_references(value: Any) -> Any:
@@ -265,7 +320,7 @@ def test_v2_workflow_exposes_exact_action_set(workflow: str) -> None:
     )
 
 
-@pytest.mark.parametrize("expected", MAPPINGS, ids=_case_id)
+@pytest.mark.parametrize("expected", ACTIVE_MAPPINGS, ids=_case_id)
 def test_v2_action_preserves_legacy_behavior(expected: dict[str, Any]) -> None:
     document = _load_workflow(expected["workflow"])
     actions = document.get("actions")
@@ -290,9 +345,9 @@ def test_v2_action_preserves_legacy_behavior(expected: dict[str, Any]) -> None:
 @pytest.mark.parametrize(
     ("legacy_id", "field", "replacement"),
     (
-        pytest.param("paper-draft", "policies", [], id="hook-derived-policies"),
-        pytest.param("paper-draft", "roles", [], id="semantic-roles"),
-        pytest.param("polish", "retention", {}, id="retention"),
+        pytest.param("paper-check", "policies", [], id="hook-derived-policies"),
+        pytest.param("paper-check", "roles", [], id="semantic-roles"),
+        pytest.param("reading-list", "outputs", [], id="stable-output-paths"),
     ),
 )
 def test_frozen_contract_rejects_deleted_workflow_behavior(

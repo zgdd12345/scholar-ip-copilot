@@ -112,12 +112,12 @@ def test_paper_explanation_preserves_the_approved_research_and_collision_contrac
     normalized = " ".join(spec.read_text(encoding="utf-8").split())
 
     assert (
-        "Search results are candidate discovery only; a canonical page must be opened "
-        "and checked before inclusion."
+        "For external work, verify a canonical page before inclusion and record title, year, "
+        "link, relationship, concrete methodological difference, search date, and search scope."
     ) in normalized
     assert (
-        "An existing non-empty output file is never overwritten silently. "
-        "The action offers:"
+        "Never overwrite a non-empty note silently. Offer reuse, a unique dated sibling, or "
+        "explicitly confirmed replacement."
     ) in normalized
 
 
@@ -126,21 +126,30 @@ def test_paper_explanation_spec_declares_the_adaptive_runtime_contract() -> None
     normalized = " ".join(spec.read_text(encoding="utf-8").split())
 
     for token in (
+        "paper-explainer",
+        "literature-reviewer",
+        "Ordinary beginner and graduate explanations do not require external research.",
+        "reviewer mode or the user explicitly requests comparison",
+        "no required worker count, fixed dependency waves, or prescribed retry count",
+        "complete",
+        "complete_with_gaps",
+        "blocked",
+        "failed optional check becomes a named gap",
+    ):
+        assert token in normalized
+
+    for removed in (
         "task-graph.yaml",
+        "paper-map.schema.json",
+        "analysis-packet.schema.json",
         "paper-indexer",
         "paper-analysis-worker",
         "paper-reasoning-worker",
         "explanation-evidence-auditor",
-        "paper-explainer",
-        "max_parallel: 4",
-        "max_attempts: 2",
-        "complete",
-        "partial",
-        "incomplete",
-        "delegation unavailable",
-        "no analysis task",
+        "max_parallel",
+        "max_attempts",
     ):
-        assert token in normalized
+        assert removed not in normalized
 
 
 def test_capability_tree_exposes_no_host_discoverable_skill_files() -> None:

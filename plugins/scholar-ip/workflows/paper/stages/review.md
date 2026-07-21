@@ -2,6 +2,17 @@
 
 Draft a `related_work` (or `survey`) section grounded **only** in the evidence store.
 
+## Best-effort reuse
+
+This action is best effort. Build an `Input summary` from target section, length,
+format, and the literature/evidence source fingerprints. If the existing outline
+or selected render's `Input summary` matches the current normalized inputs and
+source fingerprints, reuse the matching outline and prose and update only stale
+parts. Put the current `Input summary` in the outline and selected output. Missing
+matrix rows, evidence records, project metadata, or citations become labelled gaps
+or cautious placeholders; they do not block a useful synthesis from available
+sources.
+
 ## Steps
 
 1. **Load context.**
@@ -38,4 +49,5 @@ Draft a `related_work` (or `survey`) section grounded **only** in the evidence s
 - `format=tex`: `related_work.tex` compiles when wrapped in the template's `main.tex`; all `\cite{}` keys resolve in `references.bib`.
 - `format=md`: `related_work.md` starts with the banner; every paragraph has at least one `[@key]` / `@key` whose key resolves in `references.bib`; Pandoc can render it without errors (smoke: `pandoc related_work.md -o /tmp/check.html --bibliography references.bib` exits 0 — informational only, not required).
 - Outline file lists each paragraph's evidence ids (both branches).
-
+- Status is `complete`, `complete_with_gaps` when coverage or verification remains
+  incomplete, or `blocked` only when workspace safety prevents every useful output.

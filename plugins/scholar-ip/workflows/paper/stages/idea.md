@@ -3,6 +3,16 @@
 Generate **bounded** novelty hypotheses. Inputs are the literature matrix, the
 code repo, and the experiments. Output is three structured markdown tables.
 
+## Best-effort reuse
+
+This action is best effort. Build an `Input summary` from the seed idea and the
+fingerprints of the literature, code-map, and experiment inputs. If an existing
+idea artifact's `Input summary` matches the current normalized inputs and source
+fingerprints, reuse its supported rows and evaluate only changed inputs. Put the
+current `Input summary` at the top of every artifact. Missing literature, code, or
+experiment inputs are gaps that narrow confidence; they do not prevent bounded
+hypotheses from the material that is available.
+
 ## Steps
 
 1. **Gather.** Use the `literature-reviewer` subagent to refresh `matrix.md` if stale, and the `codebase-analyst` subagent to update `method_to_code.md` if the repo moved since the last audit.
@@ -31,4 +41,5 @@ code repo, and the experiments. Output is three structured markdown tables.
 - ≥ 3 novelty rows survive the critic.
 - Risk matrix and experiment matrix exist with at least one row per surviving idea.
 - Chat output suggests `workflow:paper.code-audit` or `workflow:paper.experiment` next.
-
+- Status is `complete`, `complete_with_gaps` when any input or evidence remains
+  missing, or `blocked` only when workspace safety prevents every useful output.

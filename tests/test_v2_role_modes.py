@@ -1,4 +1,4 @@
-"""Behavior-preservation tests for the private v2 role-mode specifications."""
+"""Behavior-preservation tests for private role-mode specifications."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ ROLES_ROOT = PLUGIN_ROOT / "roles"
 
 EXPECTED = {
     "brainstormer": ("researcher", "standard", 7, 7, 5, 5),
-    "deep-research-orchestrator": ("researcher", "deep", 8, 7, 8, 7),
+    "deep-research-orchestrator": ("researcher", "deep", 6, 5, 5, 7),
     "literature-reviewer": ("researcher", "standard", 4, 4, 4, 7),
     "paper-critic": ("researcher", "standard", 6, 6, 5, 5),
     "screener": ("researcher", "fast", 5, 6, 5, 5),
@@ -33,34 +33,29 @@ EXPECTED = {
     "patent-engineer": ("patent-reviewer", "deep", 5, 5, 6, 5),
 }
 NATIVE_EXPECTED = {
-    "paper-indexer": ("researcher", "standard", 5, 7, 6, 3),
-    "paper-analysis-worker": ("researcher", "standard", 6, 8, 7, 5),
-    "paper-reasoning-worker": ("researcher", "deep", 5, 8, 7, 3),
-    "explanation-evidence-auditor": (
-        "evidence-reviewer",
-        "standard",
-        6,
-        8,
-        7,
-        4,
-    ),
-    "paper-explainer": ("researcher", "deep", 6, 8, 7, 5),
+    "paper-explainer": ("researcher", "deep", 6, 5, 7, 5),
 }
 ALL_EXPECTED = EXPECTED | NATIVE_EXPECTED
+REMOVED_EXPLANATION_MODES = {
+    "paper-indexer",
+    "paper-analysis-worker",
+    "paper-reasoning-worker",
+    "explanation-evidence-auditor",
+}
 MODE_SPEC_SHA256 = {
     "brainstormer": "b2f65c91e2b869fcd76514233f8cece9aa6207c1a1f52fe9ac448e796cc4e161",
-    "claim-drafter": "0360dd644d24a4c84a1c8b4d9cab1feb07393fce1af053f7ce8b30544f5ba4e3",
+    "claim-drafter": "0c60990664279d2b0d37d4bbb8a5ef6c84bbc32fec7fc745a05a321a7f62e5e9",
     "codebase-analyst": "a29bc87a1625eb25e8cf58f4fd9166e201e7ebce9ec64a60cb546cee0d5caf39",
     "consistency-checker": "a47e6fa0a53873b22caec6e83d3efa3cb94bba263bb3a5d6f782d0d73f2e5c40",
-    "deep-research-orchestrator": "339a180558ca0aad985078369e60c66b1fcfb4778cd3991c4d64b57badd24f18",
+    "deep-research-orchestrator": "7b073dd82ba85c6f81b4df005db6fc5b8399e26aaae6bdfa766a9b0ab32d4edd",
     "evidence-auditor": "77292727255e1790ffb8358d5373d17c1bee80435586717e539f22f951d72984",
     "experiment-analyst": "0ebbe79da02bc74da5e33bb7e2c975a93a33d2d7ed82a8011ed103784e38d2e9",
     "latex-editor": "18d06d47c5840afbf89e641a917506f6e2b418835418776f43022c8b9c76fb18",
-    "literature-reviewer": "259139b768fca33104ad942aad0e7af0bee5f512cd46037ea7c878daf891ed9c",
+    "literature-reviewer": "b76c215a1a1daf77eb88b4df4a526247c6a7a1e0e24ab06db5b5d591cf661193",
     "methodology-reviewer": "51dca210335c2096a90462f9bc2ef44c626a91e190f0d6a0f27f18454e3cfcf3",
     "novelty-critic": "03266071d7d7312a00078c9f2009821e390406fa3146125c595e933a0294ec21",
     "paper-critic": "65d888fa7c2a9c286889d0b15d46638320dd0612ccbdf9c3b832791bb75e1150",
-    "patent-engineer": "57627a0d6eb87f30216b5dd71880986d832c303a46b6376728acd04bdf6d2692",
+    "patent-engineer": "dc5c978297ef440f17df5729bf068bb497f0e9e94561ecb70e8dcee8324db23c",
     "prose-polisher": "0f6d38bbdfc8b6dbc4462d7bc71bd94d37020d281204b47bd493a74a7295acd7",
     "screener": "ed3bbc07b48d2d85e14572c4839e4f12d86ffa747b78833ba2e4259fc3790bea",
 }
@@ -94,7 +89,7 @@ def _mode_index() -> dict[str, tuple[str, str, str]]:
     return indexed
 
 
-def test_roles_map_exactly_twenty_unique_modes_to_private_specs() -> None:
+def test_roles_map_exactly_sixteen_unique_modes_to_private_specs() -> None:
     index = _mode_index()
 
     assert set(index) == set(ALL_EXPECTED)
@@ -128,135 +123,39 @@ def test_mode_specs_preserve_v1_tools_and_semantic_sections() -> None:
             "scope",
             "evidence-integrity",
         }
-        assert "Inputs you read" in body
-        assert "Outputs you " in body
-        assert "Failure modes you avoid" in body
+        assert body.strip()
+        if mode == "deep-research-orchestrator":
+            assert "Run only the stages enabled by the selected mode" in body
+            assert "earliest safe recovery stage" in body
+        else:
+            assert "Inputs you read" in body
+            assert "Outputs you " in body
+            assert "Failure modes you avoid" in body
 
 
-def test_paper_explanation_workers_are_read_only_and_synthesizer_is_sole_writer() -> None:
-    worker_modes = {
-        "paper-indexer",
-        "paper-analysis-worker",
-        "paper-reasoning-worker",
-        "explanation-evidence-auditor",
-    }
-    for mode in worker_modes:
-        metadata, body = _frontmatter(ROLES_ROOT / "modes" / f"{mode}.md")
-        assert "Write" not in metadata["allowed_tools"]
-        assert "Edit" not in metadata["allowed_tools"]
-        assert (
-            "never accept or infer an output path or collision state."
-            in body.lower()
-        )
-        assert "nested subagent" in body.lower()
-        assert "return" in body.lower()
-
+def test_removed_explanation_workers_are_absent_and_explainer_is_sole_writer() -> None:
+    for mode in REMOVED_EXPLANATION_MODES:
+        assert not (ROLES_ROOT / "modes" / f"{mode}.md").exists()
     metadata, body = _frontmatter(ROLES_ROOT / "modes/paper-explainer.md")
     assert metadata["allowed_tools"] == ["Read", "Glob", "Grep", "Write", "Edit"]
-    assert "sole" in body.lower()
-    assert "canonical task order" in body.lower()
-    for rule in (
-        "re-check each numerical conflict against its evidence_refs and retain "
-        "every unresolved value",
-        "present external evidence alongside, never as a replacement for, the "
-        "authors' conclusion",
-        "exclude any factual finding without evidence_refs or mark it uncertain",
-        "when the audit packet flags an unsupported strong claim, downgrade it, "
-        "label it [Interpretation], or exclude it",
-    ):
-        assert rule.lower() in body.lower()
+    assert "perform one final write" in body.lower()
+    assert "complete_with_gaps" in body
+    assert "conditional comparison branch" in body.lower()
 
 
-def test_explanation_evidence_auditor_returns_explicit_blocking_state() -> None:
-    _metadata, body = _frontmatter(ROLES_ROOT / "modes/explanation-evidence-auditor.md")
-    normalized = " ".join(body.split())
-
-    assert (
-        "Set `severity` on every audit finding to exactly one of `info`, `warning`, or `blocking`."
-    ) in normalized
-    assert (
-        "Set top-level `blocking: true` if any finding has `severity: blocking`; "
-        "otherwise set `blocking: false`."
-    ) in normalized
-    assert (
-        "Do not use `status` to encode audit impact; it continues to describe packet completion."
-    ) in normalized
-
-
-def test_native_paper_explanation_modes_have_exact_tools_references_and_sections() -> None:
-    tools_by_mode = {
-        "paper-indexer": ["Read", "Glob", "Grep"],
-        "paper-analysis-worker": ["Read", "Glob", "Grep", "WebSearch", "WebFetch"],
-        "paper-reasoning-worker": ["Read", "Glob", "Grep"],
-        "explanation-evidence-auditor": ["Read", "Glob", "Grep", "WebFetch"],
-        "paper-explainer": ["Read", "Glob", "Grep", "Write", "Edit"],
-    }
-    worker_schema_by_mode = {
-        "paper-indexer": "paper-map.schema.json",
-        "paper-analysis-worker": "analysis-packet.schema.json",
-        "paper-reasoning-worker": "analysis-packet.schema.json",
-        "explanation-evidence-auditor": "analysis-packet.schema.json",
-    }
+def test_paper_explainer_has_resolvable_capability_reference_and_sections() -> None:
     headings = {
         "## Inputs you read",
         "## Outputs you return",
         "## Execution protocol",
         "## Failure modes you avoid",
     }
-
-    for mode, expected_tools in tools_by_mode.items():
-        metadata, body = _frontmatter(ROLES_ROOT / "modes" / f"{mode}.md")
-        assert metadata["allowed_tools"] == expected_tools
-        assert headings <= set(body.splitlines())
-
-    for mode, schema in worker_schema_by_mode.items():
-        metadata, _body = _frontmatter(ROLES_ROOT / "modes" / f"{mode}.md")
-        assert [reference["doc"] for reference in metadata["references"]] == [
-            "../../capabilities/research/paper-explanation/spec.md",
-            "../../capabilities/research/paper-explanation/task-graph.yaml",
-            f"../../capabilities/research/paper-explanation/{schema}",
-        ]
-
-
-def test_paper_indexer_accepts_only_the_closed_indexer_input() -> None:
-    _metadata, body = _frontmatter(ROLES_ROOT / "modes/paper-indexer.md")
-    inputs = body.split("## Inputs you read", 1)[1].split(
-        "## Outputs you return", 1
-    )[0]
-
-    assert (
-        "Accept exactly one task_id, attempt, explanation_mode, source_identity, "
-        "full_text_ref, and budget."
-        in inputs
-    )
-    assert "mode paper-indexer" not in inputs
-    assert "PaperMap" not in inputs
-    assert "dependency_packets" not in inputs
-    assert "task_scope" not in inputs
-
-
-@pytest.mark.parametrize(
-    "mode",
-    [
-        "paper-analysis-worker",
-        "paper-reasoning-worker",
-        "explanation-evidence-auditor",
-    ],
-)
-def test_post_index_workers_accept_explanation_mode_in_the_exact_input_set(
-    mode: str,
-) -> None:
-    metadata, body = _frontmatter(ROLES_ROOT / "modes" / f"{mode}.md")
-    inputs = body.split("## Inputs you read", 1)[1].split(
-        "## Outputs you return", 1
-    )[0]
-
-    expected = (
-        "task_id, attempt, closed task_scope, explanation_mode, immutable PaperMap, "
-        "full_text_ref, dependency_packets, and budget"
-    )
-    assert expected in " ".join(inputs.split())
-    assert expected in " ".join(" ".join(metadata["constraints"]).split())
+    metadata, body = _frontmatter(ROLES_ROOT / "modes/paper-explainer.md")
+    assert headings <= set(body.splitlines())
+    assert [reference["doc"] for reference in metadata["references"]] == [
+        "../../capabilities/research/paper-explanation/spec.md"
+    ]
+    assert (ROLES_ROOT / "modes" / metadata["references"][0]["doc"]).resolve().is_file()
 
 
 def test_normalized_mode_specs_match_the_frozen_behavior_snapshot() -> None:
@@ -329,7 +228,7 @@ def test_renderer_copies_all_mode_specs_privately(tmp_path: Path, host: Host) ->
             for path in routers
         )
     else:
-        assert len(agents) == 10
+        assert len(agents) == 6
         semantic_agents = {
             "code-reviewer",
             "evidence-reviewer",
@@ -342,12 +241,4 @@ def test_renderer_copies_all_mode_specs_privately(tmp_path: Path, host: Host) ->
             "roles/modes/<mode>.md" in (out / "agents" / f"{role}.md").read_text()
             for role in semantic_agents
         )
-        for mode in {
-            "paper-indexer",
-            "paper-analysis-worker",
-            "paper-reasoning-worker",
-            "explanation-evidence-auditor",
-        }:
-            assert f"roles/modes/{mode}.md" in (
-                out / "agents" / f"{mode}.md"
-            ).read_text()
+        assert all(not (out / "agents" / f"{mode}.md").exists() for mode in REMOVED_EXPLANATION_MODES)

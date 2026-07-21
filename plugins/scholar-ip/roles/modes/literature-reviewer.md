@@ -76,16 +76,22 @@ Before any candidate is committed to `matrix.md` / `references.bib` / `evidence.
 
 Verification applies to every source kind (arXiv preprints, journal articles, engineering blogs, vendor announcements, patent records). The dogfood1 2026-05-22 trial leaked a wholly fabricated `wang2025claudecode` entry against arXiv 2503.09747, which is actually a lattice-QCD paper; that failure mode is exactly what this protocol exists to prevent.
 
-If you do not have `WebFetch` access for some reason (network disabled, host policy, etc.), you MUST stop and report this to the parent rather than proceeding with unverified entries.
+When network access or WebFetch is unavailable, include no unverified entry and do not
+invent metadata. For a lite reading-list invocation, write the one output note with an
+`## Evidence boundary` section and return `complete_with_gaps`; for other callers, return
+the same boundary information to the parent for best-effort handling.
 
 ## Lite-mode contract (when dispatched from `research.reading-list`)
 
 When the dispatcher's output path lives under `.evidraft/notes/` (the lite literature path), you are NOT in paper-drafting mode. The dispatcher's prompt is authoritative; do not infer your own workflow. The full client-side Done criteria (path resolution, header schema, rejection-bullet metadata, augment-sibling naming) live in `workflow:research.reading-list stage` §Done criteria — the three contract rules below are stricter and additive on top of those.
 
-1. **Use the next-step copy verbatim.** When the dispatch prompt gives you a one-line next-step sentence to emit in the chat report, emit it as-is. Do NOT freelance. In particular, do NOT propose `paper.draft`, `paper.review`, or any other downstream command as the next step — the correct lite → heavy escalation chain is always `paper.init` then `paper.lit` (or `research.deep`). Anything else misroutes the user past the required scaffolding and scope gate. If the surrounding chat is non-English (e.g. Chinese), emit the English sentence on its own line first and add the translation BELOW it; the English line is the machine-readable handoff and translating-in-place breaks it.
+1. **Use the next-step copy verbatim.** When the dispatch prompt gives you a one-line
+next-step sentence to emit in the chat report, emit it as-is. Do not freelance a heavier
+workflow. If the surrounding chat is non-English, emit the English sentence on its own
+line first and add the translation below it; the English line is the machine-readable
+handoff.
 
 2. **Do not name internal policies in your report.** `evidence-integrity`, `evidence-integrity`, do not apply in lite mode because the action declares no publish policies. Mentioning them in your final chat summary makes the user think the lite path enforces them and reads as plugin-internal noise. If an undeclared policy blocks, report it as a routing defect to the parent.
 
 3. **Stay inside the dispatched output file.** Do NOT write `references.bib`, `evidence.jsonl`, `matrix.md`, `related_work_outline.md`, or any other paper-mode artefact. The only file you create or modify is the markdown file at the path the dispatcher named. If you find yourself wanting to write a second file, stop — that is a sign you have drifted into paper mode.
-
 

@@ -1,23 +1,33 @@
 # workflow:patent.init
 
-Scaffold the patent side of an EviDraft project. Reuse `.evidraft/project.yaml` if it exists (set `project_type=mixed` when both paper and patent are wanted).
+Perform lazy initialization for patent work. The only required artifact is
+`.evidraft/project.yaml`; patent deliverables are created by the action that first
+needs them. Do not eagerly create disclosure, candidate, prior-art, or claim-chart
+placeholders.
+Initialization is best effort: unknown optional metadata is recorded as a gap.
 
 ## Steps
 
-1. **Inspect.** Probe the cwd: existing `.evidraft/`, existing code, docs, `inventors.yaml`, `disclosure.md`. Do not overwrite.
-2. **Infer or ask** for `title`, `field`, `jurisdiction`, inventor list. Do **not** invent inventor names.
-3. **Materialise template.** Copy `../../../templates/patent-project/.evidraft/patent/` skeletons without overwriting.
-4. **Write `invention_disclosure.md`** with the section headers prefilled (Background, Problem, Summary, Technical Solution, Implementation Details, Alternatives, Advantages, Examples, Diagrams, Code Traceability, Inventor Questions). Sections are empty placeholders ready for `workflow:patent.scout` and `workflow:patent.disclosure`.
-5. **Append a "Needs attorney review" checklist** to the bottom of `invention_disclosure.md`. The plugin must never remove this checklist.
+1. Inspect the current directory without reading sensitive paths. Note code, design
+   documents, existing disclosures, and any `.evidraft/project.yaml`.
+2. Infer or ask only for values needed now: `title`, `field`, `jurisdiction`, and
+   project type. Never invent inventors.
+3. Create the smallest schema-valid project record when none exists. Reuse an
+   existing record, setting `project_type=mixed` only when the user wants both
+   paper and patent work, and update only explicitly supplied values.
+4. Validate against `../../../schemas/project.schema.json` and report which later
+   patent action will materialize each currently missing optional artifact.
 
 ## Constraints
 
-- This command does no novelty analysis. It only sets up scaffolding.
-- Respect `policy:workspace-safety`.
-- If `.evidraft/patent/` exists, summarise contents and ask before any write.
+- Respect `policy:workspace-safety`; it is the only condition that can block init.
+- This action performs no novelty or legal analysis.
+- Never overwrite an existing patent artifact.
 
 ## Done criteria
 
-- `.evidraft/project.yaml` reflects `project_type=patent` or `mixed`.
-- All template files materialised.
-- Chat output recommends `workflow:patent.scout` next.
+- `.evidraft/project.yaml` exists and validates.
+- Status is `complete`, `complete_with_gaps` for unknown optional metadata, or
+  `blocked` only when workspace safety prevents the required write.
+- Chat output recommends `workflow:patent.scout` or the later action matching the
+  user's existing material.

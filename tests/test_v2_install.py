@@ -46,13 +46,12 @@ def test_sync_upgrades_exact_v1_entries_and_preserves_user_skills(tmp_path: Path
     private = destination / ".evidraft-private"
     assert (private / "capabilities" / "index.yaml").is_file()
     explanation = private / "capabilities" / "research" / "paper-explanation"
-    assert (explanation / "task-graph.yaml").is_file()
-    assert (explanation / "paper-map.schema.json").is_file()
-    assert (explanation / "analysis-packet.schema.json").is_file()
+    assert (explanation / "spec.md").is_file()
     assert (private / "roles" / "roles.yaml").is_file()
     assert (private / "templates" / "paper-project" / "manuscript" / "main.tex").is_file()
     stage = destination / "scholar-paper" / "stages" / "init.md"
-    assert "../../.evidraft-private/templates/paper-project/" in stage.read_text()
+    assert "lazy initialization" in stage.read_text().lower()
+    assert "../../../templates/" not in stage.read_text()
 
 
 def test_sync_removes_only_paths_from_previous_ownership_manifest(tmp_path: Path) -> None:
@@ -95,14 +94,7 @@ def test_sync_rejects_incomplete_render_without_touching_destination(tmp_path: P
     "relative",
     [
         "skills/.evidraft-private/capabilities/research/paper-explanation/spec.md",
-        "skills/.evidraft-private/capabilities/research/paper-explanation/task-graph.yaml",
-        "skills/.evidraft-private/capabilities/research/paper-explanation/paper-map.schema.json",
-        "skills/.evidraft-private/capabilities/research/paper-explanation/analysis-packet.schema.json",
         "skills/scholar-research/stages/explain.md",
-        "skills/.evidraft-private/roles/modes/paper-indexer.md",
-        "skills/.evidraft-private/roles/modes/paper-analysis-worker.md",
-        "skills/.evidraft-private/roles/modes/paper-reasoning-worker.md",
-        "skills/.evidraft-private/roles/modes/explanation-evidence-auditor.md",
         "skills/.evidraft-private/roles/modes/paper-explainer.md",
     ],
 )

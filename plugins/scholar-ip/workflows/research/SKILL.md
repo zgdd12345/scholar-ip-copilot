@@ -1,6 +1,6 @@
 ---
 name: scholar-research
-description: Route lightweight guidance, reading lists, single-paper explanation, and deep literature research.
+description: Route reading lists, single-paper explanation, and deep literature research.
 ---
 
 # Research workflow router
@@ -10,7 +10,6 @@ Load only the selected action's procedure; never preload another stage.
 Apply the declared policies and role assignments before executing the procedure.
 Run deterministic workflow preflight before writes and finalize after the stage completes.
 
-- `guide`: load `stages/guide.md`.
 - `reading-list`: load `stages/reading-list.md`.
 - `explain`: load `stages/explain.md`.
 - `deep`: load `stages/deep.md`.

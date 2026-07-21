@@ -31,7 +31,9 @@ PRISMA flow (run <run_id>)
   citation_audit       : resolved=<int> failed=<int>
 ```
 
-If `citation_audit.failed > 0`, refuse to mark the run done and tell the user which claims failed and which stage to re-run.
+If the citation audit is missing or `citation_audit.failed > 0`, report
+`complete_with_gaps`, list unresolved claims, and name the recovery action. Preserve the
+supported draft and never present unresolved claims as verified.
 
 ## Citation-guard interaction
 

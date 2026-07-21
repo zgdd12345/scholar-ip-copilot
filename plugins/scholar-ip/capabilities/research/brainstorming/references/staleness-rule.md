@@ -9,4 +9,6 @@ scope:
   staleness_days: 14    # raise or lower as the project's pace demands
 ```
 
-Downstream creative commands consume this rule via `policy:scope`. A `draft` (never-approved) file is treated as missing, not stale.
+Downstream commands may use this rule to report advisory context. A `draft`
+(never-approved) file remains useful background but is not presented as current approved
+scope. Missing, draft, or stale scope never hard-blocks generation.

@@ -2,6 +2,11 @@
 
 Produce a single audit report covering everything that can break a paper before submission. The audit pipeline runs cheap → expensive: mechanical cite + LaTeX checks first, then structured rule-based audits (style / bib quality / cross-refs), then semantic consistency.
 
+The report is a single consolidated summary. Missing inputs become findings in the
+relevant section instead of aborting the audit. Dispatch independent audit work
+adaptively according to available inputs and manuscript risk; use no fixed worker
+count, waves, or retry count.
+
 ## Steps
 
 1. **Citation audit.** Drive via `../../../capabilities/evidence/bib-manager/spec.md`:
@@ -35,7 +40,8 @@ Produce a single audit report covering everything that can break a paper before 
    - Every figure/table is referenced at least once.
 7. **Claim-evidence audit.** Use the `evidence-auditor` subagent to walk the claim × evidence matrix and the `methodology-reviewer` subagent to flag any methodology-vs-result mismatches it surfaces:
    - For each section, walk the prose for numeric tokens and strong-claim verbs.
-   - Cross-check each match against the section's `*.plan.md` and `evidence.jsonl`.
+   - Cross-check each match against `evidence.jsonl`, source artifacts, and the
+     unified `.evidraft/manuscript/validation_gaps.md` when present.
    - Flag any claim without an evidence id.
 8. **Number-source audit.**
    - Every number in tables should come from `.evidraft/experiments/result_analysis.md` (or an evidence record).
@@ -104,7 +110,10 @@ Overall verdict: PASS | WARN | FAIL
 
 - Read-only: do not silently fix issues here. If a fix is obvious, recommend it, do not apply it.
 - All audit artefacts share the same `run_id` so they can be cross-referenced.
-- Each audit step is independent enough to run concurrently EXCEPT: Step 3 (style) and Step 5 (xref) require Step 2 (compile) to have written `compile-<ts>.errors.json`; Step 4 (bib quality) requires Step 1 (cite mechanics).
+- Preserve true data dependencies: style and xref consume compile findings when
+  available, and bib quality consumes citation mechanics. Missing predecessor
+  artifacts produce explicit `SKIPPED` or gap findings rather than suppressing the
+  rest of the report.
 
 ## Done criteria
 

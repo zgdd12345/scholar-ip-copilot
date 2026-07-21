@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_WORKFLOWS = {
     "using": [],
     "scope": [],
-    "research": ["guide", "reading-list", "explain", "deep"],
+    "research": ["reading-list", "explain", "deep"],
     "paper": [
         "init",
         "lit",
@@ -31,7 +31,7 @@ PUBLIC_WORKFLOWS = {
 }
 
 
-def test_release_versions_and_console_scripts_are_v2() -> None:
+def test_release_versions_and_console_scripts_are_v3() -> None:
     import evidraft
     import packages.adapters
 
@@ -40,11 +40,11 @@ def test_release_versions_and_console_scripts_are_v2() -> None:
         (ROOT / "plugins/scholar-ip/plugin.yaml").read_text(encoding="utf-8")
     )
 
-    assert pyproject["project"]["version"] == "2.0.0"
-    assert evidraft.__version__ == "2.0.0"
-    assert packages.adapters.__version__ == "2.0.0"
-    assert manifest["version"] == "2.0.0"
-    assert manifest["manifest_version"] == "2.0.0"
+    assert pyproject["project"]["version"] == "3.0.0"
+    assert evidraft.__version__ == "3.0.0"
+    assert packages.adapters.__version__ == "3.0.0"
+    assert manifest["version"] == "3.0.0"
+    assert manifest["manifest_version"] == "3.0.0"
     assert pyproject["project"]["scripts"] == {
         "evidraft": "evidraft.cli:main",
         "evidraft-claude-code": "packages.adapters.claude_code.generate:main",
@@ -53,7 +53,7 @@ def test_release_versions_and_console_scripts_are_v2() -> None:
     }
 
 
-def test_manifest_declares_only_the_v2_authoring_surface() -> None:
+def test_manifest_declares_only_the_v3_authoring_surface() -> None:
     manifest = yaml.safe_load(
         (ROOT / "plugins/scholar-ip/plugin.yaml").read_text(encoding="utf-8")
     )

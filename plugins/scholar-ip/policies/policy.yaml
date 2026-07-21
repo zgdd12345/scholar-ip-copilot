@@ -27,8 +27,10 @@ policies:
         - 'Bash:ls*'
         - 'Bash:cat*'
         - 'Bash:latexmk*'
+        - 'Bash:evidraft workflow preflight*'
         - 'Bash:evidraft workflow prepare-output*'
-        - 'Bash:evidraft paper-explanation validate-return*'
+        - 'Bash:evidraft workflow finalize*'
+        - 'Bash:evidraft evidence audit*'
       forbidden_tool_patterns:
         - 'Bash:rm -rf*'
         - 'Bash:sudo*'
@@ -37,20 +39,12 @@ policies:
         - .evidraft/reviews/**
         - .evidraft/reviews/.tmp/**
   scope:
-    description: Require a current scope artefact before high-impact creative operations.
-    operations:
-      block:
-        - paper.draft
-        - patent.claims
-        - polish.run
-      warn:
-        - paper.idea
-        - patent.scout
-        - research.deep
-      pass: all other operation IDs
+    description: Provide optional project intent and constraints without blocking generation.
+    enforcement: advisory
   evidence-integrity:
-    description: Require resolvable, verified, non-superseded evidence for publishable claims.
-    enforcement: block
+    description: Audit resolvable, verified, non-superseded evidence during final checks.
+    enforcement: audit
+    verdicts: [PASS, WARN, FAIL]
     requirements:
       - Resolve citation and evidence identifiers against the project stores.
       - Reject supersession cycles and unverified evidence.

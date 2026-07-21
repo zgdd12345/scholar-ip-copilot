@@ -1,4 +1,4 @@
-"""Contract tests for the compact EviDraft v2 workflow source."""
+"""Contract tests for the compact EviDraft 3.0 workflow source."""
 
 from __future__ import annotations
 
@@ -23,7 +23,6 @@ ROUTES = {
     "using": {"run": "using"},
     "scope": {"run": "brainstorming"},
     "research": {
-        "guide": "using-deep-research",
         "reading-list": "reading-list",
         "deep": "deepresearch",
     },
@@ -79,13 +78,9 @@ MODE_ASSIGNMENTS = {
     "literature-reviewer": ("researcher", "standard"),
     "screener": ("researcher", "fast"),
     "paper-critic": ("researcher", "standard"),
-    "paper-indexer": ("researcher", "standard"),
-    "paper-analysis-worker": ("researcher", "standard"),
-    "paper-reasoning-worker": ("researcher", "deep"),
     "paper-explainer": ("researcher", "deep"),
     "deep-research-orchestrator": ("researcher", "deep"),
     "evidence-auditor": ("evidence-reviewer", "standard"),
-    "explanation-evidence-auditor": ("evidence-reviewer", "standard"),
     "consistency-checker": ("evidence-reviewer", "fast"),
     "codebase-analyst": ("code-reviewer", "standard"),
     "methodology-reviewer": ("code-reviewer", "standard"),
@@ -100,28 +95,27 @@ CAPABILITY_REFERENCE = re.compile(
     r"\.\./\.\./\.\./capabilities/[A-Za-z0-9_./<>-]+"
 )
 STAGE_BODY_SHA256 = {
-    "paper.init": "2b400b9abedda208b23647e321b5136282d4433df71e4a81c4f65be8c7ab1243",
-    "paper.lit": "7fef84ba2f0968d33ace6067d5f69e058e6ebe045015b192a1224d1a8c2d4fa5",
-    "paper.idea": "0f608ba61cdb53233b61707705c410db1a53cf605b8d3229d0e1942c2b54a9a9",
-    "paper.code-audit": "68a250e3ee504a9c4db6470606c9585a9c112468662199f04a394c993f9f25c6",
-    "paper.experiment": "61885c2ada2712faf28a673875387eb11f1a03ddea04fffdf83e4e05904ee77e",
-    "paper.review": "e5819c21e3041b11085644470f67f9bf3b51823c001c68d503595522b72ac39d",
-    "paper.draft": "83e0880b836ddab2c60baa9d2d5f69c570b8f127a19b883c90234b11e6e7fac3",
-    "paper.check": "acc77036e2bb9cef2992b49486214188df7c08e96e3c22b666c7e4bac955d26d",
-    "paper.venue": "615e0ee2a577ce0deaa078bbdd5a26794270058f80e837df4c603e82b0a00ed2",
-    "patent.init": "d6cb285111d0ac80fbfd9ffa236dee06464bff8352a7dc5ca918885ab78fb286",
-    "patent.scout": "47be3b22325dfee1922facaf792f491efd82e408c5943138f01562ec7896f9e1",
-    "patent.prior-art": "af9d70096ffb3bbfd1005a8f0745340ba8b326e28e961289eeb3a01e5fdb4364",
-    "patent.disclosure": "261d5ba0207a8f2834a022b12fce352d5ef66cb515c33b46faf97acf21e4a283",
-    "patent.claims": "527710bb5f0c281df1ac58e2a53cf355d0aa7d1d3bf174f1ae28dfde57aa2864",
-    "patent.review": "bfcfde2c99ee8b14defe2f592ffe41fb017dc493822a5b79fc8ff08dea7d8b08",
-    "polish.run": "90d1dd5d6ad05b1d06686c27e0520135125021030397aa40371f20e4e7b34d7f",
-    "research.guide": "ecd534e8ba1c3c33359455c11f2e4c6e1cf1f1e0a479fb53848d2b8fdd08b3ac",
-    "research.reading-list": "254d5d5b24efa5a721c186d488aeed28330c702e43e28beec63ff1a5f8399dd9",
-    "research.deep": "bc8c7c9e44b763d987214cce3c7448eae05a1531f4a7437604d65567346dce94",
-    "scope.run": "fe1ed4b47634223e8c9c6a34c85b7104e3c36afda6f91dfc640c81b82b0b8ced",
-    "using.run": "cc703f2bfccccc315caa6ee2093711375507648493b6cb7911f65fceb255c512",
-    "xreview.run": "2d95ea20c3a7d3a346aeabadd4f2b425890f4fd6c6271599b95b180c7fca144a",
+    "paper.check": "46cd9773cfa83fc1f5c36b30fafa2085c06d9212298b5a523ca2f9d373cd7506",
+    "paper.code-audit": "b45ea469a8fe306fd9c142caa3a000f9d65e8584148cecd6b54d62ee3621d6fa",
+    "paper.draft": "cd407ee349e8b67d2a9cdf08b41a15427f7bdc369cd76b19627ab0e0763519dc",
+    "paper.experiment": "a34fd89adc79d798f527cea24663905e1c38261292ae20c51478c9f41960592f",
+    "paper.idea": "c5dbd7015aa4a72ed168eb456f6a6e0f10fc0f4c7b0fe00b87eddff63d42e6da",
+    "paper.init": "2e25481347ebf841c77aa590910ac12f9fa11d9ae1b25bfc9a8d1e1402fd09b9",
+    "paper.lit": "b6e78f94df0eb1d422f1c276d8f42b2b5c3f5121b53f47300ef5b62fe9beb5e7",
+    "paper.review": "7fb50d38a38862cc1c56ab162e47d6927be0cb96e24df2c8744822af550b5254",
+    "paper.venue": "67f410ade88073492b28c4e0145e5dc15978a5b0fd769cfcc88558050e6daa60",
+    "patent.claims": "56311fc9c848e3fbc9f7524f059b65a8b1f28533a3989ee821694c964ce31ab6",
+    "patent.disclosure": "8f13829a0e7cf45cc42c5c8934b256972a44eeb1db63d97ead7175af5e99985d",
+    "patent.init": "a36f876527aeb7b7348de1e6ab2d113d133a7de2537b1a81ea6f7e96c9f2a02e",
+    "patent.prior-art": "4c5def3f4ce4ed64dc67f65a91f150fa7272d828f1eb27b255965bd75f2b2e32",
+    "patent.review": "86428aef4a7ad94523b42631a90e8c442f1942db24dfbaeee60c90a7c98b0232",
+    "patent.scout": "385070d63aba92e3636392abd0a94f3a1b66071ac7bbc4b940a56a415172d996",
+    "polish.run": "fe9e6a06391b793bde540d35510f5d75d941d9c51c2d7d409028e59391a250de",
+    "research.deep": "30a3d260186be584f29b0b1bbbc3e56759d810ad353bfc7cdd7a4deea155e7f7",
+    "research.reading-list": "66b96ac2d701b250d842f393a0e88e00148d3e3293c8873290a1089ca6b80ec7",
+    "scope.run": "b7907f1f69956af46c23a1b6cfb3c34d2c33107cdc5768331ad32c2bf0e9eb7c",
+    "using.run": "b4964c41087ab1333d79b1be774378d21f60450467369f8d55cd2471e71b0604",
+    "xreview.run": "81d1bc406c556453a7b7c994cd4bab038b3302deb3436604ab30e7c2d59536e8",
 }
 LEGACY_SENSITIVE_PATTERNS = [
     ".env",
@@ -205,7 +199,7 @@ def test_seven_workflows_validate_and_cover_each_legacy_command_once() -> None:
             seen.append(legacy_id)
 
     expected_legacy = {legacy_id for actions in ROUTES.values() for legacy_id in actions.values()}
-    assert len(seen) == len(set(seen)) == 22
+    assert len(seen) == len(set(seen)) == 21
     assert set(seen) == expected_legacy
 
 
@@ -234,7 +228,7 @@ def test_inline_local_spec_paths_resolve_from_the_stage_directory() -> None:
                 f"{stage.relative_to(REPO_ROOT)} has unresolved inline spec path "
                 f"{relative}"
             )
-    assert len(paths) == 56
+    assert len(paths) == 53
 
 
 def test_router_skills_are_short_and_load_only_the_selected_stage() -> None:
@@ -279,15 +273,15 @@ def test_roles_and_policies_are_closed_v2_vocabularies() -> None:
     policy_doc = _load_yaml(PLUGIN_ROOT / "policies" / "policy.yaml")
     assert set(policy_doc) == {"policies"}
     assert set(policy_doc["policies"]) == POLICY_IDS
-    assert policy_doc["policies"]["scope"]["operations"]["block"] == [
-        "paper.draft",
-        "patent.claims",
-        "polish.run",
-    ]
-    assert policy_doc["policies"]["scope"]["operations"]["warn"] == [
-        "paper.idea",
-        "patent.scout",
-        "research.deep",
+    assert policy_doc["policies"]["scope"] == {
+        "description": "Provide optional project intent and constraints without blocking generation.",
+        "enforcement": "advisory",
+    }
+    assert policy_doc["policies"]["evidence-integrity"]["enforcement"] == "audit"
+    assert policy_doc["policies"]["evidence-integrity"]["verdicts"] == [
+        "PASS",
+        "WARN",
+        "FAIL",
     ]
 
 
@@ -361,7 +355,7 @@ def test_workspace_safety_denies_the_complete_legacy_sensitive_set(path: str) ->
 def test_actions_reference_only_declared_roles_policies_and_tiers() -> None:
     roles = _load_yaml(PLUGIN_ROOT / "roles" / "roles.yaml")["roles"]
     declared_modes = [mode for role in roles.values() for mode in role["modes"]]
-    assert len(declared_modes) == len(set(declared_modes)) == 20
+    assert len(declared_modes) == len(set(declared_modes)) == 16
     assert set(declared_modes) == set(MODE_ASSIGNMENTS)
 
     for workflow_id in ROUTES:
@@ -383,55 +377,44 @@ def test_research_explain_declares_the_native_paper_note_contract() -> None:
     assert [item["name"] for item in action["inputs"]] == ["source", "mode", "out"]
     assert action["inputs"][1]["values"] == ["beginner", "graduate", "reviewer"]
     assert action["outputs"] == [
-        {"path": ".evidraft/notes/paper-explanations/<paper-slug>.md"}
+        {
+            "path": ".evidraft/notes/paper-explanations/<paper-slug>.md",
+            "required": False,
+        }
     ]
     assert action["policies"] == []
     assert action["roles"] == [
-        {"id": "researcher", "mode": "paper-indexer", "tier": "standard"},
-        {"id": "researcher", "mode": "paper-analysis-worker", "tier": "standard"},
-        {"id": "researcher", "mode": "paper-reasoning-worker", "tier": "deep"},
-        {
-            "id": "evidence-reviewer",
-            "mode": "explanation-evidence-auditor",
-            "tier": "standard",
-        },
         {"id": "researcher", "mode": "paper-explainer", "tier": "deep"},
+        {"id": "researcher", "mode": "literature-reviewer", "tier": "standard"},
     ]
     assert action["retention"] == {}
 
 
-def test_research_explain_maps_public_mode_to_closed_worker_input_name() -> None:
+def test_research_explain_removes_fixed_worker_packet_interfaces() -> None:
     stage = (WORKFLOW_ROOT / "research/stages/explain.md").read_text(encoding="utf-8")
     spec = (
         PLUGIN_ROOT / "capabilities/research/paper-explanation/spec.md"
     ).read_text(encoding="utf-8")
     for document in (stage, spec):
-        normalized = " ".join(document.split())
-        assert "map public `mode` to internal `explanation_mode`" in normalized
-        assert (
-            "task_id`, `attempt`, `explanation_mode`, `source_identity`, "
-            "`full_text_ref`, and"
-        ) in normalized
-        assert (
-            "`task_id`, `attempt`, graph-declared `task_scope`, "
-            "`explanation_mode`, immutable"
-        ) in normalized
-        assert "Require task_id I0 and mode paper-indexer" not in document
+        for removed in (
+            "task-graph.yaml",
+            "paper-map.schema.json",
+            "analysis-packet.schema.json",
+            "task_id",
+            "dependency_packets",
+            "paper-indexer",
+            "paper-analysis-worker",
+            "paper-reasoning-worker",
+            "explanation-evidence-auditor",
+        ):
+            assert removed not in document
 
 
-def test_research_explain_validates_every_worker_return_without_temp_files() -> None:
+def test_research_explain_has_no_validate_return_runtime_command() -> None:
     stage = (WORKFLOW_ROOT / "research/stages/explain.md").read_text(encoding="utf-8")
-    normalized = " ".join(stage.split())
-    command = (
-        "evidraft paper-explanation validate-return --bundle <paper-explanation-bundle> "
-        "--task-id <task-id> --attempt <attempt>"
-    )
-
-    assert command in normalized
-    assert "send the exact returned JSON on stdin" in normalized
-    assert "after every i0, analysis, reasoning, or audit return" in normalized.lower()
-    assert "schema-invalid return consumes that attempt" in normalized
-    assert "temporary" in normalized and "file" in normalized
+    assert "paper-explanation validate-return" not in stage
+    assert "task graph" not in stage.lower()
+    assert "packet" not in stage.lower()
 
 
 def test_research_explain_preflights_local_pdf_before_any_read() -> None:
@@ -440,23 +423,19 @@ def test_research_explain_preflights_local_pdf_before_any_read() -> None:
     command = "evidraft workflow preflight research.explain --read-target <source>"
 
     assert command in normalized
-    assert "before reading the local PDF or resolving metadata from it" in normalized
-    assert "Do not pass a DOI, arXiv identifier or URL, or paper URL" in normalized
-    assert stage.index(command) < stage.index("Obtain readable full text")
+    assert "For a local PDF" in stage
+    assert "before reading" in normalized
+    assert stage.index(command) < stage.index("Try to obtain readable full text")
 
 
-def test_research_explain_rechecks_collision_immediately_before_synthesis() -> None:
+def test_research_explain_rechecks_collision_immediately_before_final_write() -> None:
     stage = (WORKFLOW_ROOT / "research/stages/explain.md").read_text(encoding="utf-8")
     normalized = " ".join(stage.split())
 
-    assert "Immediately before dispatching `S0`, re-check the resolved target" in normalized
-    assert "repeat the `reuse`, `augment`, or `overwrite` decision" in normalized
-    assert (
-        "run `evidraft workflow prepare-output research.explain --target "
-        "<resolved-output>` again"
-    ) in normalized
-    assert "narrow race remains between this final check and the single write" in normalized
-    assert stage.index("Immediately before dispatching `S0`") < stage.index("Pass to `S0`")
+    assert "Never overwrite a non-empty note silently" in normalized
+    assert "collision-safe dated sibling" in normalized
+    assert "Immediately before the single final write, re-check the path" in normalized
+    assert "performs the single final write" in normalized
 
 
 def test_research_explain_stage_enforces_the_complete_executable_contract() -> None:
@@ -466,46 +445,22 @@ def test_research_explain_stage_enforces_the_complete_executable_contract() -> N
     normalized_stage = " ".join(stage.split())
     assert "# workflow:research.explain" in stage
     for heading in (
-        "## Phase 1: Resolve source and output",
-        "## Phase 2: Load and validate the task graph",
-        "## Phase 3: Dispatch adaptive dependency waves",
-        "## Phase 4: Calculate terminal status and synthesize",
-        "## Phase 5: Validate and report",
+        "## 1. Resolve the source and destination",
+        "## 2. Explain adaptively",
+        "## 3. Expand related research conditionally",
+        "## 4. Write and report status",
         "## Constraints",
         "## Done criteria",
     ):
         assert heading in stage
-    for heading in (
-        "## 1. Paper identity and one-sentence takeaway",
-        "## 2. Research problem and background",
-        "## 3. Core contributions",
-        "## 4. Method walkthrough",
-        "## 5. Key equations and symbol-by-symbol explanations",
-        "## 6. Experimental setup and results",
-        "## 7. Limitations, failure modes, and conclusion boundaries",
-        "## 8. Reproduction notes",
-        "## 9. Similar methods",
-        "## 10. Subsequent improvements and latest related methods",
-        "## 11. Learning-check questions",
-        "## 12. Sources and verification record",
-    ):
-        assert heading in stage
-    for collision_choice in ("`reuse`", "`augment`", "`overwrite`"):
-        assert collision_choice in stage
-    assert "Only `paper-explainer` may write the final note" in normalized_stage
-    assert "neither worker may race" in normalized_stage
-    assert "Mandatory external research cannot be disabled" in normalized_stage
-    assert "three to five verified similar" in normalized_stage
-    assert "three to five verified subsequent" in normalized_stage
+    for collision_choice in ("`reuse`", "collision-safe dated sibling", "replacement"):
+        assert collision_choice in normalized_stage
     for label in (
-        "[Paper section 3.2]",
-        "[Equation 4]",
-        "[Figure 2]",
-        "[Table 1]",
-        "[External: citation]",
-        "[External: official-code]",
+        "[Paper section ...]",
+        "[Equation ...]",
+        "[Figure ...]",
+        "[Table ...]",
         "[Interpretation]",
-        "[abstract-only]",
     ):
         assert label in normalized_stage
     prepare = (
@@ -518,98 +473,59 @@ def test_research_explain_stage_enforces_the_complete_executable_contract() -> N
         "workspace-safety"
     ]["tool_access"]["default_allowed_tools"]
     assert any(fnmatchcase(f"Bash:{prepare}", pattern) for pattern in allowed_tools)
-    validate_return = (
-        "evidraft paper-explanation validate-return "
-        "--bundle <paper-explanation-bundle> --task-id <task-id> --attempt <attempt>"
-    )
-    assert validate_return in normalized_stage
-    assert any(
-        fnmatchcase(f"Bash:{validate_return}", pattern) for pattern in allowed_tools
-    )
-    assert stage.index(prepare) < stage.index("writes exactly one Markdown note")
-    assert "source full text or mandatory external retrieval failed" in normalized_stage
-    assert "report the action as incomplete" in normalized_stage
+    assert "paper-explanation validate-return" not in normalized_stage
+    assert "complete_with_gaps" in normalized_stage
+    assert "blocked" in normalized_stage
 
 
-def test_research_explain_stage_declares_adaptive_graph_scheduler() -> None:
+def test_research_explain_stage_declares_adaptive_delegation() -> None:
     stage = (WORKFLOW_ROOT / "research/stages/explain.md").read_text(
         encoding="utf-8"
     )
     normalized = " ".join(stage.split())
     for token in (
-        "task-graph.yaml",
-        "paper-map.schema.json",
-        "analysis-packet.schema.json",
-        "max_parallel: 4",
-        "max_attempts: 2",
-        "lexical `task_id` order",
         "beginner",
-        "B1",
-        "B2",
-        "B3",
         "graduate",
-        "M1",
-        "E1",
-        "X1",
-        "L1",
-        "R1",
-        "R2",
         "reviewer",
-        "C1",
-        "A1",
-        "S0",
+        "may explain directly or delegate bounded independent checks",
+        "no fixed cardinality, dependency waves, or retry count",
+        "literature-reviewer",
     ):
-        assert token in stage
-    assert "two bounded work streams" not in normalized
-    assert "literature-reviewer" not in stage
+        assert token in normalized
+    assert "task-graph.yaml" not in normalized
 
 
-def test_research_explain_retry_and_status_contract_is_deterministic() -> None:
+def test_research_explain_status_contract_is_deterministic() -> None:
     normalized = " ".join(
         (WORKFLOW_ROOT / "research/stages/explain.md").read_text().split()
     )
     for token in (
-        "fresh subagent",
-        "except `attempt`",
         "complete",
-        "partial",
-        "incomplete",
-        "mandatory task",
-        "both attempt reasons",
-        "missing sections",
-        "recovery actions",
-        "I0",
-        "writes no note",
+        "complete_with_gaps",
+        "blocked",
+        "concrete recovery action",
+        "limited evidence-boundary note",
     ):
         assert token in normalized
-    assert (
-        "If I0 fails after attempt two, stop without dispatching any analysis task, "
-        "A1, or S0 and write no note."
-    ) in normalized
 
 
-def test_research_explain_a1_blocking_state_determines_terminal_status() -> None:
+def test_research_explain_external_research_is_conditional() -> None:
     documents = (
         WORKFLOW_ROOT / "research/stages/explain.md",
         PLUGIN_ROOT / "capabilities/research/paper-explanation/spec.md",
     )
     for document in documents:
         normalized = " ".join(document.read_text(encoding="utf-8").split())
-        assert (
-            "`complete` requires A1 `status: complete` and `blocking: false` in reviewer mode."
-        ) in normalized
-        assert (
-            "`partial` requires A1 `status: complete` and `blocking: false` in reviewer mode."
-        ) in normalized
-        assert "`blocking: true` on A1 always produces `incomplete`." in normalized
+        assert "reviewer mode or the user explicitly requests comparison" in normalized
+        assert "Ordinary beginner and graduate explanations do not require external research" in normalized
+        assert "External shortfalls" in normalized or "external-search shortfall" in normalized
 
 
-def test_research_explain_refuses_monolithic_fallback_and_keeps_one_writer() -> None:
+def test_research_explain_allows_direct_fallback_and_keeps_one_writer() -> None:
     normalized = " ".join(
         (WORKFLOW_ROOT / "research/stages/explain.md").read_text().split()
     )
-    assert "incomplete: delegation unavailable" in normalized
-    assert "must not run a monolithic fallback" in normalized
-    assert "Only `paper-explainer` receives the resolved output path" in normalized
-    assert "workers never receive `out`" in normalized
-    assert "workers never receive" in normalized and "collision state" in normalized
+    assert "may explain directly" in normalized
+    assert "failed optional check becomes a reported gap" in normalized
+    assert "Only `paper-explainer` owns the resolved destination" in normalized
+    assert "performs the single final write" in normalized

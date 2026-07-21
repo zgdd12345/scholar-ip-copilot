@@ -1,15 +1,16 @@
-# Stage 1 — Frame
+# Stage 1 - Frame
 
-**Preconditions.** `policy:scope` preflight accepts the current `.evidraft/scope/*.md`; `topic` is set by user input or by `project.yaml`.
+**Inputs.** Use an explicit `topic` first, then project metadata, then an advisory scope
+research question. Scope is advisory and its absence does not block framing. If no topic
+can be resolved from any source, return `blocked` without inventing one.
 
 **Procedure.**
 
-1. Read `.evidraft/project.yaml` (`field`, `target_venue`, `topic`) and the most recent `.evidraft/scope/*.md`.
-2. Derive a research brief: research question, sub-questions, inclusion keywords, exclusion keywords, year window, venue allow-list, language allow-list.
-3. Expand sub-queries up to `breadth` (default 6). One sub-query per perspective (method, dataset, theory, application, evaluation, critique). Modelled on **STORM**'s perspective-guided retrieval — see [upstream-credits.md](upstream-credits.md).
-4. Write `plan.yaml`.
-
-**Artefact schema — `plan.yaml`.**
+1. Read available project and scope context without requiring either file.
+2. Derive the research question, bounded sub-queries, inclusion and exclusion terms,
+   year window, venue allow-list, and language allow-list.
+3. Cap sub-query expansion at `breadth`; do not treat the cap as a target.
+4. Write `plan.yaml` with an input summary and any missing-context note.
 
 ```yaml
 run_id: <utc-timestamp>
@@ -21,7 +22,7 @@ sub_queries:
     perspective: method | dataset | theory | application | evaluation | critique
 filters:
   year_range: [<int>, <int>]
-  venues: [<string>, ...]   # allow-list; empty = any
+  venues: [<string>, ...]
   languages: [en]
 inclusion_keywords: [<string>, ...]
 exclusion_keywords: [<string>, ...]
@@ -29,8 +30,8 @@ breadth: <int>
 depth: <int>
 providers: [arxiv, semantic-scholar, openalex]
 mode: fast | full
+input_summary: <stable summary used for reuse>
+notes: [<advisory gap>, ...]
 ```
-
-**Failure mode.** No MCP needed at this stage. If `policy:scope` blocks, stop and ask the user to run `workflow:scope.run`. See [failure-modes.md](failure-modes.md) for the full degradation catalog.
 
 **Handoff.** Stage 2 reads `plan.yaml` only.

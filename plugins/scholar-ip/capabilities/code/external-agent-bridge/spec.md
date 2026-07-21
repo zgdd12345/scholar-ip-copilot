@@ -7,7 +7,7 @@ description: >
   Single source of truth for delegating an EviDraft review task to another
   coding agent (Codex CLI, Claude bare, OpenCode). Defines the per-agent
   CLI signatures, the sandboxing posture, the prompt-rendering recipe,
-  the security checklist, the retry/timeout protocol, and the cost
+  the security checklist, the adaptive follow-up/timeout protocol, and the cost
   telemetry capture.
 triggers:
   - "when workflow:xreview.run runs"
@@ -17,7 +17,7 @@ provides:
   - "CLI invocation matrix for codex / claude-bare / opencode"
   - "prompt-rendering recipe (semantic role + mode + target file + optional schema)"
   - "security checklist (stdin-only prompts, env-var auth, write-zone pin)"
-  - "retry / timeout protocol"
+  - "adaptive follow-up / timeout protocol"
   - "cost telemetry capture (tokens, cost_usd)"
 allowed_tools:
   - Read
@@ -169,18 +169,22 @@ always delivered via stdin (Codex) or `"$(cat …)"` (Claude / OpenCode).
       `workflow:xreview.run` again from inside the external agent's
       response.
 
-## Retry / timeout protocol
+## Adaptive follow-up / timeout protocol
+
+Choose follow-up invocations from the task complexity and the returned
+quality/error signal. There is no fixed retry count: stop after a useful review or
+after a terminal auth, safety, timeout, or cost-limit result.
 
 | Condition | Action |
 |---|---|
 | Exit code 0, valid JSON output | Parse and continue. |
 | Exit code 0, parse fails | Preserve raw output, prepend a parse-failure note, continue. |
-| Exit code != 0 within timeout | Retry **once** with the same prompt; if the second attempt also fails, write the stderr tail to `$OUT_FILE` and report the exit code. |
+| Exit code != 0 within timeout | Preserve the stderr tail and classify whether the error is recoverable. Invoke again only when another attempt is justified by the task and error signal; otherwise report the exit code. |
 | Timeout (600 s) | Kill subprocess; do not retry; surface "timed out after 600s". |
 | `policy:workspace-safety` violation | Block; delete any file the external agent wrote outside `.evidraft/reviews/`; do not retry. |
 
-Retries do not reuse cost: the second attempt's `tokens` / `cost_usd`
-add to the first's in the telemetry record.
+Follow-up invocations do not reuse cost: every attempt's `tokens` / `cost_usd`
+is added to the telemetry record.
 
 ## Cost telemetry capture
 

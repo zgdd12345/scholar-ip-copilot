@@ -1,8 +1,13 @@
 # paper-project template
 
 This directory is a **template**, not a working project. The `paper init` action
-materialises this tree (without overwriting existing files) into the user's
-project root.
+creates only four core files in the user's project root and never overwrites an
+existing file. Later workflow actions create all other artifacts from the
+additional reference assets stored in this template.
+
+The four core files are `.evidraft/project.yaml`,
+`.evidraft/evidence/evidence.jsonl`, `.evidraft/literature/references.bib`, and
+`manuscript/main.tex`.
 
 ## What lands on disk
 
@@ -11,30 +16,14 @@ project root.
   .evidraft/
     project.yaml                  paper-typed project descriptor
     evidence/evidence.jsonl       append-only evidence store
-    literature/
-      references.bib              canonical BibTeX
-      matrix.md                   paper x method x dataset x result x gap
-    ideas/
-      novelty_matrix.md
-      risk_matrix.md
-      experiment_to_validate.md
-    code/
-      repo_summary.md
-      method_to_code.md
-      paper_code_audit.md
-    experiments/
-      result_analysis.md
-      tables/                     LaTeX tables ready to \input
+    literature/references.bib     canonical BibTeX
   manuscript/
     main.tex                      arXiv-neutral \documentclass{article}
-    references.bib                symlink/copy of .evidraft/literature/references.bib
-    sections/
-      introduction.tex
-      related_work.tex
-      method.tex
-      experiments.tex
-      conclusion.tex
 ```
+
+`paper init` does not create `manuscript/sections/`, matrices, analyses, claims,
+or other later-stage placeholders. Their owning workflow action creates them only
+when requested.
 
 ## Drafting style: arXiv neutral
 

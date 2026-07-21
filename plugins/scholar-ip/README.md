@@ -1,6 +1,6 @@
 # `scholar-ip` source plugin (EviDraft)
 
-This directory is the host-neutral EviDraft 2.0 source. One renderer projects it to
+This directory is the host-neutral EviDraft 3.0 source. One renderer projects it to
 Claude Code, Codex, and OpenCode without changing workflow behavior or project outputs.
 
 ## Public workflows
@@ -11,7 +11,7 @@ Exactly seven workflows are public:
 |---|---|
 | `using` | direct entry |
 | `scope` | direct entry |
-| `research` | `guide`, `reading-list`, `explain`, `deep` |
+| `research` | `reading-list`, `explain`, `deep` |
 | `paper` | `init`, `lit`, `idea`, `code-audit`, `experiment`, `review`, `draft`, `check`, `venue` |
 | `patent` | `init`, `scout`, `prior-art`, `disclosure`, `claims`, `review` |
 | `polish` | direct entry |
@@ -50,4 +50,5 @@ discovery remains bounded to seven entries on every host.
 
 See [plugin-format.md](../../docs/plugin-format.md) for the authoring contract,
 [architecture.md](../../docs/architecture.md) for component boundaries, and
-[migration-v2.md](../../docs/migration-v2.md) for project-data migration.
+[migration-v2.md](../../docs/migration-v2.md) for project-data migration, and
+[migration-v3.md](../../docs/migration-v3.md) for the lighter workflow contract.

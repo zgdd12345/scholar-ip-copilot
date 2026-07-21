@@ -30,9 +30,13 @@ actions:
     outputs:
     - path: .evidraft/project.yaml
     - path: .evidraft/patent/invention_disclosure.md
+      required: false
     - path: .evidraft/patent/invention_candidates.md
+      required: false
     - path: .evidraft/patent/prior_art_map.md
+      required: false
     - path: .evidraft/patent/claim_chart.md
+      required: false
     policies:
     - workspace-safety
     roles: []
@@ -45,8 +49,8 @@ actions:
     outputs:
     - path: .evidraft/patent/invention_candidates.md
     - path: .evidraft/evidence/evidence.jsonl
+      required: false
     policies:
-    - scope
     - evidence-integrity
     - workspace-safety
     roles:
@@ -74,6 +78,7 @@ actions:
     outputs:
     - path: .evidraft/patent/prior_art_map.md
     - path: .evidraft/patent/claim_chart.md
+      required: false
     policies:
     - evidence-integrity
     roles:
@@ -131,10 +136,12 @@ actions:
     outputs:
     - path: .evidraft/patent/claims.md
     - path: .evidraft/patent/claims_parsed.json
+      required: false
     - path: .evidraft/patent/claim_chart.md
+      required: false
     - path: .evidraft/patent/claim_chart-<ts>.json
+      required: false
     policies:
-    - scope
     - evidence-integrity
     roles:
     - id: patent-reviewer

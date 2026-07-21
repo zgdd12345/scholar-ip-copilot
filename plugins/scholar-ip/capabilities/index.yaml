@@ -1,19 +1,19 @@
 format_version: 2
 capabilities:
-  brainstorming: {group: research, spec: research/brainstorming/spec.md, bundle_sha256: 4a076550c7500dff11a06005a8bb9233681eaaa32e751c76aadf543f1f34afcd}
-  deep-literature-review: {group: research, spec: research/deep-literature-review/spec.md, bundle_sha256: 881c2d39f446727d3992ecf34ccc9b827c27b3fe6439a45d16b5ec48982349a7}
+  brainstorming: {group: research, spec: research/brainstorming/spec.md, bundle_sha256: 5a3367299752122bc93648efcef5a6d9fb0caca2cf76e75eee8fba9eb8215bcd}
+  deep-literature-review: {group: research, spec: research/deep-literature-review/spec.md, bundle_sha256: 0f3640edc7f999d988b7f92952fe83cc9ee31ed43fbd8ef326ef6070d1876794}
   literature-review: {group: research, spec: research/literature-review/spec.md, bundle_sha256: 5b6d47a72ece1215cfae05311cd9576022cabf60738bb539c6aaf57d7c803968}
-  paper-explanation: {group: research, spec: research/paper-explanation/spec.md, bundle_sha256: 78384cc887fef8d5fded5c08c69c35aef5fc3e0df4651a7dd2d661c9cf76c2f8}
+  paper-explanation: {group: research, spec: research/paper-explanation/spec.md, bundle_sha256: a6454637ce6b4d46143c039c09e4b66f9484004ec39f09f49c32fda6a289953c}
   patent-search: {group: research, spec: research/patent-search/spec.md, bundle_sha256: 02816d4604c05fc95cf26fd2d2b64eba6a580dd089ffaa19d11be3f20e2ebaf8}
   scholar-search: {group: research, spec: research/scholar-search/spec.md, bundle_sha256: f087d3d19313ef1a3e6d1cc073d507e8c68199c1c5204e4b1394a65780106a32}
-  using-deep-research: {group: research, spec: research/using-deep-research/spec.md, bundle_sha256: 499e7d03aa2d1abf5bf2c59d960ce26d1603b4182c9222caa090e6829913c918}
-  using-scholar-ip-copilot: {group: research, spec: research/using-scholar-ip-copilot/spec.md, bundle_sha256: 23b5bf7b34a69790de089d859238cab6592233b007acf52a1b44fc9ca3761068}
+  using-deep-research: {group: research, spec: research/using-deep-research/spec.md, bundle_sha256: c004a9665d07372f6a2d640209b59f315bca3e4b16c49cac2eb8753a5aa4bf23}
+  using-scholar-ip-copilot: {group: research, spec: research/using-scholar-ip-copilot/spec.md, bundle_sha256: 252b6ca8f047a82b04233713f7ea25fd4165a20af8c0509b8a34bcfde6982d51}
   bib-audit: {group: evidence, spec: evidence/bib-audit/spec.md, bundle_sha256: ac165db7f25c4ab6873c4a14f8b9bbd3cbc88e22b5c5765392dff0c3c03334bd}
   bib-manager: {group: evidence, spec: evidence/bib-manager/spec.md, bundle_sha256: 2515913e860a70d4e3d27ffc62b304bda53bcf64af66ca4d66ecb3eabe8fddbd}
   evidence-check: {group: evidence, spec: evidence/evidence-check/spec.md, bundle_sha256: dc50a6ec7c1c82595155b82e8f42a3f21c3c73beecc51ea0a15a8e1f76e18b6f}
   code-intel: {group: code, spec: code/code-intel/spec.md, bundle_sha256: f9fd83bb6b822bbd7efd1880cd46b202d3108780e5a7e3e3291774d2729bda29}
   codebase-audit: {group: code, spec: code/codebase-audit/spec.md, bundle_sha256: 1247a4a670ffd1cd3096104a1834873fd1dc882b60a8c25bcc4cb4d21ef338ed}
-  external-agent-bridge: {group: code, spec: code/external-agent-bridge/spec.md, bundle_sha256: b690f202e196523a1a35426080258724bda1401cb68a72e1869c90a2135bc1b5}
+  external-agent-bridge: {group: code, spec: code/external-agent-bridge/spec.md, bundle_sha256: ba148fc9b028bdab23dcd8989b9b00ac2917e460492bc08d3c6fbdf4d07a9860}
   experiment-analysis: {group: experiments, spec: experiments/experiment-analysis/spec.md, bundle_sha256: 80dd68ec8aaf02bec3f8dc42b8f795d267797a061f45bf35b6a71deafe10cb3d}
   latex-build: {group: latex, spec: latex/latex-build/spec.md, bundle_sha256: a865c670efe23ba353fd20d5ee528054cefac511503a959d50f601cac0ae99b7}
   latex-style-audit: {group: latex, spec: latex/latex-style-audit/spec.md, bundle_sha256: 71592d7a12eb48258374797bf37186c90b80e20ad3f4a6ade86187edb8d2f1b7}

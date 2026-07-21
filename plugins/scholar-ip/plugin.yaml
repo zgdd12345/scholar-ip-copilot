@@ -1,7 +1,7 @@
 id: scholar
-manifest_version: "2.0.0"
+manifest_version: "3.0.0"
 name: EviDraft
-version: "2.0.0"
+version: "3.0.0"
 description: >
   Evidence-grounded academic and patent copilot for codebases, experiments,
   literature, LaTeX papers, and invention disclosures.
@@ -10,7 +10,7 @@ homepage: https://github.com/scholar-ip-copilot/scholar-ip-copilot
 authors:
   - name: scholar-ip-copilot contributors
 
-# V2 source-of-truth. Host-specific paths and syntax live in renderer profiles.
+# V3 source-of-truth. Host-specific paths and syntax live in renderer profiles.
 entrypoints:
   workflows: workflows/
   roles: roles/roles.yaml
@@ -40,7 +40,7 @@ workflows:
   - id: scope
     actions: []
   - id: research
-    actions: [guide, reading-list, explain, deep]
+    actions: [reading-list, explain, deep]
   - id: paper
     actions: [init, lit, idea, code-audit, experiment, review, draft, check, venue]
   - id: patent

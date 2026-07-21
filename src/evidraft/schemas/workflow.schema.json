@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://scholar-ip-copilot/schemas/workflow.schema.json",
-  "title": "EviDraft v2 workflow source",
+  "title": "EviDraft v3 workflow source",
   "type": "object",
   "required": ["id", "description", "actions"],
   "additionalProperties": false,
@@ -38,6 +38,7 @@
       "additionalProperties": false,
       "properties": {
         "path": {"type": "string", "minLength": 1},
+        "required": {"type": "boolean", "default": true},
         "description": {"type": "string"}
       }
     },

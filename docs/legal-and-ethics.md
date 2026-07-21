@@ -72,7 +72,7 @@ This project draws design ideas from many upstream plugins (see `reference-analy
 - the upstream license permits redistribution under MIT-compatible terms, and
 - the file is placed under a `THIRD_PARTY/` directory with the original license file alongside.
 
-At version 2.0.0, no third-party source is vendored.
+At version 3.0.0, no third-party source is vendored.
 
 ## 7. Authorship and IP
 

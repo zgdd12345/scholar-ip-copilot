@@ -72,7 +72,7 @@ This project draws design ideas from many upstream plugins (see `reference-analy
 - the upstream license permits redistribution under MIT-compatible terms, and
 - the file is placed under a `THIRD_PARTY/` directory with the original license file alongside.
 
-At version 2.0.0, no third-party source is vendored.
+At version 3.0.0, no third-party source is vendored.
 
 ## 7. Authorship and IP
 
@@ -85,4 +85,3 @@ At version 2.0.0, no third-party source is vendored.
 - EviDraft is jurisdiction-aware where possible (`patent.schema.json` includes a `jurisdiction` field) but does not localise legal substance.
 
 When in doubt, consult counsel.
-

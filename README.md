@@ -1,4 +1,4 @@
-# EviDraft 2.0
+# EviDraft 3.0
 
 EviDraft is an evidence-grounded academic and patent copilot for existing codebases,
 experiment results, literature, LaTeX manuscripts, and invention disclosures. It uses
@@ -11,7 +11,7 @@ requires author review.
 
 ## Public interface
 
-Version 2 exposes exactly seven workflows. `using`, `scope`, `polish`, and `xreview`
+Version 3 exposes exactly seven workflows. `using`, `scope`, `polish`, and `xreview`
 run directly; `research`, `paper`, and `patent` take an action as their first argument.
 
 | Workflow | Claude Code | Codex | OpenCode |
@@ -39,13 +39,14 @@ The complete action map is:
 |---|---|
 | `using` | direct |
 | `scope` | direct |
-| `research` | `guide`, `reading-list`, `explain`, `deep` |
+| `research` | `reading-list`, `explain`, `deep` |
 | `paper` | `init`, `lit`, `idea`, `code-audit`, `experiment`, `review`, `draft`, `check`, `venue` |
 | `patent` | `init`, `scout`, `prior-art`, `disclosure`, `claims`, `review` |
 | `polish` | direct |
 | `xreview` | direct |
 
-The v1 command files are not emitted by the v2 renderer.
+The v1 command files are not emitted by the v3 renderer. The redundant
+`research guide` action was removed; use `using` for orientation.
 
 ## Stable output contract
 
@@ -89,7 +90,8 @@ Important outputs include:
 v1 and is migrated transactionally before the first write. Evidence remains append-only;
 corrections use `supersedes`, and web snapshots are addressed by `sha256(raw_body)`.
 
-See [data model](docs/data-model.md) and [migration](docs/migration-v2.md).
+See [data model](docs/data-model.md), [project-data migration](docs/migration-v2.md),
+and [3.0 workflow migration](docs/migration-v3.md).
 
 ## Architecture
 
@@ -164,9 +166,9 @@ and macOS.
 ## Safety and legal boundaries
 
 The three shared policies are `workspace-safety`, `scope`, and `evidence-integrity`.
-Host hooks are additional enforcement, not the source of truth. Sensitive paths such as
-`.env`, private keys, and credentials remain blocked. Scope gates can block, warn, or
-pass based on the canonical operation ID.
+Sensitive paths such as `.env`, private keys, and credentials remain blocked. Scope is
+advisory, while evidence integrity is evaluated by final paper and patent audits rather
+than blocking ordinary draft generation.
 
 EviDraft never files a patent, gives a patentability or freedom-to-operate opinion,
 submits a paper, or guarantees novelty or publication. Patent claims and disclosures

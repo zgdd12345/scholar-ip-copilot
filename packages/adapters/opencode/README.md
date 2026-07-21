@@ -1,6 +1,6 @@
 # OpenCode host profile
 
-OpenCode is a stable v2 renderer target, not a lint-only stub:
+OpenCode is a stable v3 renderer target, not a lint-only stub:
 
 ```bash
 .venv/bin/evidraft-opencode \

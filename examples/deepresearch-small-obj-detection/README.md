@@ -2,6 +2,9 @@
 
 End-to-end fixture for the EviDraft v0.3 patent-depth + v0.2 host-native skills migration. This example was produced by a real dogfood run (May 2026) of `/scholar:brainstorming` followed by `/scholar:deepresearch` Stages 1–6 against a synthetic but representative research topic.
 
+This is a historical fixture. Its scope gate and six-stage full-run behavior describe
+the captured 2026 run, not the EviDraft 3.0 default workflow.
+
 > **Topic.** "Training-time auxiliary ROI branch for small-object detection; single-stage at inference."
 >
 > **Frame the project gives.** A researcher starting from a one-sentence contribution but with no codebase, no experiments, and a working hypothesis that "auxiliary branch dropped at inference" is novel for small-object detection on a Faster R-CNN baseline.

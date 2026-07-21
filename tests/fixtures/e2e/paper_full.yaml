@@ -41,6 +41,7 @@ outputs:
   draft:
     - manuscript/main.tex
     - manuscript/sections/
+    - .evidraft/manuscript/validation_gaps.md
   check:
     - .evidraft/manuscript/paper_check_report.md
   venue:

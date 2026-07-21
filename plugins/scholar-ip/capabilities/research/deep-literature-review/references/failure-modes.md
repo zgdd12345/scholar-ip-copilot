@@ -1,19 +1,19 @@
-# Failure modes (degradation catalog)
+# Failure modes and evidence boundaries
 
-Every stage has a defined degradation mode. The pipeline NEVER silently invents data on failure — it either falls back to a documented degraded path or stops the run.
+Never invent data to hide a failure. Preserve useful supported artefacts and record the
+boundary that downstream stages must respect.
 
-| Stage | Trigger | Degradation | Marker |
+| Stage | Trigger | Best-effort behavior | Status |
 |---|---|---|---|
-| Stage 1 | `policy:scope` preflight blocks | Stop; ask user to run `workflow:scope.run` | preflight message |
-| Stage 2 | `WebFetch` unavailable / all providers 429 / no network | Fall back to local `.evidraft/literature/references.bib` + PDFs under `references/` / `papers/`. Each fallback row uses `source: "local-bib"` or `source: "local-pdf"`. | `plan.yaml.notes` records the fallback |
-| Stage 3 | Borderline row's abstract fetch fails | Set `decision=exclude` with `reason="abstract unavailable"`. Do NOT invent abstracts. | `screening_log.csv` reason column |
-| Stage 3 | All borderline abstract fetches fail | Surface to chat summary; do not invent abstracts. | (chat output) |
-| Stage 4 | References / citations hops return no data | Skip lineage fields (leave `[]`); note `"lineage: degraded (retrieval unavailable)"` per cluster. Cluster membership still produced. | `clusters.yaml` per-cluster note |
-| Stage 5 | PDF unavailable, only abstract in hand | Mark each SWOT bullet `[abstract-only]`; reduce confidence; NEVER invent section numbers. | bullet tag |
-| Stage 6 | Free-text citation resolution fails | Fall back to manual lookup against `references.bib` + `evidence.jsonl`. If still unresolvable, flag `status: failed` in `citation_audit.json` and refuse to mark the run complete. | `citation_audit.json.claims[].status` |
-| Budget | Fan-out exceeds `breadth * 50` or other ceiling | Refuse the fan-out; log to `plan.yaml.budget_log[]`; surface to user. | `plan.yaml.budget_log` |
+| Frame | scope missing or stale | Continue from explicit topic or project metadata; note that scope is advisory | `complete_with_gaps` only if material context is missing |
+| Retrieve | network or all providers unavailable | Reuse readable local PDFs/BibTeX; otherwise write an empty verified set plus provider boundary | `complete_with_gaps` |
+| Screen | abstract unavailable | Exclude the candidate without guessed metadata and record the reason | `complete_with_gaps` when coverage is material |
+| Cluster | citation lineage unavailable | Leave lineage empty and mark retrieval degradation | `complete_with_gaps` |
+| Critique | fast mode | Skip Stage 5 and do not dispatch a critic | no gap |
+| Critique | full mode PDF unavailable | Record an abstract-only boundary without unseen locators | `complete_with_gaps` |
+| Synthesise | missing or failed citation audit | Preserve supported draft, list unresolved claims and recovery actions | `complete_with_gaps` |
+| Budget | requested fan-out exceeds the ceiling | Stop that fan-out, keep completed work, and log truncation | `complete_with_gaps` |
 
-**Universal rules:**
-- Never invent a paper, author, year, venue, DOI, or section number.
-- Never blend two providers' metadata into one row.
-- Every degraded artefact must carry its degradation marker so downstream stages can detect upstream weakness.
+Use `blocked` only when workspace safety prevents every useful write or Stage 1 cannot
+resolve a topic. Every degraded artefact carries its marker so later stages do not
+mistake bounded evidence for complete coverage.

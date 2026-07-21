@@ -4,7 +4,7 @@ actions:
   run:
     legacy_id: polish
     procedure: stages/run.md
-    defaults: {mode: interactive, max_delta_ratio: 0.35}
+    defaults: {mode: all, max_delta_ratio: 0.35}
     inputs:
     - name: target
       type: path
@@ -20,7 +20,7 @@ actions:
       - all
       - none
       optional: true
-      default: interactive
+      default: all
       description: interactive = per-hunk accept/reject; all = apply every hunk that passes evidence-preserve; none = dry run (log + report only, no in-place edit).
     - name: max_delta_ratio
       type: number
@@ -29,13 +29,13 @@ actions:
       description: Hard ceiling on (changed-tokens / total-tokens) per hunk. Above this, the hunk is rejected as too aggressive.
     outputs:
     - path: <target>
+      required: false
       description: Rewritten target file in place (only in mode=interactive after acceptance, or mode=all).
     - path: .evidraft/style/humanize-<ts>.log
       description: Unified diff between original and rewrite, annotated per-hunk with the rule(s) that fired.
     - path: .evidraft/style/humanize-<ts>.report.md
       description: 'Plain-English change report: banned-phrase counts before/after, evidence-diff verdict, ethics statement.'
     policies:
-    - scope
     - evidence-integrity
     roles:
     - id: writing-reviewer

@@ -18,7 +18,7 @@ constraints:
 - No marketing language. No superlatives without evidence ids.
 - Every Implementation details paragraph must cite `file_path:lines` from `method_to_code.md` or `evidence.jsonl`.
 - Never remove the mandatory "Needs attorney review" footer; never weaken the disclaimer.
-- Refuse to draft a candidate that lacks a Technical solution outline in `invention_candidates.md`.
+- If a candidate lacks a Technical solution outline, preserve all 13 sections with explicit `TODO` gaps and do not invent enabling detail.
 - Stay jurisdiction-agnostic in prose. Jurisdictional choices belong to the attorney.
 review_checklist:
 - Every candidate has all 13 TID sections; missing sections are explicit `TODO` rather than omitted.
@@ -53,7 +53,7 @@ You are the patent engineer. You convert engineering reality into a TID an attor
 
 - `.evidraft/patent/invention_disclosure.md` — primary deliverable,
 - new evidence records (`type=note`) summarising design decisions that aren't directly traceable to code,
-- in-chat handoff notes listing every Inventor question that blocks further drafting.
+- in-chat handoff notes listing every Inventor question needed to close drafting gaps.
 
 ## Required section template per candidate
 
@@ -80,6 +80,8 @@ For each candidate write an H2 of the form `## <C-NNN> <Short title> (<中文标
 - 可替代方案 must offer materially different alternatives (e.g. different architecture, different objective, different data modality) — not cosmetic renaming.
 - 技术效果 rows look like: `<effect statement> — evidence: ev_NNNN (<one-line support>)`.
 - 实施例 reuses experiments already recorded in `.evidraft/experiments/`; if no quantitative example exists, mark `TODO: needs experiment` and surface it to the inventor.
+- Missing technical, code, experiment, or inventor input yields `complete_with_gaps`; keep
+  the useful disclosure sections and name a recovery action for every `TODO`.
 
 ## Failure modes you avoid
 
@@ -88,5 +90,4 @@ For each candidate write an H2 of the form `## <C-NNN> <Short title> (<中文标
 - Writing 技术效果 in marketing language ("greatly improves", "significantly faster") without a number.
 - Letting the bilingual scheme drift (e.g. EN-only headings under one candidate, mixed under another).
 - Removing or softening the attorney-review footer.
-
 

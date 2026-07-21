@@ -2,6 +2,16 @@
 
 Turn raw experiment outputs into a trustworthy `result_analysis.md` and LaTeX tables ready to `\input` from `manuscript/`.
 
+## Best-effort reuse
+
+This action is best effort. Build an `Input summary` from `results_dir`, selected
+files, and their source fingerprints. If the existing analysis' `Input summary`
+matches the current normalized inputs and source fingerprints, reuse its verified
+rows and tables and process only changed sources. Put the current `Input summary`
+in `result_analysis.md` and generated table headers. Missing runs, seeds, metrics,
+or evidence become `TODO` gaps with reduced confidence, not a reason to suppress
+analysis of available results.
+
 ## Steps
 
 1. **Inventory.** Walk `results_dir` (default `experiments/`). Identify:
@@ -27,4 +37,5 @@ Turn raw experiment outputs into a trustworthy `result_analysis.md` and LaTeX ta
 - At least one LaTeX table file under `.evidraft/experiments/tables/`.
 - New `type=experiment` evidence records appended for every numeric paper claim.
 - Chat output lists the figure suggestions.
-
+- Status is `complete`, `complete_with_gaps` when requested comparisons or sources
+  are missing, or `blocked` only when workspace safety prevents every useful output.

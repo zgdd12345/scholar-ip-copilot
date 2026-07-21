@@ -4,6 +4,13 @@
 
 The TID is **not** a filed application, **not** legal advice, and **not** itself a patent. Its job is to give the attorney everything they need to draft claims, decide filing strategy, and assess scope.
 
+This action is best effort. Draft every section supported by available code, notes,
+experiments, candidates, and inventor answers. Missing evidence, code mapping,
+examples, alternatives, or inventor-only facts become explicit `TODO` gaps in the
+relevant section and the inventor checklist; they do not block the disclosure.
+Delegate technical, evidence, and methodology review adaptively according to the
+actual gaps, with no fixed worker count, waves, or retry count.
+
 The TID is written so that:
 - a domain engineer can read it and understand the invention completely,
 - an attorney can read it and have no follow-up questions about the technical content,
@@ -64,4 +71,5 @@ Always append (and never remove):
 - One H2 section per intended candidate.
 - Required footer present.
 - Chat output recommends `workflow:patent.claims` next.
-
+- Status is `complete`, `complete_with_gaps` when any technical or inventor input is
+  missing, or `blocked` only when workspace safety prevents every useful output.

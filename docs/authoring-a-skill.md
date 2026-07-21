@@ -1,6 +1,6 @@
 # Authoring workflows and private capabilities
 
-EviDraft 2.0 does not register internal capabilities as public host skills. Extend an
+EviDraft 3.0 does not register internal capabilities as public host skills. Extend an
 existing workflow action unless the product genuinely needs a new top-level user intent.
 
 ## Add an action

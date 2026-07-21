@@ -1,16 +1,16 @@
-# Plugin format 2.0
+# Plugin format 3.0
 
 `plugins/scholar-ip/plugin.yaml` identifies the product and points to the shared workflow
-IR. Both `manifest_version` and product `version` are `2.0.0`; project data versioning is
+IR. Both `manifest_version` and product `version` are `3.0.0`; project data versioning is
 separate and lives in `.evidraft/project.yaml` as `format_version: 2`.
 
 ## Manifest
 
 ```yaml
 id: scholar
-manifest_version: "2.0.0"
+manifest_version: "3.0.0"
 name: EviDraft
-version: "2.0.0"
+version: "3.0.0"
 entrypoints:
   workflows: workflows/
   roles: roles/roles.yaml
@@ -41,8 +41,10 @@ actions:
         default: arxiv
     outputs:
       - path: manuscript/main.tex
+        required: true
       - path: manuscript/sections/
-    policies: [scope, evidence-integrity]
+        required: true
+    policies: [evidence-integrity]
     roles:
       - id: writing-reviewer
         mode: latex-editor
@@ -53,7 +55,8 @@ actions:
 Allowed action keys are `inputs`, `outputs`, `policies`, `roles`, `retention`, and
 `procedure`, plus migration metadata used by contract tests. Procedure paths are
 relative to their workflow directory and must resolve. A stage is private prompt text,
-not a host-discoverable entry.
+not a host-discoverable entry. Output `required` defaults to `true`; conditional or
+best-effort artefacts declare `required: false` explicitly.
 
 ## Roles
 

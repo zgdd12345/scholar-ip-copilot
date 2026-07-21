@@ -153,7 +153,7 @@ def test_recovery_remains_idempotent_when_recovery_process_also_exits(tmp_path: 
 
     render_plugin(PLUGIN, destination, Host.CLAUDE)
 
-    assert json.loads(sentinel.read_text(encoding="utf-8"))["version"] == "2.0.0"
+    assert json.loads(sentinel.read_text(encoding="utf-8"))["version"] == "3.0.0"
     assert not (tmp_path / ".claude.evidraft-transaction").exists()
 
 

@@ -2,6 +2,16 @@
 
 Build a literature foundation for the paper. Online retrieval uses the host-native `WebSearch` + `WebFetch` tools driven by the `scholar-search` skill (`../../../capabilities/research/scholar-search/spec.md`); **if the host has no network, operate only on what the user already provided** (PDFs in `references/`, BibTeX in `references.bib`, notes in `.evidraft/literature/`).
 
+## Best-effort reuse
+
+This action is best effort. Derive an `Input summary` from the resolved topic,
+seeds, retrieval mode, and source fingerprints. If the existing primary outputs'
+`Input summary` matches the current normalized inputs and source fingerprints,
+reuse the matching material and refresh only stale or newly requested portions.
+Write the current `Input summary` into `lit_run.yaml` and `matrix.md`. Missing
+network access, seeds, scope, project metadata, or prior artifacts becomes a
+clearly labelled gap; it does not block useful work.
+
 ## Steps
 
 0. **Resolve the topic and pin a `run_id`.** Topic precedence (first hit wins; record which one in `lit_run.yaml`):
@@ -87,3 +97,6 @@ Build a literature foundation for the paper. Online retrieval uses the host-nati
       For prose (related-work section), run workflow:paper.review.
 
 - Chat output recommends `workflow:paper.idea` or `workflow:paper.review` next.
+- Status is `complete` when requested coverage is supported,
+  `complete_with_gaps` when missing or unverifiable material is recorded, or
+  `blocked` only when workspace safety prevents every useful output.

@@ -7,7 +7,7 @@ All schemas use JSON Schema Draft 2020-12:
 
 | Schema | Governs |
 |---|---|
-| `plugin.schema.json` | EviDraft 2.0 product manifest |
+| `plugin.schema.json` | EviDraft 3.0 product manifest |
 | `workflow.schema.json` | Seven workflow action contracts |
 | `project.schema.json` | `.evidraft/project.yaml` with `format_version: 2` |
 | `evidence.schema.json` | Each append-only evidence JSONL record |

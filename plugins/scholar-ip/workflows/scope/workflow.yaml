@@ -1,10 +1,10 @@
 id: scope
-description: Clarify and persist the project scope before gated drafting work.
+description: Clarify and persist advisory project intent and constraints.
 actions:
   run:
     legacy_id: brainstorming
     procedure: stages/run.md
-    defaults: {branch: auto, mode: full}
+    defaults: {branch: auto, mode: fast}
     inputs:
     - name: branch
       type: enum
@@ -22,12 +22,13 @@ actions:
       - full
       - fast
       optional: true
-      default: full
+      default: fast
     - name: seed_idea
       type: string
       optional: true
     outputs:
     - path: .evidraft/scope/YYYY-MM-DD-<slug>.md
+      required: false
     policies: []
     roles:
     - id: researcher

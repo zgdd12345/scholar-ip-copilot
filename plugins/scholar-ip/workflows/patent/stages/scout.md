@@ -2,6 +2,12 @@
 
 Read the code and docs to surface **candidate** inventions. Output is a structured list; nothing in this command makes a legal judgement.
 
+This action is best effort. Scan whatever code and documentation is safely
+available, and record missing repository context, line ranges, inventor input, or
+retrieval access as explicit gaps. Missing inputs reduce confidence but do not
+block a useful candidate inventory. Delegate analysis adaptively based on repository
+size and candidate risk, with no fixed worker count, waves, or retry count.
+
 ## Steps
 
 1. **Repo scan.** Drive via `../../../capabilities/code/code-intel/spec.md`. Use the `codebase-analyst` subagent to walk top-level modules and `README*`, `DESIGN*`, `RFC*`, `MODEL_CARD*`. Identify non-obvious technical mechanisms: novel algorithms, optimisations, data structures, system architectures, training schemes, pipelines, hardware/software co-designs. (Optionally cross-check each candidate against public patent databases via `../../../capabilities/research/patent-search/spec.md` before recording the novelty hypothesis.)
@@ -33,4 +39,6 @@ Read the code and docs to surface **candidate** inventions. Output is a structur
 - `invention_candidates.md` has ≥ 1 candidate.
 - Each candidate has code evidence and an inventor-input checklist.
 - Chat output recommends `workflow:patent.prior-art` next.
-
+- Status is `complete`, `complete_with_gaps` when candidate support or inventor
+  input is missing, or `blocked` only when workspace safety prevents every useful
+  output.

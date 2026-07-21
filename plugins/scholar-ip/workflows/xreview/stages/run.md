@@ -1,11 +1,16 @@
 # workflow:xreview.run
 
-Delegate a *single* review pass on `target` to an external coding agent
+Delegate a bounded review pass on `target` to an external coding agent
 (`codex`, `claude-bare`, or `opencode`). The plugin resolves the chosen
 EviDraft review mode (e.g. `novelty-critic`) to one of the six semantic
 roles in `../../../roles/roles.yaml` and renders that role as the prompt,
 attaches the target file's contents, and writes the agent's structured
 output into `.evidraft/reviews/<agent>-<persona>-<ts>.md`.
+
+The action is projectless: it runs from any safe working directory and
+`.evidraft/project.yaml` is optional. It never requires an EviDraft scope or other
+project metadata. The `.evidraft/reviews/` directory is a local review-artifact
+namespace, not evidence that the target is an initialized project.
 
 This command does **not** invent a new reviewer voice — it uses only
 role and mode pairs declared in the shared role table. The external agent is
@@ -13,7 +18,7 @@ treated as a sandboxed second opinion, never as a privileged actor.
 
 **Spec home.** `../../../capabilities/code/external-agent-bridge/spec.md` owns the CLI
 invocation matrix, the prompt-rendering recipe, the security checklist,
-the retry/timeout protocol, and the cost-telemetry capture. This file
+timeout handling, and the cost-telemetry capture. This file
 is the **executable contract** — orchestration, artefact layout, chat
 output — that consumes that spec.
 
@@ -29,11 +34,9 @@ output — that consumes that spec.
 
 ## Preconditions
 
-1. `.evidraft/project.yaml` exists (otherwise route the user to `workflow:paper.init` or `workflow:patent.init`).
-2. `policy:scope` preflight is satisfied (an approved scope file is present when required).
-3. `target` exists, is a regular file, and is **not** under `.env*`, `secrets/`, `**/*.pem`, `**/*.key`, or any path matched by `policy:workspace-safety`.
-4. `persona` occurs exactly once under a semantic role in `../../../roles/roles.yaml`.
-5. The required env var for `agent` is set (see "Auth" below). The user supplies their own keys; **no key ever appears in argv**.
+1. `target` exists, is a regular file, and is **not** under `.env*`, `secrets/`, `**/*.pem`, `**/*.key`, or any path matched by `policy:workspace-safety`.
+2. `persona` occurs exactly once under a semantic role in `../../../roles/roles.yaml`.
+3. The required env var for `agent` is set (see "Auth" below). The user supplies their own keys; **no key ever appears in argv**.
 
 ## Auth
 
@@ -64,8 +67,11 @@ and instruct the user to set it in their shell.
    `$PROMPT_FILE`, and `$TARGET_FILE=target`. For `opencode`, follow
    the worktree-copy mitigation in the skill (OpenCode has no native
    read-only sandbox) before invocation.
+   - Choose any follow-up invocation adaptively from target complexity and the
+     returned quality/error signal. Use no fixed cardinality, waves, or retry count;
+     stop after a useful review or a terminal auth, safety, timeout, or cost limit.
 
-4. **Enforce the write zone.** Run `policy:workspace-safety` preflight before
+4. **Enforce the fixed write zone.** Run `policy:workspace-safety` preflight before
    the `Bash:codex*` / `Bash:claude*` / `Bash:opencode*` tool call.
    - The only writable target is `$OUT_FILE` under
      `.evidraft/reviews/`.
@@ -102,7 +108,7 @@ and instruct the user to set it in their shell.
 
 ## Security checklist
 
-Source of truth: `../../../capabilities/code/external-agent-bridge/spec.md` §Security checklist. The invocation MUST satisfy every item there (no key in argv; stdin-only prompts; policy:workspace-safety on target; write zone locked to `.evidraft/reviews/`; per-agent read-only flags; 600 s hard timeout with SIGTERM→SIGKILL escalation; no nested invocation).
+Source of truth: `../../../capabilities/code/external-agent-bridge/spec.md` §Security checklist. The invocation MUST satisfy every item there (no key in argv; stdin-only prompts; policy:workspace-safety on target; fixed write zone locked to `.evidraft/reviews/`; per-agent read-only flags; 600 s hard timeout with SIGTERM→SIGKILL escalation; no nested invocation).
 
 ## Chat output (what the user sees at the end)
 
@@ -130,10 +136,10 @@ If the parse failed, replace the "Top 3" block with:
 - Missing env var → abort with a one-line message; do not invoke.
 - `target` blocked by `policy:workspace-safety` → abort; surface the policy
   message.
-- External agent non-zero exit, parse failure, or timeout → handle per
-  `../../../capabilities/code/external-agent-bridge/spec.md` §Retry / timeout protocol.
-  Record `tokens`/`cost_usd` as available; surface exit code / timeout
-  reason in the chat output.
+- External agent non-zero exit, parse failure, or timeout → preserve any safe raw
+  response, record `tokens`/`cost_usd` as available, and surface the exit code or
+  timeout reason. Retry only when the failure is recoverable and another invocation
+  is justified; never use a predeclared retry count.
 - `policy:workspace-safety` violation → block; delete any file the external
   agent created outside `.evidraft/reviews/`; abort.
 
@@ -146,3 +152,5 @@ If the parse failed, replace the "Top 3" block with:
 - Chat output prints agent, persona, output path, token cost (if
   reported), and the top-3 findings extracted from the structured
   output.
+- Status is `complete`, `complete_with_gaps` for usable raw/partial output, or
+  `blocked` for auth, safety, timeout-without-output, or an unreadable target.

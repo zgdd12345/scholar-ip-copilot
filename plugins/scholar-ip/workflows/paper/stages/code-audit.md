@@ -2,6 +2,16 @@
 
 Verify that each claim about the method or implementation **actually exists in the code**.
 
+## Best-effort reuse
+
+This action is best effort. Build an `Input summary` from `claims_source`, the
+resolved claim list, and repository source fingerprints. If existing audit
+artifacts' `Input summary` matches the current normalized inputs and source
+fingerprints, reuse verified rows and inspect only changed claims or files. Put the
+current `Input summary` in all three artifacts. Missing claims, code, line ranges,
+or manuscript material becomes an explicit `MISSING` or `NOT_AUDITABLE` gap rather
+than blocking the audit.
+
 ## Steps
 
 1. **Repo summary (refresh).** Drive via `../../../capabilities/code/code-intel/spec.md`. Use the `codebase-analyst` subagent to produce the grounded summary. Update `.evidraft/code/repo_summary.md`:
@@ -36,4 +46,5 @@ Verify that each claim about the method or implementation **actually exists in t
 - All three artefacts updated.
 - Every paper claim has exactly one Verdict.
 - Chat output flags counts: `n CONFIRMED, n PARTIAL, n MISSING, n MISMATCH, n NOT_AUDITABLE`.
-
+- Status is `complete`, `complete_with_gaps` when any claim cannot be confirmed, or
+  `blocked` only when workspace safety prevents every useful output.

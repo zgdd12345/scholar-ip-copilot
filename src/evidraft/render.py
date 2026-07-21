@@ -16,7 +16,6 @@ import jsonschema
 import yaml
 
 from .legacy import V1_AGENTS, V1_COMMANDS, V1_HOOK_FILES, V1_SKILLS
-from .paper_explanation import validate_paper_explanation_bundle
 from .transaction import replace_owned_tree
 
 
@@ -24,20 +23,12 @@ _WORKFLOW_SCHEMA = Path(__file__).resolve().parent / "schemas" / "workflow.schem
 EXPECTED_ACTIONS = {
     "using": {"run"},
     "scope": {"run"},
-    "research": {"guide", "reading-list", "explain", "deep"},
+    "research": {"reading-list", "explain", "deep"},
     "paper": {"init", "lit", "idea", "code-audit", "experiment", "review", "draft", "check", "venue"},
     "patent": {"init", "scout", "prior-art", "disclosure", "claims", "review"},
     "polish": {"run"},
     "xreview": {"run"},
 }
-PAPER_EXPLANATION_WORKER_MODES = (
-    "paper-indexer",
-    "paper-analysis-worker",
-    "paper-reasoning-worker",
-    "explanation-evidence-auditor",
-)
-
-
 class Host(str, Enum):
     CLAUDE = "claude"
     CODEX = "codex"
@@ -67,8 +58,9 @@ HOST_PROFILES = {
         role_dispatch=(
             "Each selected action's role assignment declares availability only. Never dispatch "
             "merely because an assignment exists. The selected procedure controls dispatch timing "
-            "and cardinality for every other action; for research.explain, its validated task graph "
-            "exclusively controls dispatch. When the procedure dispatches a role, use its declared "
+            "and cardinality. For research.explain and every other action, there is no fixed "
+            "worker count, wave count, or retry count. When the procedure dispatches a role, use "
+            "its declared "
             "mode with this model mapping: fast -> haiku, standard -> sonnet, deep -> opus. "
             "The role file uses `inherit`; the action assignment is authoritative.\n"
         ),
@@ -84,8 +76,9 @@ HOST_PROFILES = {
         role_dispatch=(
             "Each selected action's role assignment declares availability only. Never dispatch "
             "merely because an assignment exists. The selected procedure controls dispatch timing "
-            "and cardinality for every other action; for research.explain, its validated task graph "
-            "exclusively controls dispatch. When the procedure dispatches a role, resolve its mode in "
+            "and cardinality. For research.explain and every other action, there is no fixed "
+            "worker count, wave count, or retry count. When the procedure dispatches a role, "
+            "resolve its mode in "
             "`../.evidraft-private/roles/roles.yaml` and load exactly one private mode spec at "
             "`../.evidraft-private/roles/modes/<mode>.md`. The mode spec is authoritative for "
             "tools, responsibilities, constraints, and output contracts. Map fast, standard, "
@@ -103,8 +96,9 @@ HOST_PROFILES = {
         role_dispatch=(
             "Each selected action's role assignment declares availability only. Never dispatch "
             "merely because an assignment exists. The selected procedure controls dispatch timing "
-            "and cardinality for every other action; for research.explain, its validated task graph "
-            "exclusively controls dispatch. When the procedure dispatches a role, use the declared "
+            "and cardinality. For research.explain and every other action, there is no fixed "
+            "worker count, wave count, or retry count. When the procedure dispatches a role, use "
+            "the declared "
             "role and mode. "
             "Map fast, standard, and deep to the closest available host effort levels.\n"
         ),
@@ -132,10 +126,16 @@ def load_workflows(plugin_root: Path) -> dict[str, Workflow]:
         workflow_id = str(raw["id"])
         if workflow_id in workflows:
             raise ValueError(f"duplicate workflow id: {workflow_id}")
+        actions = dict(raw["actions"])
+        for action in actions.values():
+            action["outputs"] = [
+                {**output, "required": output.get("required", True)}
+                for output in action["outputs"]
+            ]
         workflows[workflow_id] = Workflow(
             id=workflow_id,
             description=str(raw["description"]),
-            actions=dict(raw["actions"]),
+            actions=actions,
             root=workflow_path.parent,
         )
     return workflows
@@ -158,9 +158,8 @@ def _validate_plugin_source(plugin_root: Path) -> dict[str, Workflow]:
         for role in roles.values()
         for mode in role.get("modes", [])
     }
-    validate_paper_explanation_bundle(plugin_root, declared_modes)
-    if set(mode_specs) != declared_modes or len(declared_modes) != 20:
-        raise ValueError("v2 source must map exactly 20 role modes to private specs")
+    if set(mode_specs) != declared_modes or len(declared_modes) != 16:
+        raise ValueError("v3 source must map exactly 16 role modes to private specs")
     for mode, spec in mode_specs.items():
         metadata, _body = _split_frontmatter(spec.read_text(encoding="utf-8"))
         if metadata.get("id") != mode:
@@ -262,11 +261,14 @@ def _router_body(
     preamble = (
         f"Spec home: {spec_home}. Resolve the action there before loading a stage.\n"
         "Resolve every output placeholder from the action inputs. Before any write, run "
-        "`evidraft workflow preflight <workflow>.<action> --target <each concrete write path> "
-        "--evidence-id <each current evidence id>`; repeat each flag as needed and omit it "
-        "when the action has none. For `xreview.run`, additionally pass the reviewed input as "
+        "`evidraft workflow preflight <workflow>.<action> --target <each concrete write path>`; "
+        "repeat `--target` as needed. This preflight is safety-only and never reads the evidence "
+        "store. For `xreview.run`, additionally pass the reviewed input as "
         "`--read-target <target>` and its concrete `.evidraft/reviews/...` output as `--target`. "
-        "Never pass unresolved `<...>` placeholders. Then "
+        "Never pass unresolved `<...>` placeholders. When the selected procedure requests an "
+        "evidence check, run it separately after useful output exists with `evidraft evidence "
+        "audit --id <each current evidence id>`; repeat `--id` as needed, and report audit "
+        "findings as gaps rather than folding them into preflight. Then "
         "after completion inspect the selected action's `retention`. If it is non-empty, "
         "run `evidraft workflow finalize --directory <directory> --pattern <pattern> "
         "--keep-last <keep_last> --max-age-days <max_age_days>` using its declared values; "
@@ -320,44 +322,6 @@ def _role_body(
         extra["mode"] = "subagent"
         extra["permission"] = {"bash": {"rm -rf*": "deny", "sudo*": "deny"}}
     return _frontmatter(str(role["description"]), body, **extra)
-
-
-def _mode_agent_body(mode: str, spec: Path, profile: HostProfile) -> str:
-    metadata, _spec_body = _split_frontmatter(spec.read_text(encoding="utf-8"))
-    allowed_tools = list(metadata["allowed_tools"])
-    if any(
-        str(tool).casefold() in {"write", "edit", "task"}
-        or str(tool).casefold().startswith("bash")
-        for tool in allowed_tools
-    ):
-        raise ValueError(f"paper-explanation worker mode is not read-only: {mode}")
-    body = (
-        f"# {mode}\n\n"
-        f"Load exactly one private mode spec at `{profile.role_spec.replace('<mode>', mode)}` "
-        "and execute only the task-graph invocation assigned to this mode. The frontmatter "
-        "tool list is a hard host boundary in addition to the private mode contract. Never "
-        "write files or dispatch a nested subagent. Return only the structured value declared "
-        "by the mode spec.\n"
-    )
-    extra: dict[str, Any]
-    if profile.host is Host.CLAUDE:
-        extra = {"name": mode, "model": "inherit", "tools": allowed_tools}
-    elif profile.host is Host.OPENCODE:
-        enabled = {str(tool).lower() for tool in allowed_tools}
-        tool_names = enabled | {"write", "edit", "bash", "task"}
-        extra = {
-            "mode": "subagent",
-            "tools": {tool: tool in enabled for tool in sorted(tool_names)},
-            "permission": {
-                "edit": "deny",
-                "bash": "deny",
-                "task": "deny",
-                "external_directory": "deny",
-            },
-        }
-    else:  # pragma: no cover - Codex does not project agent files
-        raise ValueError("Codex has no mode-specific agent projection")
-    return _frontmatter(str(metadata["description"]), body, **extra)
 
 
 def _write_text(root: Path, relative: Path, text: str) -> None:
@@ -420,7 +384,7 @@ def _copy_workflow_bundle(
 def _codex_manifest() -> dict[str, Any]:
     return {
         "name": "scholar",
-        "version": "2.0.0",
+        "version": "3.0.0",
         "description": "Evidence-grounded academic and patent workflows.",
         "skills": "./skills/",
         "license": "MIT",
@@ -484,17 +448,10 @@ def _stage_render(plugin_root: Path, stage_root: Path, host: Host) -> list[Path]
                 Path("agents") / f"{role_id}.md",
                 _role_body(role_id, role, profile, workspace_safety, mode_specs),
             )
-        for mode in PAPER_EXPLANATION_WORKER_MODES:
-            _write_text(
-                stage_root,
-                Path("agents") / f"{mode}.md",
-                _mode_agent_body(mode, mode_specs[mode], profile),
-            )
-
     if host is Host.CLAUDE:
         plugin_json = {
             "name": "scholar",
-            "version": "2.0.0",
+            "version": "3.0.0",
             "description": "Evidence-grounded academic and patent workflows.",
             "author": {"name": "scholar-ip-copilot contributors"},
             "license": "MIT",

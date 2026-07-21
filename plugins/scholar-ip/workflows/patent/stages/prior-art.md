@@ -2,6 +2,13 @@
 
 Build a prior-art map for each candidate invention. **Online retrieval uses the host-native `WebSearch` + `WebFetch` tools driven by `../../../capabilities/research/patent-search/spec.md` (Google Patents / USPTO PatentsView / EPO OPS); if the host has no network, operate on user-supplied PDFs / patent numbers / BibTeX.**
 
+This action is best effort. Use every verifiable candidate and prior-art source that
+is available, and record missing candidates, full text, network access, or source
+metadata in each candidate's `Notes / gaps`. Missing inputs never justify invented
+prior art and do not block a partial map. Delegate retrieval and critique
+adaptively according to source diversity and risk, with no fixed worker count,
+waves, or retry count.
+
 ## Steps
 
 1. **Collect.** Gather inputs:
@@ -35,4 +42,5 @@ Build a prior-art map for each candidate invention. **Online retrieval uses the 
 - `prior_art_map.md` has one section per candidate from `invention_candidates.md`.
 - `claim_chart.md` has at least one row per candidate.
 - Chat output recommends `workflow:patent.disclosure` next.
-
+- Status is `complete`, `complete_with_gaps` when coverage or verification remains
+  incomplete, or `blocked` only when workspace safety prevents every useful output.

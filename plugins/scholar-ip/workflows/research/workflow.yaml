@@ -1,19 +1,6 @@
 id: research
-description: Route lightweight guidance, reading lists, single-paper explanation, and deep literature research.
+description: Route reading lists, single-paper explanation, and deep literature research.
 actions:
-  guide:
-    legacy_id: using-deep-research
-    procedure: stages/guide.md
-    defaults: {}
-    inputs:
-    - name: topic
-      type: string
-      optional: true
-      description: Optional research topic; the skill will propose the right command sequence based on it.
-    outputs: []
-    policies: []
-    roles: []
-    retention: {}
   reading-list:
     legacy_id: reading-list
     procedure: stages/reading-list.md
@@ -65,23 +52,15 @@ actions:
       description: Override .evidraft/notes/paper-explanations/<paper-slug>.md.
     outputs:
     - path: .evidraft/notes/paper-explanations/<paper-slug>.md
+      required: false
     policies: []
     roles:
     - id: researcher
-      mode: paper-indexer
-      tier: standard
-    - id: researcher
-      mode: paper-analysis-worker
-      tier: standard
-    - id: researcher
-      mode: paper-reasoning-worker
-      tier: deep
-    - id: evidence-reviewer
-      mode: explanation-evidence-auditor
-      tier: standard
-    - id: researcher
       mode: paper-explainer
       tier: deep
+    - id: researcher
+      mode: literature-reviewer
+      tier: standard
     retention: {}
   deep:
     legacy_id: deepresearch
@@ -90,7 +69,7 @@ actions:
       breadth: 6
       depth: 2
       providers: [arxiv, semantic-scholar, openalex]
-      mode: full
+      mode: fast
     inputs:
     - name: topic
       type: string
@@ -120,7 +99,7 @@ actions:
       - fast
       - full
       optional: true
-      default: full
+      default: fast
       description: '`fast` halves breadth+depth and skips per-paper SWOT; `full` runs all 6 stages.'
     - name: resume_from
       type: enum
@@ -140,8 +119,10 @@ actions:
     - path: .evidraft/literature/clusters.yaml
     - path: .evidraft/literature/evidence_map.json
     - path: .evidraft/literature/critique/
+      required: false
     - path: .evidraft/literature/related_work.draft.md
     - path: .evidraft/literature/citation_audit.json
+      required: false
     policies:
     - scope
     - evidence-integrity

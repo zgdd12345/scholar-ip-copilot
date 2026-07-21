@@ -4,6 +4,11 @@ Convert the arXiv-style manuscript under `manuscript/` into a **target venue's t
 
 This command is **submission-time only**. Until the venue is decided, work in `manuscript/` against the neutral arXiv style.
 
+Read the latest paper check when available and carry its single verdict forward as
+`readiness: PASS | WARN | FAIL`. Continue building the venue bundle when readiness
+is `WARN` or `FAIL`; preserve the findings in the manifest and chat summary so the
+user can decide whether to submit. Only workspace-safety violations block output.
+
 ## Steps
 
 1. **Resolve the venue.** Look up the venue spec in `../../../capabilities/latex/venue-formatting/venues/`. Required spec fields:
@@ -23,7 +28,7 @@ This command is **submission-time only**. Until the venue is decided, work in `m
    - Strip funding / acknowledgements (move to a separate `acknowledgements.tex` excluded from `main.tex`).
    - Comment out any url, repo link, or self-citation marker that reveals identity.
    - Replace "our previous work [12]" patterns with neutral language.
-5. **Compile sanity check.** Drive via `../../../capabilities/latex/latex-build/spec.md`: run `latexmk -pdf -interaction=nonstopmode -file-line-error submissions/<venue>/main.tex`, parse the log into the six-entry taxonomy, and write `.evidraft/manuscript/compile-<ts>.errors.json`. If `latexmk` is not on `$PATH`, mark compile `SKIPPED`.
+5. **Compile sanity check.** Drive via `../../../capabilities/latex/latex-build/spec.md`: run `latexmk -pdf -interaction=nonstopmode -file-line-error submissions/<venue>/main.tex`, parse the log into the six-entry taxonomy, and write `.evidraft/manuscript/compile-<ts>.errors.json`. If `latexmk` is not on `$PATH`, mark compile `SKIPPED`. Compile failure does not block bundle creation: preserve the failed source and findings, continue every check that can still run, and write the manifest with compile status `FAIL`.
 6. **Page-limit check.** If the venue declares a page limit, compute the compiled length and warn if over.
 7. **Write `submissions/<venue>/MANIFEST.md`:**
    - source: `manuscript/main.tex`
@@ -32,17 +37,25 @@ This command is **submission-time only**. Until the venue is decided, work in `m
    - compile status
    - page count vs limit
    - list of changes vs `manuscript/`
+   - readiness: `PASS`, `WARN`, or `FAIL`, with unresolved check findings and a
+     statement that bundle creation is not submission approval
 
 ## Constraints
 
 - **Never edit `manuscript/`** here. This command produces a copy only.
 - If a venue's class file is not bundled, write a `MANIFEST.md` instruction telling the user where to download it (publisher site / overleaf template).
 - Do **not** auto-submit anywhere.
+- Readiness and compile results are advisory for packaging. They are never treated
+  as permission to submit and never suppress the submission bundle.
 - If the venue forbids supplementary material to disclose author info during double-blind review, also anonymise `submissions/<venue>/supplement/` if present.
 
 ## Done criteria
 
-- `submissions/<venue>/main.tex` compiles (or compile is `SKIPPED` with a documented reason).
-- `MANIFEST.md` exists with the resolved venue spec.
+- The submission tree and `MANIFEST.md` exist with every source file that could be
+  copied, the resolved venue spec, readiness, and compile status. A compile failure
+  remains in the bundle as an explicit finding rather than preventing output.
 - Chat output prints: venue, page count, anonymisation status, missing class files (if any), and next-step recommendation (`latexmk`, overleaf upload, etc).
-
+- Chat output also prints readiness and the count of unresolved findings. Status is
+  `complete_with_gaps` when readiness is `WARN` or `FAIL`, or compilation fails or
+  is skipped. Status is `blocked` only when workspace safety prevents writing the
+  bundle; no status performs submission.

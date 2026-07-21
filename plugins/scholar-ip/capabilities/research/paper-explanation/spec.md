@@ -5,8 +5,7 @@ kind: skill
 phase: shared
 description: >
   Read one paper at full-text level, explain it at beginner, graduate, or
-  reviewer depth, and produce a durable academic note with mandatory verified
-  similar, subsequent, and newest-found related methods.
+  reviewer depth, and optionally compare it with verified related work.
 triggers:
   - "workflow:research.explain"
   - "explain this paper"
@@ -15,8 +14,8 @@ triggers:
 provides:
   - paper-source-resolution
   - three-mode-explanation
-  - evidence-labelled-note-schema
-  - mandatory-related-method-landscape
+  - evidence-labelled-reading-note
+  - conditional-related-work-comparison
 allowed_tools: [Read, Glob, Grep, Write, Edit, WebSearch, WebFetch]
 policies: [workspace-safety]
 references:
@@ -25,229 +24,102 @@ references:
 
 # paper-explanation
 
-## Source resolution
+## Source contract
 
-1. Accept a local PDF path, arXiv URL or identifier, DOI, or paper URL. Before opening
-   a local PDF, run workflow preflight with that path as `--read-target`; never treat a
-   remote DOI, arXiv value, or paper URL as a local path.
-2. Resolve one unique source paper before analysis. If the source cannot be
-   uniquely identified, stop and request a more precise identifier.
-3. Verify title, authors, year, venue, canonical URL, and the paper's research
-   problem against the source or a canonical record.
-4. Obtain readable full text and map its sections, equations, figures, and
-   tables. A source-paper abstract alone cannot satisfy this requirement.
+Accept a local PDF, arXiv identifier or URL, DOI, or paper URL. Preflight a local path
+before reading it. Resolve one unique paper and verify title, authors, year, venue,
+canonical URL, and research problem. Readable full text supports a complete explanation.
+When full text is unavailable, write a limited evidence-boundary note from verified
+identity and any canonical abstract; do not infer unseen methods, equations, figures,
+tables, or results.
 
-## Mode contract
+Preserve extraction defects and absent material as explicit gaps. The limited note names
+the readable material, unsupported requested coverage, and recovery action and returns
+status `complete_with_gaps`. Request a better source without withholding this useful
+boundary record.
 
-All modes produce the same required sections and external research. They vary
-only in emphasis:
+## Explanation modes
 
-- `beginner`: prioritises terminology, intuition, prerequisites, and careful
-  analogies; equations remain present but are explained conceptually.
-- `graduate`: balances equation-level explanation, method mechanics,
-  experiments, limitations, and reproduction guidance.
-- `reviewer`: prioritises assumptions, novelty boundaries, experimental
-  validity, missing controls, statistical support, and overclaiming risk.
+Use `graduate` by default:
 
-Use `graduate` when no mode is supplied. Do not drop a required note section or
-mandatory external research for any mode.
+- `beginner` prioritises terminology, prerequisites, intuition, and careful analogies;
+- `graduate` balances method mechanics, equations, experiments, limitations, and
+  reproduction guidance;
+- `reviewer` prioritises assumptions, novelty boundaries, missing controls, validity,
+  statistical support, and overclaiming risk.
 
-## Adaptive runtime bundle
+Ordinary beginner and graduate explanations do not require external research. Expand
+related research only in reviewer mode or the user explicitly requests comparison,
+similar methods, subsequent work, improvements, or current alternatives.
 
-The coordinator loads `task-graph.yaml`, `paper-map.schema.json`, and
-`analysis-packet.schema.json` from this capability bundle before dispatch. The closed
-scheduler contract is `max_parallel: 4`, `max_attempts: 2`, nested delegation
-forbidden, and lexical `task_id` dispatch and result order.
+## Best-effort execution
 
-The action projects five ordered runtime modes:
+The coordinator may perform the explanation directly or delegate bounded independent
+checks when useful. Delegation is adaptive: it has no required worker count, fixed
+dependency waves, or prescribed retry count. Lack of delegation capacity is not a
+reason to refuse an explanation that can be completed in the current session. A failed
+optional check becomes a named gap, while readable source-paper analysis continues.
 
-1. `paper-indexer` returns the immutable PaperMap.
-2. `paper-analysis-worker` returns bounded method, experiment, limitation, or external
-   AnalysisPackets.
-3. `paper-reasoning-worker` returns equation or claim-boundary AnalysisPackets.
-4. `explanation-evidence-auditor` returns the reviewer audit AnalysisPacket.
-5. `paper-explainer` synthesizes validated values and is the sole final-note writer.
+`paper-explainer` owns synthesis and the final destination. When the conditional
+external branch runs, reuse `literature-reviewer` for bounded discovery and comparison.
+No intermediate private runtime resource is required. Only the final owner receives the
+resolved destination, and at most one note is written.
 
-Claude and OpenCode render the first four worker modes as separate mode-specific agents
-with hard read-only tool frontmatter. Codex does not expose per-agent `allowed_tools` in
-this plugin surface, so its coordinator attaches the complete private mode spec and
-enforces the listed tools as a contract rather than claiming a hard sandbox. That Codex
-limitation alone is not `delegation unavailable`; independent subagent creation remains
-the delegation criterion.
+## Note contract
 
-The approved profile allocations are:
+Cover the requested portions of:
 
-- `beginner`: `I0 -> [B1, B2, B3] -> S0`;
-- `graduate`: `I0 -> [E1, L1, M1, R1, R2, X1] -> S0`; and
-- `reviewer`: `I0 -> [C1, E1, L1, M1, R1, R2, X1] -> A1 -> S0`.
+1. paper identity and one-sentence takeaway;
+2. research problem, background, and prerequisites;
+3. core contributions and claim boundaries;
+4. method walkthrough;
+5. key equations with symbol definitions;
+6. experimental setup and results;
+7. limitations, failure modes, and reproduction notes;
+8. learning-check questions when useful; and
+9. sources and verification record.
 
-Brackets denote a dependency-ready wave dispatched in lexical task-ID order with
-effective concurrency `min(host capacity, 4)`, not a merged worker invocation.
+When the external branch runs, add similar or contemporary methods and subsequent,
+improved, or current alternatives. These sections are conditional, not filler required
+for an ordinary explanation.
 
-## Invocation and return contracts
+Use explicit evidence labels: `[Paper section ...]`, `[Equation ...]`,
+`[Figure ...]`, and `[Table ...]` for source-paper evidence; `[External: citation]`
+and `[External: official-code]` for verified external evidence; `[Interpretation]` for
+derivation, analogy, or assessment; and `[abstract-only]` for claims supported only by
+a verified external abstract. Never present interpretation as an author statement.
 
-The coordinator must map public `mode` to internal `explanation_mode` without changing
-its `beginner`, `graduate`, or `reviewer` value.
+For external work, verify a canonical page before inclusion and record title, year,
+link, relationship, concrete methodological difference, search date, and search scope.
+Discovery snippets are not evidence. Do not make unbounded latest or state-of-the-art
+claims.
 
-`IndexerInput` contains exactly `task_id`, `attempt`, `explanation_mode`, `source_identity`,
-`full_text_ref`, and the graph-declared `budget`. It never contains a PaperMap,
-dependency packets, output path, or collision state. `I0` returns one value that
-validates against `paper-map.schema.json`.
+## Collision contract
 
-`WorkerInput` contains exactly `task_id`, `attempt`, graph-declared `task_scope`,
-`explanation_mode`, immutable validated `paper_map`, `full_text_ref`, immutable validated
-`dependency_packets`, and graph-declared `budget`. Workers cannot delegate and never
-receive `out`, a resolved output path, collision state, Write/Edit ownership, or
-mutable state. Each analysis, reasoning, or audit worker returns exactly one value that
-validates against `analysis-packet.schema.json`.
+Never overwrite a non-empty note silently. Offer reuse, a unique dated sibling, or
+explicitly confirmed replacement. Re-check the target immediately before writing and
+perform at most one final write after workspace preparation.
 
-Only `paper-explainer` receives the collision-safe resolved output path. Its bounded
-input is the selected mode, output ownership, validated PaperMap, validated packets in
-canonical task-ID order, retry history and failed IDs, optional validated audit, and
-calculated status. It performs no source mapping, specialist analysis, retrieval,
-packet repair, retry, or nested delegation and writes at most one note.
+## Status contract
 
-## Retry and terminal status
+Return exactly one status:
 
-A timeout, execution failure, or schema-invalid return records one attempt reason. A
-second attempt uses a fresh subagent with identical immutable input, scope, and budget
-except for `attempt: 2`. A second failure becomes a terminal failed packet; both attempt
-reasons remain in recovery metadata.
+- `complete` when the requested explanation was written from readable source evidence
+  without a material requested omission;
+- `complete_with_gaps` when a useful note was written but named source, optional-check,
+  or requested-comparison gaps remain;
+- `blocked` when source identity or a safe output destination cannot be established and
+  no note is written. Blocked is limited to unresolved paper identity or an unsafe output
+  destination.
 
-| Status | Deterministic condition |
-|---|---|
-| `complete` | Every enabled task completed and any reviewer audit has no blocking finding. |
-| `partial` | Every mandatory task completed, but at least one optional analysis task failed or remained partial. |
-| `incomplete` | Delegation is unavailable, a mandatory task is not complete, a required audit failed, or synthesis violated evidence or output contracts. |
+An external-search shortfall requested by the user normally yields
+`complete_with_gaps`, not refusal, when the source-paper explanation remains useful.
 
-`complete` requires A1 `status: complete` and `blocking: false` in reviewer mode.
-`partial` requires A1 `status: complete` and `blocking: false` in reviewer mode.
-`blocking: true` on A1 always produces `incomplete`.
+## Quality checklist
 
-Any non-complete mandatory result is `incomplete`, including a mandatory packet with
-status partial. If I0 fails after attempt two, dispatch no analysis task, `A1`, or
-`S0`; stop and write no note. A mandatory external-task failure may produce only a
-prominently marked incomplete source-analysis draft. Every partial or incomplete note
-records a banner, failed task IDs, both attempt reasons, missing sections, and recovery
-actions.
-
-If the host cannot create independent subagents, report `incomplete: delegation
-unavailable` and stop. The coordinator must not run a monolithic fallback, merge task
-scopes, or relax the schemas.
-
-## Required note schema
-
-Every completed note contains these sections:
-
-1. Paper identity and one-sentence takeaway
-2. Research problem and background
-3. Core contributions
-4. Method walkthrough
-5. Key equations and symbol-by-symbol explanations
-6. Experimental setup and results
-7. Limitations, failure modes, and conclusion boundaries
-8. Reproduction notes
-9. Similar methods
-10. Subsequent improvements and latest related methods
-11. Learning-check questions
-12. Sources and verification record
-
-For every explained key equation, define each symbol and label any derivation
-or analogy that is not stated by the authors.
-
-## Evidence labels
-
-Technical statements use explicit evidence labels:
-
-- `[Paper section 3.2]`, `[Equation 4]`, `[Figure 2]`, or `[Table 1]` for
-  source-paper evidence;
-- `[External: citation]` for a verified related paper;
-- `[External: official-code]` for an official repository or project page;
-- `[Interpretation]` for the explainer's derivation, analogy, or assessment;
-- `[abstract-only]` when only a verified abstract was available.
-
-An abstract-only external source may support bibliographic facts and claims
-stated in its abstract. It must not support claims about unobserved equations,
-experiments, implementation details, figures, or tables. Interpretations must
-not be presented as author claims.
-
-## Mandatory external research
-
-External research cannot be disabled. It searches for:
-
-- cited or contemporary methods similar to the source paper;
-- work that directly extends, improves, applies, or criticises the source;
-- the newest verified related methods found as of the execution date; and
-- official code, project pages, and author material when available.
-
-The external landscape must contain, when enough verified candidates exist:
-
-- three to five similar or contemporary methods; and
-- three to five subsequent, improved, or latest related methods.
-
-Fewer entries are acceptable only when the note records the queries, providers,
-cutoff date, and rejection reasons showing that the target count could not be
-met without weakening verification.
-
-Each included external work records title, year, canonical link, relationship
-to the source paper, and a concrete methodological difference.
-
-Preferred sources are the paper full text, DOI or publisher records, arXiv,
-official project pages, and official repositories. Search results are candidate
-discovery only; a canonical page must be opened and checked before inclusion.
-The note records the search cutoff date and scope and uses wording such as
-"newest verified methods found in this search," not an unqualified "latest" or
-"state of the art."
-
-## Collision protocol
-
-An existing non-empty output file is never overwritten silently. The action
-offers:
-
-- `reuse`: keep the existing note and stop;
-- `augment`: write a dated sibling note containing a refreshed external
-  landscape while preserving the original; or
-- `overwrite`: replace the file only after explicit user confirmation.
-
-`augment` is the default recommendation when the user asks for newer related
-methods. If the derived sibling path exists, append a numeric suffix until it
-is unique.
-
-Immediately before S0, re-check the resolved target. If it became non-empty, repeat the
-collision decision and output preparation with the newly resolved path. The current
-core does not atomically reserve an empty target, so a narrow check-to-write race remains
-and must be reported rather than hidden.
-
-## Failure contract
-
-- If the source paper cannot be uniquely identified, stop and request a more
-  precise identifier.
-- If readable full text is unavailable, do not produce a completed explanation
-  from the abstract. Report recovery options instead.
-- If a PDF lacks a usable text layer or equation extraction is materially
-  broken, request a readable copy. An OCR-derived draft is allowed only when
-  clearly marked incomplete and must not satisfy the action's done criteria.
-- If mandatory external retrieval is unavailable, preserve any explicitly
-  marked temporary work but report the action as incomplete.
-- Reject an external candidate whose title and authorship cannot be verified
-  against a canonical source.
-- Never fabricate a section, equation, figure, table, paper, author, date,
-  venue, DOI, result, or URL.
-
-## Completion checklist
-
-- Confirm the source identity and readable full text are verified.
-- Confirm all twelve required note headings are present.
-- Confirm technical statements carry the correct evidence labels.
-- Confirm every explained key equation defines its symbols.
-- Confirm three to five verified similar methods and three to five verified
-  subsequent, improved, or newest-found methods are included, or evidence the
-  shortfall with queries, providers, cutoff date, and rejection reasons.
-- Confirm every included external work has a title, year, canonical link,
-  relationship, and concrete methodological difference.
-- Confirm the search cutoff date and scope are recorded without an absolute
-  state-of-the-art claim.
-- Confirm collision handling preserved every non-empty existing note unless
-  overwrite was explicitly approved.
-- Report incomplete when readable source full text or mandatory external
-  retrieval is unavailable.
+- Source identity and readable full text were checked.
+- Claims are separated into paper, interpretation, and external evidence.
+- Every explained equation defines symbols or names the extraction gap.
+- Conditional external work is verified and bounded when requested.
+- Existing non-empty output is preserved without explicit replacement approval.
+- The final status and recovery action match the artefact actually produced.
