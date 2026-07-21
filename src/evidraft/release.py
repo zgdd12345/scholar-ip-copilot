@@ -39,8 +39,7 @@ def _file_bytes(root: Path) -> dict[str, bytes]:
 def _normalize_markdown_eof(root: Path) -> None:
     for path in root.rglob("*.md"):
         body = path.read_bytes()
-        if body:
-            path.write_bytes(body.rstrip(b"\n") + b"\n")
+        path.write_bytes(body.rstrip(b"\r\n") + b"\n")
 
 
 def _read_release_owned_paths(root: Path) -> set[Path]:

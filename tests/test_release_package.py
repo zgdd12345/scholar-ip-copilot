@@ -263,3 +263,42 @@ def test_release_package_markdown_files_have_diff_style_eof_hygiene(
     ]
 
     assert findings == []
+
+
+@pytest.mark.parametrize(
+    ("markdown_body", "expected_body"),
+    [
+        (b"", b"\n"),
+        (b"text", b"text\n"),
+        (b"text\n", b"text\n"),
+        (b"text\n\n", b"text\n"),
+        (b"text\r\n", b"text\n"),
+        (b"text\r\n\r\n", b"text\n"),
+        (b"text\r\n\n\r\n", b"text\n"),
+    ],
+)
+def test_release_package_normalizes_markdown_eof_without_changing_binary_files(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    markdown_body: bytes,
+    expected_body: bytes,
+) -> None:
+    binary_body = b"\x00binary\r\n\r\n"
+
+    def render(_plugin: Path, out: Path, _host: Host) -> list[Path]:
+        out.mkdir(parents=True)
+        markdown = out / "fixture.md"
+        markdown.write_bytes(markdown_body)
+        binary = out / "fixture.bin"
+        binary.write_bytes(binary_body)
+        manifest = out / ".evidraft-render-manifest.json"
+        manifest.write_text("{}\n", encoding="utf-8")
+        return [markdown, binary, manifest]
+
+    monkeypatch.setattr("evidraft.release.render_plugin", render)
+    out = tmp_path / "scholar"
+
+    render_plugin_package(PLUGIN, out)
+
+    assert (out / "fixture.md").read_bytes() == expected_body
+    assert (out / "fixture.bin").read_bytes() == binary_body
