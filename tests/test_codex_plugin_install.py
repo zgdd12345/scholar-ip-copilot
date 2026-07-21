@@ -105,6 +105,14 @@ def _compatibility_state(destination: Path) -> dict[str, bytes]:
     }
 
 
+def _is_manifest_restore_temporary(path: Path, manifest: Path) -> bool:
+    return (
+        path.parent == manifest.parent
+        and path.name.startswith(f".{manifest.name}.restore-")
+        and path != manifest
+    )
+
+
 def _plugin_list(version: str, path: Path, *, status: str = "installed, enabled") -> str:
     return (
         PLUGIN_HEADER
@@ -122,6 +130,7 @@ def _runner(
     installed_skills: set[str] | None = None,
     operation_error: BaseException | None = None,
     expect_compatibility_removed: bool = False,
+    cachebuster_action: Callable[[Path], None] | None = None,
 ) -> Callable[..., subprocess.CompletedProcess[str]]:
     marketplace_added = False
 
@@ -149,9 +158,12 @@ def _runner(
         if command[1].endswith("update_plugin_cachebuster.py"):
             assert_compatibility_removed()
             manifest = release / ".codex-plugin" / "plugin.json"
-            document = json.loads(manifest.read_text(encoding="utf-8"))
-            document["version"] = "3.0.0+codex.test"
-            manifest.write_text(json.dumps(document) + "\n", encoding="utf-8")
+            if cachebuster_action is None:
+                document = json.loads(manifest.read_text(encoding="utf-8"))
+                document["version"] = "3.0.0+codex.test"
+                manifest.write_text(json.dumps(document) + "\n", encoding="utf-8")
+            else:
+                cachebuster_action(manifest)
             if failing_step == "cachebuster":
                 raise operation_error or RuntimeError("cachebuster")
             return subprocess.CompletedProcess(command, 0, "", "")
@@ -460,12 +472,11 @@ def test_original_operation_error_wins_restore_cleanup_failure(
     original = manifest.read_bytes()
     operation_error = RuntimeError(f"{failing_step}-original")
     cleanup_error = OSError("restore-cleanup")
-    temporary = manifest.with_name(f".{manifest.name}.restore-{codex_install.os.getpid()}")
     real_unlink = Path.unlink
     cleanup_attempts: list[Path] = []
 
     def fail_restore_cleanup(path: Path, missing_ok: bool = False) -> None:
-        if path == temporary:
+        if _is_manifest_restore_temporary(path, manifest):
             cleanup_attempts.append(path)
             raise cleanup_error
         real_unlink(path, missing_ok=missing_ok)
@@ -488,7 +499,7 @@ def test_original_operation_error_wins_restore_cleanup_failure(
 
     assert caught.value is operation_error
     assert caught.value.__cause__ is cleanup_error
-    assert cleanup_attempts == [temporary]
+    assert len(cleanup_attempts) == 1
     assert manifest.read_bytes() == original
 
 
@@ -497,23 +508,19 @@ def test_restore_bytes_preserves_write_error_when_cleanup_also_fails(
 ) -> None:
     manifest = tmp_path / "plugin.json"
     manifest.write_bytes(b"mutated")
-    temporary = manifest.with_name(f".{manifest.name}.restore-{codex_install.os.getpid()}")
     write_error = OSError("restore-write")
     cleanup_error = OSError("restore-cleanup")
-    real_write_bytes = Path.write_bytes
     real_unlink = Path.unlink
 
-    def fail_restore_write(path: Path, content: bytes) -> int:
-        if path == temporary:
-            raise write_error
-        return real_write_bytes(path, content)
+    def fail_restore_write(_descriptor: int, _content: object) -> int:
+        raise write_error
 
     def fail_restore_cleanup(path: Path, missing_ok: bool = False) -> None:
-        if path == temporary:
+        if _is_manifest_restore_temporary(path, manifest):
             raise cleanup_error
         real_unlink(path, missing_ok=missing_ok)
 
-    monkeypatch.setattr(Path, "write_bytes", fail_restore_write)
+    monkeypatch.setattr(codex_install.os, "write", fail_restore_write)
     monkeypatch.setattr(Path, "unlink", fail_restore_cleanup)
 
     with pytest.raises(OSError, match="restore-write") as caught:
@@ -531,11 +538,10 @@ def test_success_propagates_restore_cleanup_failure(
     manifest = release / ".codex-plugin" / "plugin.json"
     original = manifest.read_bytes()
     cleanup_error = OSError("restore-cleanup")
-    temporary = manifest.with_name(f".{manifest.name}.restore-{codex_install.os.getpid()}")
     real_unlink = Path.unlink
 
     def fail_restore_cleanup(path: Path, missing_ok: bool = False) -> None:
-        if path == temporary:
+        if _is_manifest_restore_temporary(path, manifest):
             raise cleanup_error
         real_unlink(path, missing_ok=missing_ok)
 
@@ -573,6 +579,86 @@ def test_reinstall_restores_base_manifest_after_failure(
 
     assert (release / ".codex-plugin" / "plugin.json").read_bytes() == original
     cachebusters = [command for command in calls if command[1].endswith("update_plugin_cachebuster.py")]
+    assert len(cachebusters) == 1
+
+
+@pytest.mark.parametrize("mode", ["deleted", "symlinked", "invalid-json"])
+def test_reinstall_unconditionally_restores_manifest_after_invalid_cachebuster_output(
+    tmp_path: Path,
+    mode: str,
+) -> None:
+    repo, marketplace, release, creator = _build_release(tmp_path)
+    destination, compatibility_before = _seed_compatibility_state(repo)
+    manifest = release / ".codex-plugin" / "plugin.json"
+    original = manifest.read_bytes()
+    external = tmp_path / "external-manifest.json"
+    external.write_text(
+        '{"name": "scholar", "version": "3.0.0+codex.external"}\n',
+        encoding="utf-8",
+    )
+    external_before = external.read_bytes()
+
+    def mutate(path: Path) -> None:
+        if mode == "deleted":
+            path.unlink()
+        elif mode == "symlinked":
+            path.unlink()
+            path.symlink_to(external)
+        else:
+            path.write_text("{invalid json\n", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="cachebuster.*manifest"):
+        reinstall_codex_plugin(
+            repo,
+            marketplace,
+            release,
+            creator,
+            runner=_runner(
+                release,
+                [],
+                cachebuster_action=mutate,
+                expect_compatibility_removed=True,
+            ),
+        )
+
+    assert manifest.read_bytes() == original
+    assert not manifest.is_symlink()
+    assert external.read_bytes() == external_before
+    assert _compatibility_state(destination) == compatibility_before
+
+
+def test_manifest_restore_ignores_precreated_predictable_symlink(tmp_path: Path) -> None:
+    repo, marketplace, release, creator = _build_release(tmp_path)
+    manifest = release / ".codex-plugin" / "plugin.json"
+    original = manifest.read_bytes()
+    external = tmp_path / "outside.txt"
+    external.write_bytes(b"outside unchanged\n")
+    predictable = manifest.with_name(
+        f".{manifest.name}.restore-{codex_install.os.getpid()}"
+    )
+    calls: list[list[str]] = []
+
+    def cachebust(path: Path) -> None:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        document["version"] = "3.0.0+codex.test"
+        path.write_text(json.dumps(document) + "\n", encoding="utf-8")
+        predictable.symlink_to(external)
+
+    reinstall_codex_plugin(
+        repo,
+        marketplace,
+        release,
+        creator,
+        runner=_runner(release, calls, cachebuster_action=cachebust),
+    )
+
+    assert manifest.read_bytes() == original
+    assert not manifest.is_symlink()
+    assert external.read_bytes() == b"outside unchanged\n"
+    assert predictable.is_symlink()
+    cachebusters = [
+        command for command in calls if command[1].endswith("update_plugin_cachebuster.py")
+    ]
     assert len(cachebusters) == 1
 
 

@@ -122,11 +122,24 @@ def validate_marketplace_plugin(
 
 
 def _restore_bytes(path: Path, content: bytes) -> None:
-    temporary = path.with_name(f".{path.name}.restore-{os.getpid()}")
+    descriptor, raw_temporary = tempfile.mkstemp(
+        prefix=f".{path.name}.restore-",
+        dir=path.parent,
+    )
+    temporary = Path(raw_temporary)
     try:
-        temporary.write_bytes(content)
+        remaining = memoryview(content)
+        while remaining:
+            written = os.write(descriptor, remaining)
+            if written == 0:
+                raise OSError("could not write manifest restoration bytes")
+            remaining = remaining[written:]
+        os.close(descriptor)
+        descriptor = -1
         os.replace(temporary, path)
     except BaseException as restore_error:
+        if descriptor >= 0:
+            os.close(descriptor)
         try:
             temporary.unlink(missing_ok=True)
         except BaseException as cleanup_error:
@@ -330,6 +343,8 @@ def reinstall_codex_plugin(
         )
         removal_started = False
         manifest_may_be_mutated = False
+        result: ReinstallResult | None = None
+        operation_error: BaseException | None = None
         try:
             removal_started = True
             remove_codex_project_skills(compatibility_destination)
@@ -366,7 +381,15 @@ def reinstall_codex_plugin(
                 capture_output=True,
                 text=True,
             )
-            installed_version = json.loads(manifest.read_text(encoding="utf-8"))["version"]
+            if manifest.is_symlink() or not manifest.is_file():
+                raise RuntimeError("cachebuster manifest must remain a regular file")
+            try:
+                cachebusted = json.loads(manifest.read_text(encoding="utf-8"))
+                installed_version = cachebusted["version"]
+            except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
+                raise RuntimeError("cachebuster produced an invalid manifest") from exc
+            if not isinstance(installed_version, str) or not installed_version:
+                raise RuntimeError("cachebuster produced an invalid manifest version")
             runner(
                 [*codex_command, "plugin", "add", plugin_ref],
                 cwd=repo_root,
@@ -383,27 +406,32 @@ def reinstall_codex_plugin(
             ).stdout
             _validate_installed_plugin(post, selected, installed_version)
             result = ReinstallResult(plugin_ref, installed_version)
-            _restore_bytes(manifest, base_bytes)
-            manifest_may_be_mutated = False
-        except BaseException as operation_error:
-            restore_error: BaseException | None = None
-            if manifest_may_be_mutated:
-                try:
-                    if manifest.read_bytes() != base_bytes:
-                        _restore_bytes(manifest, base_bytes)
-                except BaseException as error:
-                    restore_error = error
-            if removal_started:
-                try:
-                    restore_codex_project_skills(snapshot)
-                except BaseException as error:
-                    if restore_error is None:
-                        restore_error = error
-            if restore_error is not None:
-                raise operation_error from restore_error
-            raise
-        else:
+        except BaseException as error:
+            operation_error = error
+
+        restore_error: BaseException | None = None
+        if manifest_may_be_mutated:
+            try:
+                _restore_bytes(manifest, base_bytes)
+            except BaseException as error:
+                restore_error = error
+
+        if operation_error is None and restore_error is None:
+            assert result is not None
             return result
+        if operation_error is None:
+            operation_error = restore_error
+            restore_error = None
+        assert operation_error is not None
+        if removal_started:
+            try:
+                restore_codex_project_skills(snapshot)
+            except BaseException as error:
+                if restore_error is None:
+                    restore_error = error
+        if restore_error is not None:
+            raise operation_error from restore_error
+        raise operation_error
 
 
 def codex_project_mode_preflight(
