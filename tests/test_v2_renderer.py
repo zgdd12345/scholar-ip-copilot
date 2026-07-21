@@ -52,10 +52,14 @@ def _plugin_with_source_symlink(tmp_path: Path, kind: str) -> Path:
         linked = plugin / "templates"
         shutil.rmtree(linked)
         linked.symlink_to(PLUGIN_ROOT / "templates", target_is_directory=True)
-    else:
+    elif kind == "root":
         linked = tmp_path / "linked-plugin"
         linked.symlink_to(plugin, target_is_directory=True)
         plugin = linked
+    else:
+        linked_parent = tmp_path / "linked-parent"
+        linked_parent.symlink_to(tmp_path, target_is_directory=True)
+        plugin = linked_parent / plugin.name
     return plugin
 
 
@@ -168,7 +172,7 @@ def test_renderer_rejects_incomplete_v2_ir_before_output(
     assert not out.exists()
 
 
-@pytest.mark.parametrize("kind", ["file", "directory", "root"])
+@pytest.mark.parametrize("kind", ["file", "directory", "root", "ancestor"])
 def test_render_rejects_source_symlink_before_creating_output(
     tmp_path: Path, kind: str
 ) -> None:

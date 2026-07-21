@@ -83,10 +83,14 @@ def _plugin_with_source_symlink(tmp_path: Path, kind: str) -> Path:
         linked = plugin / "templates"
         shutil.rmtree(linked)
         linked.symlink_to(PLUGIN / "templates", target_is_directory=True)
-    else:
+    elif kind == "root":
         linked = tmp_path / "linked-plugin"
         linked.symlink_to(plugin, target_is_directory=True)
         plugin = linked
+    else:
+        linked_parent = tmp_path / "linked-parent"
+        linked_parent.symlink_to(tmp_path, target_is_directory=True)
+        plugin = linked_parent / plugin.name
     return plugin
 
 
@@ -133,7 +137,7 @@ def test_release_package_contains_both_host_surfaces(tmp_path: Path) -> None:
     assert len(list((out / "agents").glob("*.md"))) == 10
 
 
-@pytest.mark.parametrize("kind", ["file", "directory", "root"])
+@pytest.mark.parametrize("kind", ["file", "directory", "root", "ancestor"])
 def test_release_package_rejects_source_symlink_before_creating_output(
     tmp_path: Path, kind: str
 ) -> None:
@@ -452,7 +456,7 @@ def test_wheel_source_staging_copies_current_tree_without_build_artifacts(
     assert not (out / "packages/adapters/stale.egg-info").exists()
 
 
-@pytest.mark.parametrize("kind", ["file", "directory", "root"])
+@pytest.mark.parametrize("kind", ["file", "directory", "root", "ancestor"])
 def test_wheel_source_staging_rejects_symlink_before_creating_output_parent(
     tmp_path: Path, kind: str
 ) -> None:
@@ -468,10 +472,14 @@ def test_wheel_source_staging_rejects_symlink_before_creating_output_parent(
         shutil.copytree(repo / "src", outside)
         shutil.rmtree(repo / "src")
         (repo / "src").symlink_to(outside, target_is_directory=True)
-    else:
+    elif kind == "root":
         linked = tmp_path / "linked-repo"
         linked.symlink_to(repo, target_is_directory=True)
         repo = linked
+    else:
+        linked_parent = tmp_path / "linked-parent"
+        linked_parent.symlink_to(tmp_path, target_is_directory=True)
+        repo = linked_parent / repo.name
     out = tmp_path / "new-parent" / "source"
 
     with pytest.raises(ValueError, match="source.*symlink"):

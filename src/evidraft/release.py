@@ -93,19 +93,13 @@ def source_sha256(plugin_root: Path) -> str:
 def stage_wheel_source(repo_root: Path, out_dir: Path) -> list[Path]:
     """Copy current wheel build inputs to a location outside the repository."""
     repo_root = Path(repo_root).absolute()
-    if repo_root.is_symlink():
-        raise ValueError(f"source tree contains symlink: {repo_root}")
-    repo_root = repo_root.resolve()
     source_names = (*WHEEL_SOURCE_FILES, *WHEEL_SOURCE_DIRECTORIES)
     sources = [repo_root / name for name in source_names]
-    for name, source in zip(source_names, sources, strict=True):
-        current = repo_root
-        for component in Path(name).parts:
-            current /= component
-            if current.is_symlink():
-                raise ValueError(f"source tree contains symlink: {current}")
+    for source in sources:
         _reject_source_symlinks(source)
 
+    repo_root = repo_root.resolve()
+    sources = [repo_root / name for name in source_names]
     out_dir = Path(out_dir).resolve(strict=False)
     if out_dir == repo_root or out_dir.is_relative_to(repo_root):
         raise ValueError("wheel source output must be outside repository")

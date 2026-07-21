@@ -141,8 +141,16 @@ class Workflow:
 
 def _reject_source_symlinks(source_root: Path) -> None:
     source_root = Path(source_root).absolute()
-    if source_root.is_symlink():
-        raise ValueError(f"source tree contains symlink: {source_root}")
+    current = Path(source_root.anchor)
+    for index, component in enumerate(source_root.parts[1:]):
+        current /= component
+        if current.is_symlink():
+            # macOS exposes /tmp and /var as root-level aliases. Resolve only that
+            # operating-system boundary; links deeper in the supplied path are unsafe.
+            if index == 0:
+                current = current.resolve()
+                continue
+            raise ValueError(f"source tree contains symlink: {current}")
     if not source_root.is_dir():
         return
     pending = [source_root]
