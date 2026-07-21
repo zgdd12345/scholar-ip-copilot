@@ -88,13 +88,11 @@ install-codex: install-codex-plugin
 codex-project-mode-preflight:
 	$(PYTHON) -m evidraft.cli codex-project-mode-preflight --repo-root .
 
-sync-codex-skills: package-check
+sync-codex-skills: package-check codex-project-mode-preflight
 	$(PYTHON) -m evidraft.cli sync-codex-skills \
 	    --source plugins/scholar --dest $(CODEX_SKILLS_INSTALL)
 
-install-codex-project: package-check codex-project-mode-preflight
-	$(PYTHON) -m evidraft.cli sync-codex-skills \
-	    --source plugins/scholar --dest .agents/skills
+install-codex-project: sync-codex-skills
 
 install-claude: render-claude
 	@echo ""

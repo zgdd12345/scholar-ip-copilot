@@ -7,6 +7,7 @@ from typing import Callable
 
 import pytest
 
+import evidraft.codex_install as codex_install
 from evidraft.codex_install import reinstall_codex_plugin, validate_marketplace_plugin
 
 
@@ -67,6 +68,8 @@ def _runner(
     *,
     failing_step: str | None = None,
     marketplace_list: str = "scholar-ip-copilot /tmp/repo\n",
+    plugin_list_output: str = "scholar@scholar-ip-copilot installed, enabled\n",
+    operation_error: BaseException | None = None,
 ) -> Callable[..., subprocess.CompletedProcess[str]]:
     def run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         assert kwargs == {
@@ -84,16 +87,18 @@ def _runner(
             document["version"] = "3.0.0+codex.test"
             manifest.write_text(json.dumps(document) + "\n", encoding="utf-8")
             if failing_step == "cachebuster":
-                raise RuntimeError("cachebuster")
+                raise operation_error or RuntimeError("cachebuster")
             return subprocess.CompletedProcess(command, 0, "", "")
         if command[-3:] == ["plugin", "marketplace", "list"]:
             return subprocess.CompletedProcess(command, 0, marketplace_list, "")
         if command[-3:-1] == ["plugin", "add"]:
             if failing_step == "plugin-add":
-                raise RuntimeError("plugin-add")
+                raise operation_error or RuntimeError("plugin-add")
             return subprocess.CompletedProcess(command, 0, "", "")
         if command[-2:] == ["plugin", "list"]:
             if failing_step == "post-validate":
+                if operation_error is not None:
+                    raise operation_error
                 return subprocess.CompletedProcess(
                     command,
                     0,
@@ -103,7 +108,7 @@ def _runner(
             return subprocess.CompletedProcess(
                 command,
                 0,
-                "scholar@scholar-ip-copilot installed, enabled\n",
+                plugin_list_output,
                 "",
             )
         return subprocess.CompletedProcess(command, 0, "", "")
@@ -139,6 +144,111 @@ def test_reinstall_restores_base_manifest_after_success(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("failing_step", ["cachebuster", "plugin-add", "post-validate"])
+def test_original_operation_error_wins_restore_cleanup_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failing_step: str,
+) -> None:
+    repo, marketplace, release, creator = _build_release(tmp_path)
+    manifest = release / ".codex-plugin" / "plugin.json"
+    original = manifest.read_bytes()
+    operation_error = RuntimeError(f"{failing_step}-original")
+    cleanup_error = OSError("restore-cleanup")
+    temporary = manifest.with_name(f".{manifest.name}.restore-{codex_install.os.getpid()}")
+    real_unlink = Path.unlink
+    cleanup_attempts: list[Path] = []
+
+    def fail_restore_cleanup(path: Path, missing_ok: bool = False) -> None:
+        if path == temporary:
+            cleanup_attempts.append(path)
+            raise cleanup_error
+        real_unlink(path, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", fail_restore_cleanup)
+
+    with pytest.raises(RuntimeError, match=f"{failing_step}-original") as caught:
+        reinstall_codex_plugin(
+            repo,
+            marketplace,
+            release,
+            creator,
+            runner=_runner(
+                release,
+                [],
+                failing_step=failing_step,
+                operation_error=operation_error,
+            ),
+        )
+
+    assert caught.value is operation_error
+    assert caught.value.__cause__ is cleanup_error
+    assert cleanup_attempts == [temporary]
+    assert manifest.read_bytes() == original
+
+
+def test_restore_bytes_preserves_write_error_when_cleanup_also_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    manifest = tmp_path / "plugin.json"
+    manifest.write_bytes(b"mutated")
+    temporary = manifest.with_name(f".{manifest.name}.restore-{codex_install.os.getpid()}")
+    write_error = OSError("restore-write")
+    cleanup_error = OSError("restore-cleanup")
+    real_write_bytes = Path.write_bytes
+    real_unlink = Path.unlink
+
+    def fail_restore_write(path: Path, content: bytes) -> int:
+        if path == temporary:
+            raise write_error
+        return real_write_bytes(path, content)
+
+    def fail_restore_cleanup(path: Path, missing_ok: bool = False) -> None:
+        if path == temporary:
+            raise cleanup_error
+        real_unlink(path, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "write_bytes", fail_restore_write)
+    monkeypatch.setattr(Path, "unlink", fail_restore_cleanup)
+
+    with pytest.raises(OSError, match="restore-write") as caught:
+        codex_install._restore_bytes(manifest, b"original")
+
+    assert caught.value is write_error
+    assert caught.value.__cause__ is cleanup_error
+    assert manifest.read_bytes() == b"mutated"
+
+
+def test_success_propagates_restore_cleanup_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, marketplace, release, creator = _build_release(tmp_path)
+    manifest = release / ".codex-plugin" / "plugin.json"
+    original = manifest.read_bytes()
+    cleanup_error = OSError("restore-cleanup")
+    temporary = manifest.with_name(f".{manifest.name}.restore-{codex_install.os.getpid()}")
+    real_unlink = Path.unlink
+
+    def fail_restore_cleanup(path: Path, missing_ok: bool = False) -> None:
+        if path == temporary:
+            raise cleanup_error
+        real_unlink(path, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", fail_restore_cleanup)
+
+    with pytest.raises(OSError, match="restore-cleanup") as caught:
+        reinstall_codex_plugin(
+            repo,
+            marketplace,
+            release,
+            creator,
+            runner=_runner(release, []),
+        )
+
+    assert caught.value is cleanup_error
+    assert manifest.read_bytes() == original
+
+
+@pytest.mark.parametrize("failing_step", ["cachebuster", "plugin-add", "post-validate"])
 def test_reinstall_restores_base_manifest_after_failure(
     tmp_path: Path, failing_step: str
 ) -> None:
@@ -158,6 +268,40 @@ def test_reinstall_restores_base_manifest_after_failure(
     assert (release / ".codex-plugin" / "plugin.json").read_bytes() == original
     cachebusters = [command for command in calls if command[1].endswith("update_plugin_cachebuster.py")]
     assert len(cachebusters) == 1
+
+
+@pytest.mark.parametrize(
+    "plugin_list_output",
+    [
+        "scholar@scholar-ip-copilot available, enabled\n",
+        "scholar@scholar-ip-copilot installed, disabled\n",
+        "scholar@scholar-ip-copilot installed, enabled: false\n",
+        "scholar@scholar-ip-copilot installed, not enabled\n",
+        "other@scholar-ip-copilot installed, enabled\n",
+        "scholar@scholar-ip-copilot-extra installed, enabled\n",
+        "prefix-scholar@scholar-ip-copilot installed, enabled\n",
+    ],
+)
+def test_reinstall_rejects_every_non_exact_installed_enabled_record(
+    tmp_path: Path, plugin_list_output: str
+) -> None:
+    repo, marketplace, release, creator = _build_release(tmp_path)
+    original = (release / ".codex-plugin" / "plugin.json").read_bytes()
+
+    with pytest.raises(RuntimeError, match="post-validate"):
+        reinstall_codex_plugin(
+            repo,
+            marketplace,
+            release,
+            creator,
+            runner=_runner(
+                release,
+                [],
+                plugin_list_output=plugin_list_output,
+            ),
+        )
+
+    assert (release / ".codex-plugin" / "plugin.json").read_bytes() == original
 
 
 def test_reinstall_configures_repo_marketplace_before_cachebusting(tmp_path: Path) -> None:

@@ -80,7 +80,13 @@ def _restore_bytes(path: Path, content: bytes) -> None:
     try:
         temporary.write_bytes(content)
         os.replace(temporary, path)
-    finally:
+    except BaseException as restore_error:
+        try:
+            temporary.unlink(missing_ok=True)
+        except BaseException as cleanup_error:
+            raise restore_error from cleanup_error
+        raise
+    else:
         temporary.unlink(missing_ok=True)
 
 
@@ -91,9 +97,8 @@ def _contains_exact_identifier(output: str, identifier: str) -> bool:
 
 def _plugin_is_enabled(output: str, plugin_ref: str) -> bool:
     for line in output.splitlines():
-        if _contains_exact_identifier(line, plugin_ref) and re.search(
-            r"(?<![A-Za-z0-9_-])enabled(?![A-Za-z0-9_-])", line, re.IGNORECASE
-        ):
+        fields = line.strip().split(maxsplit=1)
+        if fields == [plugin_ref, "installed, enabled"]:
             return True
     return False
 
@@ -193,9 +198,16 @@ def reinstall_codex_plugin(
         ).stdout
         if not _plugin_is_enabled(post, plugin_ref):
             raise RuntimeError("post-validate: installed plugin is not enabled")
-        return ReinstallResult(plugin_ref, installed_version)
-    finally:
+        result = ReinstallResult(plugin_ref, installed_version)
+    except BaseException as operation_error:
+        try:
+            _restore_bytes(manifest, base_bytes)
+        except BaseException as restore_error:
+            raise operation_error from restore_error
+        raise
+    else:
         _restore_bytes(manifest, base_bytes)
+        return result
 
 
 def codex_project_mode_preflight(

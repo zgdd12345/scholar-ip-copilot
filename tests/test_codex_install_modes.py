@@ -39,6 +39,24 @@ def test_default_and_compatibility_modes_never_install_both_surfaces() -> None:
     assert "install-codex-project" not in _recipe(makefile, "verify")
 
 
+@pytest.mark.parametrize("target", ["sync-codex-skills", "install-codex-project"])
+def test_every_public_compatibility_target_preflights_before_sync(target: str) -> None:
+    result = subprocess.run(
+        ["make", "-n", "PYTHON=python", target],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    preflight = "python -m evidraft.cli codex-project-mode-preflight --repo-root ."
+    sync = "python -m evidraft.cli sync-codex-skills"
+    assert preflight in result.stdout
+    assert sync in result.stdout
+    assert result.stdout.index(preflight) < result.stdout.index(sync)
+    assert "install-codex-plugin" not in result.stdout
+
+
 def test_remove_project_skills_deletes_only_manifest_owned_paths(tmp_path: Path) -> None:
     destination = tmp_path / ".agents" / "skills"
     owned = destination / "scholar-paper"
@@ -99,12 +117,26 @@ def test_project_mode_refuses_active_plugin_without_removing_it(tmp_path: Path) 
     assert all("remove" not in command for command in calls)
 
 
-def test_project_mode_allows_inactive_plugin(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "plugin_list_output",
+    [
+        f"{PLUGIN_REF} available, enabled\n",
+        f"{PLUGIN_REF} installed, disabled\n",
+        f"{PLUGIN_REF} installed, enabled: false\n",
+        f"{PLUGIN_REF} installed, not enabled\n",
+        "other@scholar-ip-copilot installed, enabled\n",
+        f"{PLUGIN_REF}-extra installed, enabled\n",
+        f"prefix-{PLUGIN_REF} installed, enabled\n",
+    ],
+)
+def test_project_mode_allows_every_non_exact_active_record(
+    tmp_path: Path, plugin_list_output: str
+) -> None:
     calls: list[list[str]] = []
 
     def runner(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         calls.append(command)
-        return subprocess.CompletedProcess(command, 0, f"{PLUGIN_REF} available, disabled\n", "")
+        return subprocess.CompletedProcess(command, 0, plugin_list_output, "")
 
     codex_project_mode_preflight(tmp_path, runner=runner)
 
