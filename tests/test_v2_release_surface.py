@@ -186,7 +186,7 @@ def test_makefile_and_ci_define_all_release_gates() -> None:
         "pytest tests/",
         "ruff check",
         "claude plugin validate",
-        "python -m build",
+        "-m build",
         "pip install",
         'bin/evidraft" --help',
         'bin/evidraft-claude-code" --help',
@@ -206,11 +206,24 @@ def test_makefile_and_ci_define_all_release_gates() -> None:
         assert gate in ci
 
     assert ci.count("unset PYTHONPATH") >= 2
+    build_step = ci.split("- name: Build wheel", maxsplit=1)[1].split(
+        "- name: Clean-install wheel and smoke all console scripts outside repository",
+        maxsplit=1,
+    )[0]
     smoke_step = ci.split(
         "- name: Clean-install wheel and smoke all console scripts outside repository",
         maxsplit=1,
     )[1]
+    assert "stage_wheel_source" in build_step
+    assert '"$GITHUB_WORKSPACE" "$RUNNER_TEMP/source"' in build_step
+    assert 'cd "$RUNNER_TEMP"' in build_step
+    assert build_step.index('cd "$RUNNER_TEMP"') < build_step.index("-m build")
+    assert '--outdir "$RUNNER_TEMP/dist" "$RUNNER_TEMP/source"' in build_step
+    assert "rm -rf dist build" not in build_step
+    assert "*.egg-info" not in build_step
     assert smoke_step.index('cd "$RUNNER_TEMP"') < smoke_step.index("pip install")
+    assert 'pip install "$RUNNER_TEMP"/dist/*.whl' in smoke_step
+    assert '"$GITHUB_WORKSPACE"/dist' not in smoke_step
 
 
 def test_release_documentation_states_topology_behavior_and_safety_contracts() -> None:

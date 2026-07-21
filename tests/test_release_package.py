@@ -314,6 +314,36 @@ def test_wheel_smoke_contract_uses_one_external_temporary_root() -> None:
     assert "$(SMOKE_VENV)" not in recipe
 
 
+def test_wheel_smoke_resolves_python_before_running_entire_smoke_from_tmp() -> None:
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    match = re.search(
+        r"^wheel-smoke:[^\n]*\n(?P<body>(?:\t.*\n)+)",
+        makefile,
+        flags=re.MULTILINE,
+    )
+    assert match is not None
+    recipe = match.group("body")
+
+    resolve_python = "python=$$($(SMOKE_ENV) $(PYTHON) -c"
+    change_directory = 'cd "$$root";'
+    assert resolve_python in recipe
+    assert "os.path.abspath(sys.executable)" in recipe
+    assert recipe.index(resolve_python) < recipe.index(change_directory)
+
+    external_recipe = recipe.split(change_directory, maxsplit=1)[1]
+    assert "$(PYTHON)" not in external_recipe
+    for command in (
+        '$(SMOKE_ENV) "$$python" -m build',
+        '$(SMOKE_ENV) "$$python" -m venv',
+        '$(SMOKE_ENV) "$$root/venv/bin/python" -m pip install',
+        '$(SMOKE_ENV) "$$root/venv/bin/evidraft" --help',
+        '$(SMOKE_ENV) "$$root/venv/bin/evidraft-claude-code" --plugin',
+        '$(SMOKE_ENV) "$$root/venv/bin/evidraft-codex-cli" --plugin',
+        '$(SMOKE_ENV) "$$root/venv/bin/evidraft-opencode" --plugin',
+    ):
+        assert command in external_recipe
+
+
 def test_real_wheel_smoke_preserves_repo_release_artifacts() -> None:
     before = _release_artifact_inventory()
     environment = os.environ.copy()

@@ -154,15 +154,16 @@ wheel:
 	$(PYTHON) -c 'import pathlib,zipfile; p=next(pathlib.Path("$(DIST_DIR)").glob("*.whl")); n=set(zipfile.ZipFile(p).namelist()); required={"evidraft/schemas/workflow.schema.json"}; forbidden={"packages/adapters/_shared/loader.py","packages/adapters/_shared/bundle.py","packages/core/src/__init__.py","packages/core/src/migrate.py"}; prefixes=("plugins/",".codex-plugin/",".claude-plugin/","skills/"); leaked=sorted(x for x in n if x.startswith(prefixes)); assert required <= n, required-n; assert not forbidden & n, forbidden & n; assert not leaked, leaked'
 
 wheel-smoke:
-	@set -eu; root=$$(mktemp -d /tmp/evidraft-wheel-smoke.XXXXXX); \
+	@set -eu; python=$$($(SMOKE_ENV) $(PYTHON) -c 'import os,sys; print(os.path.abspath(sys.executable))'); \
+	  root=$$(mktemp -d /tmp/evidraft-wheel-smoke.XXXXXX); \
 	  trap 'rm -rf "$$root"' EXIT; \
-	  $(READ_ONLY_PYTHON) $(PYTHON) -c 'import sys; from pathlib import Path; from evidraft.release import stage_wheel_source; stage_wheel_source(Path(sys.argv[1]), Path(sys.argv[2]))' "$(CURDIR)" "$$root/source"; \
-	  $(SMOKE_ENV) $(PYTHON) -m build --wheel --outdir "$$root/dist" "$$root/source"; \
-	  $(SMOKE_ENV) $(PYTHON) -c 'import pathlib,sys,zipfile; p=next(pathlib.Path(sys.argv[1]).glob("*.whl")); n=set(zipfile.ZipFile(p).namelist()); required={"evidraft/schemas/workflow.schema.json"}; forbidden={"packages/adapters/_shared/loader.py","packages/adapters/_shared/bundle.py","packages/core/src/__init__.py","packages/core/src/migrate.py"}; prefixes=("plugins/",".codex-plugin/",".claude-plugin/","skills/"); leaked=sorted(x for x in n if x.startswith(prefixes)); assert required <= n, required-n; assert not forbidden & n, forbidden & n; assert not leaked, leaked' "$$root/dist"; \
-	  $(SMOKE_ENV) $(PYTHON) -m venv "$$root/venv"; \
-	  $(SMOKE_ENV) "$$root/venv/bin/python" -m pip install --quiet "$$root"/dist/*.whl; \
+	  $(READ_ONLY_PYTHON) "$$python" -c 'import sys; from pathlib import Path; from evidraft.release import stage_wheel_source; stage_wheel_source(Path(sys.argv[1]), Path(sys.argv[2]))' "$(CURDIR)" "$$root/source"; \
 	  cp -R "$(PLUGIN_SRC)" "$$root/plugin"; \
 	  cd "$$root"; \
+	  $(SMOKE_ENV) "$$python" -m build --wheel --outdir "$$root/dist" "$$root/source"; \
+	  $(SMOKE_ENV) "$$python" -c 'import pathlib,sys,zipfile; p=next(pathlib.Path(sys.argv[1]).glob("*.whl")); n=set(zipfile.ZipFile(p).namelist()); required={"evidraft/schemas/workflow.schema.json"}; forbidden={"packages/adapters/_shared/loader.py","packages/adapters/_shared/bundle.py","packages/core/src/__init__.py","packages/core/src/migrate.py"}; prefixes=("plugins/",".codex-plugin/",".claude-plugin/","skills/"); leaked=sorted(x for x in n if x.startswith(prefixes)); assert required <= n, required-n; assert not forbidden & n, forbidden & n; assert not leaked, leaked' "$$root/dist"; \
+	  $(SMOKE_ENV) "$$python" -m venv "$$root/venv"; \
+	  $(SMOKE_ENV) "$$root/venv/bin/python" -m pip install --quiet "$$root"/dist/*.whl; \
 	  $(SMOKE_ENV) "$$root/venv/bin/evidraft" --help >/dev/null; \
 	  $(SMOKE_ENV) "$$root/venv/bin/evidraft-claude-code" --help >/dev/null; \
 	  $(SMOKE_ENV) "$$root/venv/bin/evidraft-codex-cli" --help >/dev/null; \

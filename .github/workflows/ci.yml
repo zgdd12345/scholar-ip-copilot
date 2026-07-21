@@ -67,18 +67,23 @@ jobs:
           ROOT="$root" .venv/bin/python -c 'import os,pathlib; r=pathlib.Path(os.environ["ROOT"])/"opencode"; assert len(list((r/"commands").glob("scholar-*.md"))) == 7; assert (r/"private/policies/policy.yaml").is_file(); assert (r/"private/capabilities/index.yaml").is_file()'
 
       - name: Build wheel
+        shell: bash
         run: |
           unset PYTHONPATH
-          rm -rf dist build *.egg-info src/*.egg-info packages/*.egg-info
-          .venv/bin/python -m build --wheel --outdir dist
-          .venv/bin/python -c 'import pathlib,zipfile; p=next(pathlib.Path("dist").glob("*.whl")); n=set(zipfile.ZipFile(p).namelist()); required={"evidraft/schemas/workflow.schema.json"}; forbidden={"packages/adapters/_shared/loader.py","packages/adapters/_shared/bundle.py","packages/core/src/__init__.py","packages/core/src/migrate.py"}; prefixes=("plugins/",".codex-plugin/",".claude-plugin/","skills/"); leaked=sorted(x for x in n if x.startswith(prefixes)); assert required <= n, required-n; assert not forbidden & n, forbidden & n; assert not leaked, leaked'
+          export PYTHONDONTWRITEBYTECODE=1
+          repo_python="$GITHUB_WORKSPACE/.venv/bin/python"
+          "$repo_python" -c 'import sys; from pathlib import Path; from evidraft.release import stage_wheel_source; stage_wheel_source(Path(sys.argv[1]), Path(sys.argv[2]))' "$GITHUB_WORKSPACE" "$RUNNER_TEMP/source"
+          cd "$RUNNER_TEMP"
+          "$repo_python" -m build --wheel --outdir "$RUNNER_TEMP/dist" "$RUNNER_TEMP/source"
+          "$repo_python" -c 'import pathlib,sys,zipfile; p=next(pathlib.Path(sys.argv[1]).glob("*.whl")); n=set(zipfile.ZipFile(p).namelist()); required={"evidraft/schemas/workflow.schema.json"}; forbidden={"packages/adapters/_shared/loader.py","packages/adapters/_shared/bundle.py","packages/core/src/__init__.py","packages/core/src/migrate.py"}; prefixes=("plugins/",".codex-plugin/",".claude-plugin/","skills/"); leaked=sorted(x for x in n if x.startswith(prefixes)); assert required <= n, required-n; assert not forbidden & n, forbidden & n; assert not leaked, leaked' "$RUNNER_TEMP/dist"
       - name: Clean-install wheel and smoke all console scripts outside repository
         shell: bash
         run: |
           unset PYTHONPATH
+          export PYTHONDONTWRITEBYTECODE=1
           cd "$RUNNER_TEMP"
           python -m venv "$RUNNER_TEMP/evidraft-smoke"
-          "$RUNNER_TEMP/evidraft-smoke/bin/python" -m pip install "$GITHUB_WORKSPACE"/dist/*.whl
+          "$RUNNER_TEMP/evidraft-smoke/bin/python" -m pip install "$RUNNER_TEMP"/dist/*.whl
           "$RUNNER_TEMP/evidraft-smoke/bin/evidraft" --help
           "$RUNNER_TEMP/evidraft-smoke/bin/evidraft-claude-code" --help
           "$RUNNER_TEMP/evidraft-smoke/bin/evidraft-codex-cli" --help
