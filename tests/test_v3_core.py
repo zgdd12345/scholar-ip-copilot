@@ -12,7 +12,7 @@ import yaml
 import evidraft
 import evidraft.core as core_module
 import evidraft.render as render_module
-from evidraft.cli import build_parser, main as cli_main
+from evidraft.cli import main as cli_main
 from evidraft.core import EvidenceError, PreflightError, workflow_preflight
 
 
@@ -355,7 +355,7 @@ def test_append_and_resolve_keep_strict_evidence_parsing(tmp_path: Path) -> None
         core_module.resolve_evidence(tmp_path, "ev_0001")
 
 
-def test_v3_removes_scope_and_paper_explanation_runtime_surfaces() -> None:
+def test_v3_keeps_safety_only_preflight_and_restores_explanation_validation() -> None:
     assert evidraft.__version__ == "3.0.0"
     assert evidraft.audit_evidence is core_module.audit_evidence
     assert evidraft.EvidenceAuditResult is core_module.EvidenceAuditResult
@@ -363,10 +363,8 @@ def test_v3_removes_scope_and_paper_explanation_runtime_surfaces() -> None:
     assert not hasattr(core_module, "scope_policy")
     assert not hasattr(core_module, "PUBLISH_OPERATIONS")
     assert not hasattr(core_module, "WARN_SCOPE_OPERATIONS")
-    assert not hasattr(core_module, "workflow_validate_paper_explanation_return")
-    assert not hasattr(evidraft, "workflow_validate_paper_explanation_return")
+    assert callable(core_module.workflow_validate_paper_explanation_return)
+    assert evidraft.workflow_validate_paper_explanation_return is (
+        core_module.workflow_validate_paper_explanation_return
+    )
     assert not hasattr(render_module, "_mode_agent_body")
-    assert not (Path(core_module.__file__).parent / "paper_explanation.py").exists()
-
-    with pytest.raises(SystemExit):
-        build_parser().parse_args(["paper-explanation", "validate-return"])

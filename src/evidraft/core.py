@@ -21,6 +21,8 @@ from typing import Iterator, Mapping, Sequence
 import jsonschema
 import yaml
 
+from .paper_explanation import validate_paper_explanation_instance
+
 FORMAT_VERSION = 2
 _PROJECTLESS_OPERATIONS = frozenset(
     {
@@ -1054,6 +1056,21 @@ def workflow_prepare_output(
         raise PreflightError("target path must name an output inside the project root")
     target.parent.mkdir(parents=True, exist_ok=True)
     return result
+
+
+def workflow_validate_paper_explanation_return(
+    bundle: Path | str,
+    instance: object,
+    *,
+    expected_task_id: str,
+    expected_attempt: int,
+) -> dict[str, object]:
+    return validate_paper_explanation_instance(
+        Path(bundle),
+        instance,
+        expected_task_id=expected_task_id,
+        expected_attempt=expected_attempt,
+    )
 
 
 def prune_retention(
