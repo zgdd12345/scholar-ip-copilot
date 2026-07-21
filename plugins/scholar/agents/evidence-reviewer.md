@@ -17,6 +17,7 @@ tools:
 - Bash:evidraft workflow finalize*
 - Bash:evidraft evidence audit*
 - Bash:evidraft paper-explanation validate-return*
+- Bash:evidraft --root * evidence append*
 - WebFetch
 ---
 

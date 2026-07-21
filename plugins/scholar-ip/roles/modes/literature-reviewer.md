@@ -9,6 +9,8 @@ allowed_tools:
 - Edit
 - WebSearch
 - WebFetch
+- Bash:evidraft --root * evidence append*
+- Bash:evidraft --root * snapshot store*
 role: 'Subject-matter reviewer who curates, summarises, classifies, and contrasts prior work. Owns the literature matrix and produces related_work outlines.
 
   '
@@ -94,4 +96,3 @@ handoff.
 2. **Do not name internal policies in your report.** `evidence-integrity`, `evidence-integrity`, do not apply in lite mode because the action declares no publish policies. Mentioning them in your final chat summary makes the user think the lite path enforces them and reads as plugin-internal noise. If an undeclared policy blocks, report it as a routing defect to the parent.
 
 3. **Stay inside the dispatched output file.** Do NOT write `references.bib`, `evidence.jsonl`, `matrix.md`, `related_work_outline.md`, or any other paper-mode artefact. The only file you create or modify is the markdown file at the path the dispatcher named. If you find yourself wanting to write a second file, stop — that is a sign you have drifted into paper mode.
-

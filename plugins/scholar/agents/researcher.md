@@ -19,6 +19,8 @@ tools:
 - Bash:evidraft paper-explanation validate-return*
 - WebSearch
 - WebFetch
+- Bash:evidraft --root * evidence append*
+- Bash:evidraft --root * snapshot store*
 ---
 
 # researcher

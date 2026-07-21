@@ -285,7 +285,12 @@ def test_claude_agents_union_only_their_registered_mode_tools(tmp_path: Path) ->
 
     defaults = workspace_safety["default_allowed_tools"]
     assert researcher["tools"][: len(defaults)] == defaults
-    assert researcher["tools"][-2:] == ["WebSearch", "WebFetch"]
+    assert set(researcher["tools"][len(defaults) :]) == {
+        "WebSearch",
+        "WebFetch",
+        "Bash:evidraft --root * evidence append*",
+        "Bash:evidraft --root * snapshot store*",
+    }
     assert len(researcher["tools"]) == len(set(researcher["tools"]))
     assert not any(
         fnmatchcase(tool, pattern)
@@ -294,6 +299,68 @@ def test_claude_agents_union_only_their_registered_mode_tools(tmp_path: Path) ->
     )
     assert "WebSearch" not in experiment_reviewer["tools"]
     assert "WebFetch" not in experiment_reviewer["tools"]
+
+
+@pytest.mark.parametrize(
+    ("role", "expected_patterns"),
+    [
+        (
+            "researcher",
+            {
+                "Bash:evidraft --root * evidence append*",
+                "Bash:evidraft --root * snapshot store*",
+            },
+        ),
+        ("evidence-reviewer", {"Bash:evidraft --root * evidence append*"}),
+    ],
+)
+def test_claude_evidence_roles_receive_only_narrow_cli_permissions(
+    tmp_path: Path, role: str, expected_patterns: set[str]
+) -> None:
+    out = tmp_path / "claude"
+    render_plugin(PLUGIN_ROOT, out, Host.CLAUDE)
+    metadata = yaml.safe_load(
+        (out / "agents" / f"{role}.md").read_text().split("---", 2)[1]
+    )
+    tools = set(metadata["tools"])
+    sample_commands = {
+        "Bash:evidraft --root * evidence append*": (
+            'Bash:evidraft --root /tmp/project evidence append '
+            "'{\"type\":\"note\",\"source\":\"review\"}'"
+        ),
+        "Bash:evidraft --root * snapshot store*": (
+            "Bash:evidraft --root /tmp/project snapshot store "
+            "https://example.test/source /tmp/raw-body.md"
+        ),
+    }
+
+    assert expected_patterns <= tools
+    assert all(
+        fnmatchcase(sample_commands[pattern], pattern) for pattern in expected_patterns
+    )
+    assert "Bash:evidraft*" not in tools
+
+
+def test_claude_unrelated_roles_do_not_receive_evidence_mutation_permissions(
+    tmp_path: Path,
+) -> None:
+    out = tmp_path / "claude"
+    render_plugin(PLUGIN_ROOT, out, Host.CLAUDE)
+    evidence_patterns = {
+        "Bash:evidraft --root * evidence append*",
+        "Bash:evidraft --root * snapshot store*",
+    }
+
+    for role in (
+        "code-reviewer",
+        "experiment-reviewer",
+        "writing-reviewer",
+        "patent-reviewer",
+    ):
+        metadata = yaml.safe_load(
+            (out / "agents" / f"{role}.md").read_text().split("---", 2)[1]
+        )
+        assert evidence_patterns.isdisjoint(metadata["tools"])
 
 
 def test_renderer_validates_mode_tools_and_filters_forbidden_globs(tmp_path: Path) -> None:

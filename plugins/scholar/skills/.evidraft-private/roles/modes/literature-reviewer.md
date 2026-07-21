@@ -9,6 +9,8 @@ allowed_tools:
 - Edit
 - WebSearch
 - WebFetch
+- Bash:evidraft --root * evidence append*
+- Bash:evidraft --root * snapshot store*
 role: 'Subject-matter reviewer who curates, summarises, classifies, and contrasts prior work. Owns the literature matrix and produces related_work outlines.
 
   '
