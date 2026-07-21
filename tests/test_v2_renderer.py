@@ -41,6 +41,24 @@ def _public_entries(root: Path, host: Host) -> set[str]:
     }
 
 
+def _plugin_with_source_symlink(tmp_path: Path, kind: str) -> Path:
+    plugin = tmp_path / "plugin"
+    shutil.copytree(PLUGIN_ROOT, plugin)
+    if kind == "file":
+        linked = plugin / "README.md"
+        linked.unlink()
+        linked.symlink_to(PLUGIN_ROOT / "README.md")
+    elif kind == "directory":
+        linked = plugin / "templates"
+        shutil.rmtree(linked)
+        linked.symlink_to(PLUGIN_ROOT / "templates", target_is_directory=True)
+    else:
+        linked = tmp_path / "linked-plugin"
+        linked.symlink_to(plugin, target_is_directory=True)
+        plugin = linked
+    return plugin
+
+
 def test_load_workflows_exposes_seven_entries_and_twenty_two_actions() -> None:
     workflows = load_workflows(PLUGIN_ROOT)
 
@@ -148,6 +166,43 @@ def test_renderer_rejects_incomplete_v2_ir_before_output(
         render_plugin(plugin, out, Host.CLAUDE)
 
     assert not out.exists()
+
+
+@pytest.mark.parametrize("kind", ["file", "directory", "root"])
+def test_render_rejects_source_symlink_before_creating_output(
+    tmp_path: Path, kind: str
+) -> None:
+    plugin = _plugin_with_source_symlink(tmp_path, kind)
+    out = tmp_path / "out"
+
+    with pytest.raises(ValueError, match="source.*symlink"):
+        render_plugin(plugin, out, Host.CLAUDE)
+
+    assert not out.exists()
+
+
+def test_render_source_symlink_rejection_preserves_existing_output(tmp_path: Path) -> None:
+    plugin = tmp_path / "plugin"
+    shutil.copytree(PLUGIN_ROOT, plugin)
+    out = tmp_path / "out"
+    render_plugin(plugin, out, Host.CLAUDE)
+    before = {
+        path.relative_to(out).as_posix(): path.read_bytes()
+        for path in out.rglob("*")
+        if path.is_file()
+    }
+    readme = plugin / "README.md"
+    readme.unlink()
+    readme.symlink_to(PLUGIN_ROOT / "README.md")
+
+    with pytest.raises(ValueError, match="source.*symlink"):
+        render_plugin(plugin, out, Host.CLAUDE)
+
+    assert {
+        path.relative_to(out).as_posix(): path.read_bytes()
+        for path in out.rglob("*")
+        if path.is_file()
+    } == before
 
 
 @pytest.mark.parametrize("host", list(Host))

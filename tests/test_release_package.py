@@ -72,6 +72,35 @@ def _fake_renderer(shared: bytes, *, distinct_by_host: bool = False):
     return render
 
 
+def _plugin_with_source_symlink(tmp_path: Path, kind: str) -> Path:
+    plugin = tmp_path / "plugin"
+    shutil.copytree(PLUGIN, plugin)
+    if kind == "file":
+        linked = plugin / "README.md"
+        linked.unlink()
+        linked.symlink_to(PLUGIN / "README.md")
+    elif kind == "directory":
+        linked = plugin / "templates"
+        shutil.rmtree(linked)
+        linked.symlink_to(PLUGIN / "templates", target_is_directory=True)
+    else:
+        linked = tmp_path / "linked-plugin"
+        linked.symlink_to(plugin, target_is_directory=True)
+        plugin = linked
+    return plugin
+
+
+def _wheel_source_repo(root: Path) -> None:
+    (root / "src/evidraft").mkdir(parents=True)
+    (root / "packages/adapters").mkdir(parents=True)
+    for name in ("pyproject.toml", "README.md", "LICENSE"):
+        (root / name).write_text(f"current {name}\n", encoding="utf-8")
+    (root / "src/evidraft/current.py").write_text("CURRENT = True\n", encoding="utf-8")
+    (root / "packages/adapters/current.py").write_text(
+        "CURRENT = True\n", encoding="utf-8"
+    )
+
+
 def test_load_plugin_metadata_reads_canonical_source() -> None:
     metadata = load_plugin_metadata(PLUGIN)
 
@@ -102,6 +131,37 @@ def test_release_package_contains_both_host_surfaces(tmp_path: Path) -> None:
     assert len(list((out / "skills").glob("scholar-*/SKILL.md"))) == 7
     assert len(list((out / "commands").glob("*.md"))) == 7
     assert len(list((out / "agents").glob("*.md"))) == 10
+
+
+@pytest.mark.parametrize("kind", ["file", "directory", "root"])
+def test_release_package_rejects_source_symlink_before_creating_output(
+    tmp_path: Path, kind: str
+) -> None:
+    plugin = _plugin_with_source_symlink(tmp_path, kind)
+    out = tmp_path / "out"
+
+    with pytest.raises(ValueError, match="source.*symlink"):
+        render_plugin_package(plugin, out)
+
+    assert not out.exists()
+
+
+def test_release_source_symlink_rejection_preserves_existing_output(
+    tmp_path: Path,
+) -> None:
+    plugin = tmp_path / "plugin"
+    shutil.copytree(PLUGIN, plugin)
+    out = tmp_path / "out"
+    render_plugin_package(plugin, out)
+    before = _tree_bytes(out)
+    readme = plugin / "README.md"
+    readme.unlink()
+    readme.symlink_to(PLUGIN / "README.md")
+
+    with pytest.raises(ValueError, match="source.*symlink"):
+        render_plugin_package(plugin, out)
+
+    assert _tree_bytes(out) == before
 
 
 def test_release_package_is_path_and_mtime_independent(tmp_path: Path) -> None:
@@ -390,6 +450,54 @@ def test_wheel_source_staging_copies_current_tree_without_build_artifacts(
     assert (out / "packages/adapters/current.py").read_text() == "CURRENT = True\n"
     assert not (out / "src/evidraft/__pycache__").exists()
     assert not (out / "packages/adapters/stale.egg-info").exists()
+
+
+@pytest.mark.parametrize("kind", ["file", "directory", "root"])
+def test_wheel_source_staging_rejects_symlink_before_creating_output_parent(
+    tmp_path: Path, kind: str
+) -> None:
+    repo = tmp_path / "repo"
+    _wheel_source_repo(repo)
+    if kind == "file":
+        outside = tmp_path / "outside-readme.md"
+        outside.write_text("outside\n", encoding="utf-8")
+        (repo / "README.md").unlink()
+        (repo / "README.md").symlink_to(outside)
+    elif kind == "directory":
+        outside = tmp_path / "outside-src"
+        shutil.copytree(repo / "src", outside)
+        shutil.rmtree(repo / "src")
+        (repo / "src").symlink_to(outside, target_is_directory=True)
+    else:
+        linked = tmp_path / "linked-repo"
+        linked.symlink_to(repo, target_is_directory=True)
+        repo = linked
+    out = tmp_path / "new-parent" / "source"
+
+    with pytest.raises(ValueError, match="source.*symlink"):
+        release_module.stage_wheel_source(repo, out)
+
+    assert not out.exists()
+    assert not out.parent.exists()
+
+
+def test_wheel_source_symlink_rejection_preserves_existing_output(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _wheel_source_repo(repo)
+    outside = tmp_path / "outside-readme.md"
+    outside.write_text("outside\n", encoding="utf-8")
+    (repo / "README.md").unlink()
+    (repo / "README.md").symlink_to(outside)
+    out = tmp_path / "existing"
+    out.mkdir()
+    marker = out / "marker.txt"
+    marker.write_bytes(b"keep exactly\n")
+    before = _tree_bytes(out)
+
+    with pytest.raises(ValueError, match="source.*symlink"):
+        release_module.stage_wheel_source(repo, out)
+
+    assert _tree_bytes(out) == before
 
 
 def test_wheel_source_staging_refuses_repository_output(tmp_path: Path) -> None:

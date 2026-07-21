@@ -8,7 +8,13 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from .render import RENDERER_VERSION, Host, load_plugin_metadata, render_plugin
+from .render import (
+    RENDERER_VERSION,
+    Host,
+    _reject_source_symlinks,
+    load_plugin_metadata,
+    render_plugin,
+)
 from .transaction import replace_owned_tree
 
 
@@ -71,7 +77,9 @@ def _existing_release_files(root: Path) -> set[Path]:
 
 def source_sha256(plugin_root: Path) -> str:
     digest = hashlib.sha256()
-    plugin_root = Path(plugin_root)
+    plugin_root = Path(plugin_root).absolute()
+    _reject_source_symlinks(plugin_root)
+    plugin_root = plugin_root.resolve()
     for path in sorted(item for item in plugin_root.rglob("*") if item.is_file()):
         relative = path.relative_to(plugin_root).as_posix().encode("utf-8")
         body = path.read_bytes()
@@ -84,15 +92,26 @@ def source_sha256(plugin_root: Path) -> str:
 
 def stage_wheel_source(repo_root: Path, out_dir: Path) -> list[Path]:
     """Copy current wheel build inputs to a location outside the repository."""
-    repo_root = Path(repo_root).resolve()
+    repo_root = Path(repo_root).absolute()
+    if repo_root.is_symlink():
+        raise ValueError(f"source tree contains symlink: {repo_root}")
+    repo_root = repo_root.resolve()
+    source_names = (*WHEEL_SOURCE_FILES, *WHEEL_SOURCE_DIRECTORIES)
+    sources = [repo_root / name for name in source_names]
+    for name, source in zip(source_names, sources, strict=True):
+        current = repo_root
+        for component in Path(name).parts:
+            current /= component
+            if current.is_symlink():
+                raise ValueError(f"source tree contains symlink: {current}")
+        _reject_source_symlinks(source)
+
     out_dir = Path(out_dir).resolve(strict=False)
     if out_dir == repo_root or out_dir.is_relative_to(repo_root):
         raise ValueError("wheel source output must be outside repository")
     if out_dir.exists() or out_dir.is_symlink():
         raise FileExistsError(f"wheel source output already exists: {out_dir}")
 
-    sources = [repo_root / name for name in WHEEL_SOURCE_FILES]
-    sources.extend(repo_root / name for name in WHEEL_SOURCE_DIRECTORIES)
     missing = [path.relative_to(repo_root).as_posix() for path in sources if not path.exists()]
     if missing:
         raise FileNotFoundError(f"missing wheel source inputs: {', '.join(missing)}")
@@ -118,7 +137,9 @@ def stage_wheel_source(repo_root: Path, out_dir: Path) -> list[Path]:
 
 
 def render_plugin_package(plugin_root: Path, out_dir: Path) -> list[Path]:
-    plugin_root = Path(plugin_root).resolve()
+    plugin_root = Path(plugin_root).absolute()
+    _reject_source_symlinks(plugin_root)
+    plugin_root = plugin_root.resolve()
     out_dir = Path(out_dir).absolute()
     metadata = load_plugin_metadata(plugin_root)
     with tempfile.TemporaryDirectory(prefix="evidraft-package-") as raw:

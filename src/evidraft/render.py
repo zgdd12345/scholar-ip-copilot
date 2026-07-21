@@ -139,6 +139,25 @@ class Workflow:
     root: Path
 
 
+def _reject_source_symlinks(source_root: Path) -> None:
+    source_root = Path(source_root).absolute()
+    if source_root.is_symlink():
+        raise ValueError(f"source tree contains symlink: {source_root}")
+    if not source_root.is_dir():
+        return
+    pending = [source_root]
+    while pending:
+        current = pending.pop()
+        with os.scandir(current) as scanned:
+            entries = sorted(scanned, key=lambda entry: entry.name)
+        for entry in entries:
+            path = Path(entry.path)
+            if entry.is_symlink():
+                raise ValueError(f"source tree contains symlink: {path}")
+            if entry.is_dir(follow_symlinks=False):
+                pending.append(path)
+
+
 def load_plugin_metadata(plugin_root: Path) -> PluginMetadata:
     raw = yaml.safe_load((Path(plugin_root) / "plugin.yaml").read_text(encoding="utf-8"))
     return PluginMetadata(
@@ -662,6 +681,8 @@ def clean_rendered(out_dir: Path) -> list[Path]:
 
 def render_plugin(plugin_root: Path, out_dir: Path, host: Host | str) -> list[Path]:
     host = Host(host)
+    plugin_root = Path(plugin_root).absolute()
+    _reject_source_symlinks(plugin_root)
     plugin_root = plugin_root.resolve()
     _validate_plugin_source(plugin_root)
     metadata = load_plugin_metadata(plugin_root)
