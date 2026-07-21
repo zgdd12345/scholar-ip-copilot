@@ -87,7 +87,7 @@ remove-codex-project-skills:
 	$(PYTHON) -m evidraft.cli remove-codex-project-skills \
 	    --dest $(CODEX_SKILLS_INSTALL)
 
-install-codex-plugin: package-check remove-codex-project-skills
+install-codex-plugin: package-check
 	$(PYTHON) -m evidraft.cli install-codex-plugin \
 	    --repo-root . \
 	    --marketplace .agents/plugins/marketplace.json \

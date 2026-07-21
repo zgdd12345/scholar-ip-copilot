@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 from .legacy import V1_COMMANDS, V1_SKILLS
@@ -24,6 +26,15 @@ PUBLIC_CODEX_SKILLS = {
 V1_CODEX_ENTRIES = {f"scholar-{value}" for value in V1_COMMANDS} | {
     f"scholar-skill-{value}" for value in V1_SKILLS
 }
+
+
+@dataclass(frozen=True)
+class CodexProjectSkillsSnapshot:
+    destination: Path
+    staged_root: Path
+    claimed_paths: frozenset[Path]
+    existing_paths: frozenset[Path]
+    manifest_bytes: bytes | None
 
 
 def _owned_names(destination: Path) -> set[str]:
@@ -76,6 +87,70 @@ def _validate_source(rendered_root: Path) -> tuple[dict[str, Path], Path]:
     if private.is_symlink() or not all(path.is_file() for path in required):
         raise ValueError("rendered Codex source is missing private workflow resources")
     return bundles, private
+
+
+def _copy_snapshot_node(source: Path, target: Path) -> None:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if source.is_symlink():
+        target.symlink_to(os.readlink(source), target_is_directory=source.is_dir())
+    elif source.is_dir():
+        shutil.copytree(source, target, symlinks=True)
+    else:
+        shutil.copy2(source, target)
+
+
+def snapshot_codex_project_skills(
+    destination: Path,
+    staged_root: Path,
+) -> CodexProjectSkillsSnapshot:
+    """Copy manifest-owned compatibility state before marketplace installation."""
+    destination = Path(destination).absolute()
+    if destination.is_symlink():
+        raise ValueError(f"skill destination must not be a symlink: {destination}")
+    manifest = destination / ".evidraft-ownership.json"
+    if manifest.is_symlink() or (manifest.exists() and not manifest.is_file()):
+        raise ValueError(f"deployment manifest must be a regular file: {manifest}")
+    claimed = frozenset(Path(name) for name in _owned_names(destination))
+    staged_root = Path(staged_root)
+    staged_root.mkdir(parents=True)
+    existing: set[Path] = set()
+    for relative in sorted(claimed):
+        source = destination / relative
+        if not source.exists() and not source.is_symlink():
+            continue
+        _copy_snapshot_node(source, staged_root / relative)
+        existing.add(relative)
+    return CodexProjectSkillsSnapshot(
+        destination=destination,
+        staged_root=staged_root,
+        claimed_paths=claimed,
+        existing_paths=frozenset(existing),
+        manifest_bytes=manifest.read_bytes() if manifest.is_file() else None,
+    )
+
+
+def restore_codex_project_skills(snapshot: CodexProjectSkillsSnapshot) -> None:
+    """Restore the exact compatibility state captured before removal."""
+    if snapshot.manifest_bytes is None:
+        return
+    manifest_data = json.loads(snapshot.manifest_bytes.decode("utf-8"))
+    if not isinstance(manifest_data, dict):
+        raise ValueError("deployment manifest must be a JSON object")
+    manifest = snapshot.destination / ".evidraft-ownership.json"
+    replace_owned_tree(
+        root=snapshot.destination,
+        staged_root=snapshot.staged_root,
+        new_owned=set(snapshot.existing_paths),
+        old_owned=set(snapshot.claimed_paths),
+        manifest=manifest,
+        manifest_data=manifest_data,
+    )
+    temporary = manifest.with_name(f".{manifest.name}.restore-{os.getpid()}")
+    try:
+        temporary.write_bytes(snapshot.manifest_bytes)
+        os.replace(temporary, manifest)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def sync_codex_skills(rendered_root: Path, destination: Path) -> list[Path]:

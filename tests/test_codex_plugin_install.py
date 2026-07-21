@@ -73,6 +73,36 @@ def _build_release(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
     return repo, marketplace, release, creator
 
 
+def _seed_compatibility_state(repo: Path) -> tuple[Path, dict[str, bytes]]:
+    destination = repo / ".agents" / "skills"
+    files = {
+        "scholar-paper/SKILL.md": b"# prior paper skill\n",
+        "scholar-paper/references/state.bin": b"\x00prior\xff",
+        ".evidraft-private/plugin.yaml": b"version: prior\n",
+    }
+    for relative, content in files.items():
+        path = destination / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+    manifest = destination / ".evidraft-ownership.json"
+    manifest.write_bytes(
+        b'{\n  "version": 2,\n  "owned_paths": ["scholar-paper"],'
+        b'\n  "private_path": ".evidraft-private"\n}\n'
+    )
+    user = destination / "scholar-custom" / "SKILL.md"
+    user.parent.mkdir(parents=True)
+    user.write_bytes(b"# user skill\n")
+    return destination, _compatibility_state(destination)
+
+
+def _compatibility_state(destination: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(destination).as_posix(): path.read_bytes()
+        for path in sorted(destination.rglob("*"))
+        if path.is_file()
+    }
+
+
 def _plugin_list(version: str, path: Path, *, status: str = "installed, enabled") -> str:
     return (
         PLUGIN_HEADER
@@ -89,6 +119,7 @@ def _runner(
     plugin_list_output: str | None = None,
     installed_skills: set[str] | None = None,
     operation_error: BaseException | None = None,
+    expect_compatibility_removed: bool = False,
 ) -> Callable[..., subprocess.CompletedProcess[str]]:
     marketplace_added = False
 
@@ -101,9 +132,20 @@ def _runner(
             "text": True,
         }
         calls.append(command)
+        compatibility = release.parents[1] / ".agents" / "skills"
+
+        def assert_compatibility_removed() -> None:
+            if expect_compatibility_removed:
+                assert not (compatibility / ".evidraft-ownership.json").exists()
+                assert not (compatibility / "scholar-paper").exists()
+                assert not (compatibility / ".evidraft-private").exists()
+
+        if command[1].endswith("validate_plugin.py") and failing_step == "source-validator":
+            raise operation_error or RuntimeError("source-validator")
         if command[1].endswith("read_marketplace_name.py"):
             return subprocess.CompletedProcess(command, 0, "scholar-ip-copilot\n", "")
         if command[1].endswith("update_plugin_cachebuster.py"):
+            assert_compatibility_removed()
             manifest = release / ".codex-plugin" / "plugin.json"
             document = json.loads(manifest.read_text(encoding="utf-8"))
             document["version"] = "3.0.0+codex.test"
@@ -120,9 +162,13 @@ def _runner(
                 output += f"scholar-ip-copilot  {release.parents[1].resolve()}\n"
             return subprocess.CompletedProcess(command, 0, output, "")
         if command[-4:-1] == ["plugin", "marketplace", "add"]:
+            assert_compatibility_removed()
+            if failing_step == "marketplace-add":
+                raise operation_error or RuntimeError("marketplace-add")
             marketplace_added = True
             return subprocess.CompletedProcess(command, 0, "", "")
         if command[-3:-1] == ["plugin", "add"]:
+            assert_compatibility_removed()
             if failing_step == "plugin-add":
                 raise operation_error or RuntimeError("plugin-add")
             manifest = release / ".codex-plugin" / "plugin.json"
@@ -141,6 +187,7 @@ def _runner(
                 skill.write_text(f"# {name}\n", encoding="utf-8")
             return subprocess.CompletedProcess(command, 0, "", "")
         if command[-2:] == ["plugin", "list"]:
+            assert_compatibility_removed()
             if failing_step == "post-validate":
                 if operation_error is not None:
                     raise operation_error
@@ -281,6 +328,104 @@ def test_reinstall_rejects_installed_cache_without_exact_public_skills(
             creator,
             runner=_runner(release, [], installed_skills=installed_skills),
         )
+
+
+def test_side_effect_free_validator_failure_preserves_compatibility_state(
+    tmp_path: Path,
+) -> None:
+    repo, marketplace, release, creator = _build_release(tmp_path)
+    destination, before = _seed_compatibility_state(repo)
+
+    with pytest.raises(RuntimeError, match="source-validator"):
+        reinstall_codex_plugin(
+            repo,
+            marketplace,
+            release,
+            creator,
+            runner=_runner(release, [], failing_step="source-validator"),
+        )
+
+    assert _compatibility_state(destination) == before
+
+
+@pytest.mark.parametrize(
+    "failing_step",
+    ["marketplace-add", "cachebuster", "plugin-add", "post-validate"],
+)
+def test_every_failure_after_compatibility_removal_restores_exact_prior_state(
+    tmp_path: Path,
+    failing_step: str,
+) -> None:
+    repo, marketplace, release, creator = _build_release(tmp_path)
+    destination, before = _seed_compatibility_state(repo)
+    operation_error = RuntimeError(f"{failing_step}-original")
+    marketplace_list = (
+        MARKETPLACE_HEADER + "other  /tmp/other\n"
+        if failing_step == "marketplace-add"
+        else None
+    )
+
+    with pytest.raises(RuntimeError, match=f"{failing_step}-original") as caught:
+        reinstall_codex_plugin(
+            repo,
+            marketplace,
+            release,
+            creator,
+            runner=_runner(
+                release,
+                [],
+                failing_step=failing_step,
+                marketplace_list=marketplace_list,
+                operation_error=operation_error,
+                expect_compatibility_removed=True,
+            ),
+        )
+
+    assert caught.value is operation_error
+    assert _compatibility_state(destination) == before
+
+
+def test_installed_cache_validator_failure_restores_exact_prior_compatibility_state(
+    tmp_path: Path,
+) -> None:
+    repo, marketplace, release, creator = _build_release(tmp_path)
+    destination, before = _seed_compatibility_state(repo)
+
+    with pytest.raises(RuntimeError, match="exactly seven public skills"):
+        reinstall_codex_plugin(
+            repo,
+            marketplace,
+            release,
+            creator,
+            runner=_runner(
+                release,
+                [],
+                installed_skills=PUBLIC_CODEX_SKILLS - {"scholar-using"},
+                expect_compatibility_removed=True,
+            ),
+        )
+
+    assert _compatibility_state(destination) == before
+
+
+def test_successful_marketplace_install_leaves_compatibility_discovery_absent(
+    tmp_path: Path,
+) -> None:
+    repo, marketplace, release, creator = _build_release(tmp_path)
+    destination, _ = _seed_compatibility_state(repo)
+
+    reinstall_codex_plugin(
+        repo,
+        marketplace,
+        release,
+        creator,
+        runner=_runner(release, [], expect_compatibility_removed=True),
+    )
+
+    assert not (destination / ".evidraft-ownership.json").exists()
+    assert not (destination / "scholar-paper").exists()
+    assert not (destination / ".evidraft-private").exists()
+    assert (destination / "scholar-custom" / "SKILL.md").read_bytes() == b"# user skill\n"
 
 
 @pytest.mark.parametrize("failing_step", ["cachebuster", "plugin-add", "post-validate"])

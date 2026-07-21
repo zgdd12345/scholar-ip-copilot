@@ -7,11 +7,17 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from .install import PUBLIC_CODEX_SKILLS
+from .install import (
+    PUBLIC_CODEX_SKILLS,
+    remove_codex_project_skills,
+    restore_codex_project_skills,
+    snapshot_codex_project_skills,
+)
 
 
 Runner = Callable[..., subprocess.CompletedProcess[str]]
@@ -252,23 +258,7 @@ def reinstall_codex_plugin(
         text=True,
     ).stdout
     configured_root = _marketplace_root(listed, selected.marketplace_name)
-    if configured_root is None:
-        runner(
-            [*codex_command, "plugin", "marketplace", "add", str(repo_root)],
-            cwd=repo_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        listed = runner(
-            [*codex_command, "plugin", "marketplace", "list"],
-            cwd=repo_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout
-        configured_root = _marketplace_root(listed, selected.marketplace_name)
-    if configured_root != repo_root:
+    if configured_root is not None and configured_root != repo_root:
         raise ValueError(
             "configured marketplace root does not match the current canonical repository root"
         )
@@ -276,44 +266,88 @@ def reinstall_codex_plugin(
     manifest = selected.plugin_root / ".codex-plugin" / "plugin.json"
     base_bytes = manifest.read_bytes()
     plugin_ref = f"{selected.plugin_name}@{selected.marketplace_name}"
-    try:
-        runner(
-            [
-                python,
-                str(creator / "scripts/update_plugin_cachebuster.py"),
-                str(selected.plugin_root),
-            ],
-            cwd=repo_root,
-            check=True,
-            capture_output=True,
-            text=True,
+    compatibility_destination = repo_root / ".agents" / "skills"
+    with tempfile.TemporaryDirectory(prefix="evidraft-codex-compat-") as raw_snapshot:
+        snapshot = snapshot_codex_project_skills(
+            compatibility_destination,
+            Path(raw_snapshot) / "snapshot",
         )
-        installed_version = json.loads(manifest.read_text(encoding="utf-8"))["version"]
-        runner(
-            [*codex_command, "plugin", "add", plugin_ref],
-            cwd=repo_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        post = runner(
-            [*codex_command, "plugin", "list"],
-            cwd=repo_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout
-        _validate_installed_plugin(post, selected, installed_version)
-        result = ReinstallResult(plugin_ref, installed_version)
-    except BaseException as operation_error:
+        removal_started = False
+        manifest_may_be_mutated = False
         try:
+            removal_started = True
+            remove_codex_project_skills(compatibility_destination)
+            if configured_root is None:
+                runner(
+                    [*codex_command, "plugin", "marketplace", "add", str(repo_root)],
+                    cwd=repo_root,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                listed = runner(
+                    [*codex_command, "plugin", "marketplace", "list"],
+                    cwd=repo_root,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                ).stdout
+                configured_root = _marketplace_root(listed, selected.marketplace_name)
+                if configured_root != repo_root:
+                    raise ValueError(
+                        "configured marketplace root does not match the current canonical "
+                        "repository root"
+                    )
+            manifest_may_be_mutated = True
+            runner(
+                [
+                    python,
+                    str(creator / "scripts/update_plugin_cachebuster.py"),
+                    str(selected.plugin_root),
+                ],
+                cwd=repo_root,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            installed_version = json.loads(manifest.read_text(encoding="utf-8"))["version"]
+            runner(
+                [*codex_command, "plugin", "add", plugin_ref],
+                cwd=repo_root,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            post = runner(
+                [*codex_command, "plugin", "list"],
+                cwd=repo_root,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout
+            _validate_installed_plugin(post, selected, installed_version)
+            result = ReinstallResult(plugin_ref, installed_version)
             _restore_bytes(manifest, base_bytes)
-        except BaseException as restore_error:
-            raise operation_error from restore_error
-        raise
-    else:
-        _restore_bytes(manifest, base_bytes)
-        return result
+            manifest_may_be_mutated = False
+        except BaseException as operation_error:
+            restore_error: BaseException | None = None
+            if manifest_may_be_mutated:
+                try:
+                    if manifest.read_bytes() != base_bytes:
+                        _restore_bytes(manifest, base_bytes)
+                except BaseException as error:
+                    restore_error = error
+            if removal_started:
+                try:
+                    restore_codex_project_skills(snapshot)
+                except BaseException as error:
+                    if restore_error is None:
+                        restore_error = error
+            if restore_error is not None:
+                raise operation_error from restore_error
+            raise
+        else:
+            return result
 
 
 def codex_project_mode_preflight(

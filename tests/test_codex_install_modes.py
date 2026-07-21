@@ -30,9 +30,11 @@ def test_default_and_compatibility_modes_never_install_both_surfaces() -> None:
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
 
     assert "install-codex: install-codex-plugin" in makefile
-    assert "install-codex-plugin:" in makefile
+    assert "install-codex-plugin: package-check" in makefile
+    assert "install-codex-plugin: package-check remove-codex-project-skills" not in makefile
     assert "install-codex-project:" in makefile
     assert "sync-codex-skills" not in _recipe(makefile, "install-codex-plugin")
+    assert "remove-codex-project-skills" not in _recipe(makefile, "install-codex-plugin")
     assert "plugin add" not in _recipe(makefile, "install-codex-project")
     assert "--out plugins/scholar --check" in _recipe(makefile, "package-check")
     assert "install-codex-project" not in _recipe(makefile, "_install-all")
