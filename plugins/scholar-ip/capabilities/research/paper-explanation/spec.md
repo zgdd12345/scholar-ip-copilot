@@ -4,8 +4,8 @@ title: Evidence-grounded single-paper explanation
 kind: skill
 phase: shared
 description: >
-  Read one paper at full-text level, explain it at beginner, graduate, or
-  reviewer depth, and optionally compare it with verified related work.
+  Read one identified paper at beginner, graduate, or reviewer depth using a
+  bounded validated graph and produce one evidence-labelled note.
 triggers:
   - "workflow:research.explain"
   - "explain this paper"
@@ -14,112 +14,141 @@ triggers:
 provides:
   - paper-source-resolution
   - three-mode-explanation
-  - evidence-labelled-reading-note
-  - conditional-related-work-comparison
+  - bounded-worker-graph
+  - mandatory-related-method-attempts
 allowed_tools: [Read, Glob, Grep, Write, Edit, WebSearch, WebFetch]
-policies: [workspace-safety]
+policies: [workspace-safety, evidence-integrity]
 references:
   - doc: capability:scholar-search
 ---
 
 # paper-explanation
 
-## Source contract
+## Source and mode contract
 
-Accept a local PDF, arXiv identifier or URL, DOI, or paper URL. Preflight a local path
-before reading it. Resolve one unique paper and verify title, authors, year, venue,
-canonical URL, and research problem. Readable full text supports a complete explanation.
-When full text is unavailable, write a limited evidence-boundary note from verified
-identity and any canonical abstract; do not infer unseen methods, equations, figures,
-tables, or results.
+Accept a local PDF path, arXiv identifier or URL, DOI, or paper URL. Resolve one
+unique source identity and check readable full text. The coordinator must map public `mode` to internal
+`explanation_mode` without changing `beginner`, `graduate`, or `reviewer`; default to
+`graduate`. Mode changes emphasis only and never disables external research:
 
-Preserve extraction defects and absent material as explicit gaps. The limited note names
-the readable material, unsupported requested coverage, and recovery action and returns
-status `complete_with_gaps`. Request a better source without withholding this useful
-boundary record.
+- `beginner` emphasizes terminology, intuition, prerequisites, and analogies;
+- `graduate` balances equations, method mechanics, experiments, and reproduction;
+- `reviewer` emphasizes claim boundaries, validity, missing controls, and overclaiming.
 
-## Explanation modes
+If full text is unavailable, write a limited evidence-boundary note from verified
+identity and readable canonical material. Do not infer unseen methods, equations,
+figures, tables, or results. The result is a `status: partial`
+identity/evidence-boundary note; do not invent analysis.
 
-Use `graduate` by default:
+## Validated runtime bundle
 
-- `beginner` prioritises terminology, prerequisites, intuition, and careful analogies;
-- `graduate` balances method mechanics, equations, experiments, limitations, and
-  reproduction guidance;
-- `reviewer` prioritises assumptions, novelty boundaries, missing controls, validity,
-  statistical support, and overclaiming risk.
+Load `task-graph.yaml`, `paper-map.schema.json`, and `analysis-packet.schema.json`.
+The scheduler is `max_parallel: 15`, `max_attempts: 2`, nested delegation forbidden,
+and canonical result order by `task_id`. Effective concurrency is exactly
+`min(host_capacity, 15, ready_task_count)`.
 
-Ordinary beginner and graduate explanations do not require external research. Expand
-related research only in reviewer mode or the user explicitly requests comparison,
-similar methods, subsequent work, improvements, or current alternatives.
+The graph has five ordered runtime roles:
 
-## Best-effort execution
+1. `paper-indexer` returns the immutable PaperMap.
+2. `paper-analysis-worker` returns bounded paper or external AnalysisPackets.
+3. `paper-reasoning-worker` returns equation or claim-boundary AnalysisPackets.
+4. `explanation-evidence-auditor` returns advisory reviewer findings.
+5. `paper-explainer` is the sole final-note writer.
 
-The coordinator may perform the explanation directly or delegate bounded independent
-checks when useful. Delegation is adaptive: it has no required worker count, fixed
-dependency waves, or prescribed retry count. Lack of delegation capacity is not a
-reason to refuse an explanation that can be completed in the current session. A failed
-optional check becomes a named gap, while readable source-paper analysis continues.
+Profiles are `I0 -> [B1, B2, B3] -> S0` for beginner,
+`I0 -> [E1, L1, M1, R1, R2, X1] -> S0` for graduate, and
+`I0 -> [C1, E1, L1, M1, R1, R2, X1] -> A1 -> S0` for reviewer.
+The auditor runs in reviewer mode only.
 
-`paper-explainer` owns synthesis and the final destination. When the conditional
-external branch runs, reuse `literature-reviewer` for bounded discovery and comparison.
-No intermediate private runtime resource is required. Only the final owner receives the
-resolved destination, and at most one note is written.
-
-## Note contract
-
-Cover the requested portions of:
-
-1. paper identity and one-sentence takeaway;
-2. research problem, background, and prerequisites;
-3. core contributions and claim boundaries;
-4. method walkthrough;
-5. key equations with symbol definitions;
-6. experimental setup and results;
-7. limitations, failure modes, and reproduction notes;
-8. learning-check questions when useful; and
-9. sources and verification record.
-
-When the external branch runs, add similar or contemporary methods and subsequent,
-improved, or current alternatives. These sections are conditional, not filler required
-for an ordinary explanation.
-
-Use explicit evidence labels: `[Paper section ...]`, `[Equation ...]`,
-`[Figure ...]`, and `[Table ...]` for source-paper evidence; `[External: citation]`
-and `[External: official-code]` for verified external evidence; `[Interpretation]` for
-derivation, analogy, or assessment; and `[abstract-only]` for claims supported only by
-a verified external abstract. Never present interpretation as an author statement.
-
+Every profile always attempts external research. B3 covers both `similar-methods`
+and `current-methods`; R1 covers `similar-methods`; R2 covers `current-methods`.
+External workers record queries, providers, cutoff, every canonical source opened,
+rejected candidates, and failure reason. Search-result snippets are discovery only.
 For external work, verify a canonical page before inclusion and record title, year,
 link, relationship, concrete methodological difference, search date, and search scope.
-Discovery snippets are not evidence. Do not make unbounded latest or state-of-the-art
-claims.
 
-## Collision contract
+## Invocation and return contracts
+
+Indexer input contains exactly `task_id`, `attempt`, `explanation_mode`,
+`source_identity`, `full_text_ref`, and graph-declared `budget`. It returns one value
+validated against `paper-map.schema.json`.
+
+Worker input contains exactly `task_id`, `attempt`, graph-declared `task_scope`,
+`explanation_mode`, immutable PaperMap, `full_text_ref`, immutable
+`dependency_packets`, and graph-declared `budget`. It returns one value validated
+against `analysis-packet.schema.json`.
+
+Workers never receive `out`, a resolved output path, collision state, write tools, or
+mutable state. Claude and OpenCode project four mode-specific read-only agents. Codex
+attaches the complete private mode contract because it does not expose per-agent
+allowed_tools; that limitation does not disable independent workers.
+
+Every returned packet is checked with
+`evidraft paper-explanation validate-return --bundle <paper-explanation-bundle> --task-id <task-id> --attempt <attempt>`
+using the exact JSON on stdin, without a temporary project file.
+
+## Retry and degradation contract
+
+A timeout, execution failure, or schema-invalid return records an attempt reason.
+After attempt one, dispatch a fresh worker with identical immutable input, scope,
+dependencies, and budget except `attempt: 2`. After the second failure, return a
+failed packet and preserve both attempt reasons; never invent fallback prose.
+
+S0 still runs after terminal failures. Apply this decision table exactly:
+
+| Condition | Final behavior |
+|---|---|
+| Every selected task returns a valid complete packet | Write one note with `status: complete`. |
+| Any selected task fails, is unavailable, or has incomplete external coverage | Write one note with `status: partial`, named gaps, failed task IDs, and both attempt reasons. |
+| I0 cannot map readable full text | Write a limited `status: partial` identity/evidence-boundary note locally; do not invent analysis. |
+| Auditor reports any finding or fails | Preserve warnings/recovery guidance and continue synthesis; audit alone does not change complete to partial when all analysis packets are valid. |
+| Workspace, sensitive-path, unsafe-symlink, overwrite, or output-write safety fails | Return `status: error` and do not write. |
+
+Auditor findings use severity `info`, `warning`, or `error`. They are correction
+guidance and never include a blocking control flag. The contract is explicit: auditor findings cannot suppress
+synthesis. Scope and evidence-integrity are advisory. Workspace confinement,
+sensitive paths, unsafe symlink checks, overwrite authority, output-write safety, and
+external publication authority remain hard.
+
+## Sole-writer and collision contract
+
+Only `paper-explainer` receives the collision-safe resolved output path, validated
+values in canonical task order, retry history, failed IDs, optional advisory audit,
+and calculated status. It does not map, analyze, retrieve, repair, retry, or delegate.
 
 Never overwrite a non-empty note silently. Offer reuse, a unique dated sibling, or
-explicitly confirmed replacement. Re-check the target immediately before writing and
-perform at most one final write after workspace preparation.
+explicitly confirmed replacement. These choices map to `reuse`, `augment`, and
+`overwrite`; overwrite requires explicit confirmation. Re-check the path immediately before S0.
+If it became non-empty, repeat collision handling and output preparation. Write at
+most one note.
 
-## Status contract
+## Required note schema
 
-Return exactly one status:
+Every note contains these headings, with unavailable coverage named explicitly:
 
-- `complete` when the requested explanation was written from readable source evidence
-  without a material requested omission;
-- `complete_with_gaps` when a useful note was written but named source, optional-check,
-  or requested-comparison gaps remain;
-- `blocked` when source identity or a safe output destination cannot be established and
-  no note is written. Blocked is limited to unresolved paper identity or an unsafe output
-  destination.
+1. Paper identity and one-sentence takeaway
+2. Research problem and background
+3. Core contributions
+4. Method walkthrough
+5. Key equations and symbol-by-symbol explanations
+6. Experimental setup and results
+7. Limitations, failure modes, and conclusion boundaries
+8. Reproduction notes
+9. Similar methods
+10. Subsequent improvements and latest related methods
+11. Learning-check questions
+12. Sources and verification record
 
-An external-search shortfall requested by the user normally yields
-`complete_with_gaps`, not refusal, when the source-paper explanation remains useful.
+Use paper locators, external citation/code labels, `[Interpretation]`, and
+`[abstract-only]` accurately. Define every symbol in each explained equation. Present
+external evidence alongside, never as a replacement for, the authors' conclusion.
 
-## Quality checklist
+## Completion checklist
 
-- Source identity and readable full text were checked.
-- Claims are separated into paper, interpretation, and external evidence.
-- Every explained equation defines symbols or names the extraction gap.
-- Conditional external work is verified and bounded when requested.
-- Existing non-empty output is preserved without explicit replacement approval.
-- The final status and recovery action match the artefact actually produced.
+- Confirm the source identity and readable-full-text boundary.
+- Confirm every graph task became terminal within two attempts.
+- Confirm both external scopes were attempted and search metadata is complete.
+- Confirm advisory audit findings did not suppress synthesis.
+- Confirm the status is `complete`, `partial`, or hard-safety `error` by the table.
+- Confirm a partial note records named gaps, failed IDs, and both attempt reasons.
+- Confirm all workspace, sensitive-path, symlink, overwrite, output, and publication safety.

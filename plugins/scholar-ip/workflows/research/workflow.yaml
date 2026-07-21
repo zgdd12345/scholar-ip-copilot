@@ -56,11 +56,20 @@ actions:
     policies: []
     roles:
     - id: researcher
+      mode: paper-indexer
+      tier: standard
+    - id: researcher
+      mode: paper-analysis-worker
+      tier: standard
+    - id: researcher
+      mode: paper-reasoning-worker
+      tier: deep
+    - id: evidence-reviewer
+      mode: explanation-evidence-auditor
+      tier: standard
+    - id: researcher
       mode: paper-explainer
       tier: deep
-    - id: researcher
-      mode: literature-reviewer
-      tier: standard
     retention: {}
   deep:
     legacy_id: deepresearch

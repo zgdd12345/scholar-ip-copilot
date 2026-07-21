@@ -367,4 +367,10 @@ def test_v3_keeps_safety_only_preflight_and_restores_explanation_validation() ->
     assert evidraft.workflow_validate_paper_explanation_return is (
         core_module.workflow_validate_paper_explanation_return
     )
-    assert not hasattr(render_module, "_mode_agent_body")
+    assert callable(render_module._mode_agent_body)
+    assert render_module.PAPER_EXPLANATION_WORKER_MODES == (
+        "paper-indexer",
+        "paper-analysis-worker",
+        "paper-reasoning-worker",
+        "explanation-evidence-auditor",
+    )

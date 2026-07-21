@@ -47,7 +47,7 @@ def test_workflow_outputs_default_required_true_and_preserve_explicit_false(
     assert all(output["required"] is True for output in paper_check)
 
 
-def test_renderer_has_no_paper_explanation_task_graph_or_worker_agents(
+def test_renderer_copies_paper_explanation_graph_and_worker_agents(
     tmp_path: Path,
 ) -> None:
     out = tmp_path / "rendered"
@@ -55,20 +55,20 @@ def test_renderer_has_no_paper_explanation_task_graph_or_worker_agents(
 
     private = out / "private"
     capability = private / "capabilities/research/paper-explanation"
-    assert (capability / "spec.md").is_file()
-    for obsolete in (
+    for resource in (
+        "spec.md",
         "task-graph.yaml",
         "paper-map.schema.json",
         "analysis-packet.schema.json",
     ):
-        assert not (capability / obsolete).exists()
-    for obsolete in (
+        assert (capability / resource).is_file()
+    for worker in (
         "paper-indexer",
         "paper-analysis-worker",
         "paper-reasoning-worker",
         "explanation-evidence-auditor",
     ):
-        assert not (out / "agents" / f"{obsolete}.md").exists()
+        assert (out / "agents" / f"{worker}.md").is_file()
 
 
 def test_v3_plugin_schema_accepts_only_v3_manifest() -> None:
@@ -95,11 +95,8 @@ def test_v3_policy_declares_safety_blocking_and_advisory_audit_semantics() -> No
         "Bash:evidraft workflow prepare-output*",
         "Bash:evidraft workflow finalize*",
         "Bash:evidraft evidence audit*",
+        "Bash:evidraft paper-explanation validate-return*",
     } <= set(allowed_tools)
-    assert not any(
-        "paper-explanation validate-return" in tool
-        for tool in allowed_tools
-    )
 
 
 def test_v3_docs_publish_the_breaking_action_migration_without_data_migration() -> None:
@@ -127,9 +124,9 @@ def _bundle_sha256(root: Path) -> str:
     return digest.hexdigest()
 
 
-def test_v3_install_and_capability_index_drop_obsolete_research_contracts() -> None:
+def test_v3_install_and_capability_index_require_explanation_contracts() -> None:
     install_source = (ROOT / "src/evidraft/install.py").read_text()
-    obsolete = {
+    required = {
         "task-graph.yaml",
         "paper-map.schema.json",
         "analysis-packet.schema.json",
@@ -138,7 +135,7 @@ def test_v3_install_and_capability_index_drop_obsolete_research_contracts() -> N
         "paper-reasoning-worker.md",
         "explanation-evidence-auditor.md",
     }
-    assert not any(name in install_source for name in obsolete)
+    assert all(name in install_source for name in required)
 
     using_specs = (
         PLUGIN / "capabilities/research/using-scholar-ip-copilot/spec.md",

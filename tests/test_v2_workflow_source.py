@@ -78,9 +78,13 @@ MODE_ASSIGNMENTS = {
     "literature-reviewer": ("researcher", "standard"),
     "screener": ("researcher", "fast"),
     "paper-critic": ("researcher", "standard"),
+    "paper-indexer": ("researcher", "standard"),
+    "paper-analysis-worker": ("researcher", "standard"),
+    "paper-reasoning-worker": ("researcher", "deep"),
     "paper-explainer": ("researcher", "deep"),
     "deep-research-orchestrator": ("researcher", "deep"),
     "evidence-auditor": ("evidence-reviewer", "standard"),
+    "explanation-evidence-auditor": ("evidence-reviewer", "standard"),
     "consistency-checker": ("evidence-reviewer", "fast"),
     "codebase-analyst": ("code-reviewer", "standard"),
     "methodology-reviewer": ("code-reviewer", "standard"),
@@ -355,7 +359,7 @@ def test_workspace_safety_denies_the_complete_legacy_sensitive_set(path: str) ->
 def test_actions_reference_only_declared_roles_policies_and_tiers() -> None:
     roles = _load_yaml(PLUGIN_ROOT / "roles" / "roles.yaml")["roles"]
     declared_modes = [mode for role in roles.values() for mode in role["modes"]]
-    assert len(declared_modes) == len(set(declared_modes)) == 16
+    assert len(declared_modes) == len(set(declared_modes)) == 20
     assert set(declared_modes) == set(MODE_ASSIGNMENTS)
 
     for workflow_id in ROUTES:
@@ -384,37 +388,43 @@ def test_research_explain_declares_the_native_paper_note_contract() -> None:
     ]
     assert action["policies"] == []
     assert action["roles"] == [
+        {"id": "researcher", "mode": "paper-indexer", "tier": "standard"},
+        {"id": "researcher", "mode": "paper-analysis-worker", "tier": "standard"},
+        {"id": "researcher", "mode": "paper-reasoning-worker", "tier": "deep"},
+        {
+            "id": "evidence-reviewer",
+            "mode": "explanation-evidence-auditor",
+            "tier": "standard",
+        },
         {"id": "researcher", "mode": "paper-explainer", "tier": "deep"},
-        {"id": "researcher", "mode": "literature-reviewer", "tier": "standard"},
     ]
     assert action["retention"] == {}
 
 
-def test_research_explain_removes_fixed_worker_packet_interfaces() -> None:
+def test_research_explain_maps_public_mode_to_closed_worker_input_name() -> None:
     stage = (WORKFLOW_ROOT / "research/stages/explain.md").read_text(encoding="utf-8")
     spec = (
         PLUGIN_ROOT / "capabilities/research/paper-explanation/spec.md"
     ).read_text(encoding="utf-8")
     for document in (stage, spec):
-        for removed in (
-            "task-graph.yaml",
-            "paper-map.schema.json",
-            "analysis-packet.schema.json",
-            "task_id",
-            "dependency_packets",
-            "paper-indexer",
-            "paper-analysis-worker",
-            "paper-reasoning-worker",
-            "explanation-evidence-auditor",
-        ):
-            assert removed not in document
+        normalized = " ".join(document.split())
+        assert "map public `mode` to internal `explanation_mode`" in normalized
+        assert "task_id`, `attempt`, `explanation_mode`, `source_identity`" in normalized
+        assert "`task_id`, `attempt`, graph-declared `task_scope`" in normalized
 
 
-def test_research_explain_has_no_validate_return_runtime_command() -> None:
+def test_research_explain_validates_every_worker_return_without_temp_files() -> None:
     stage = (WORKFLOW_ROOT / "research/stages/explain.md").read_text(encoding="utf-8")
-    assert "paper-explanation validate-return" not in stage
-    assert "task graph" not in stage.lower()
-    assert "packet" not in stage.lower()
+    normalized = " ".join(stage.split())
+    command = (
+        "evidraft paper-explanation validate-return --bundle <paper-explanation-bundle> "
+        "--task-id <task-id> --attempt <attempt>"
+    )
+
+    assert command in normalized
+    assert "send the exact returned JSON on stdin" in normalized
+    assert "schema-invalid return consumes that attempt" in normalized
+    assert "temporary" in normalized and "file" in normalized
 
 
 def test_research_explain_preflights_local_pdf_before_any_read() -> None:
@@ -428,14 +438,13 @@ def test_research_explain_preflights_local_pdf_before_any_read() -> None:
     assert stage.index(command) < stage.index("Try to obtain readable full text")
 
 
-def test_research_explain_rechecks_collision_immediately_before_final_write() -> None:
+def test_research_explain_rechecks_collision_immediately_before_synthesis() -> None:
     stage = (WORKFLOW_ROOT / "research/stages/explain.md").read_text(encoding="utf-8")
     normalized = " ".join(stage.split())
 
-    assert "Never overwrite a non-empty note silently" in normalized
-    assert "collision-safe dated sibling" in normalized
-    assert "Immediately before the single final write, re-check the path" in normalized
-    assert "performs the single final write" in normalized
+    assert "Immediately before dispatching `S0`, re-check the resolved target" in normalized
+    assert "repeat the `reuse`, `augment`, or `overwrite` decision" in normalized
+    assert "narrow race remains between this final check and the single write" in normalized
 
 
 def test_research_explain_stage_enforces_the_complete_executable_contract() -> None:
@@ -445,15 +454,16 @@ def test_research_explain_stage_enforces_the_complete_executable_contract() -> N
     normalized_stage = " ".join(stage.split())
     assert "# workflow:research.explain" in stage
     for heading in (
-        "## 1. Resolve the source and destination",
-        "## 2. Explain adaptively",
-        "## 3. Expand related research conditionally",
-        "## 4. Write and report status",
+        "## Phase 1: Resolve source and output",
+        "## Phase 2: Load and validate the task graph",
+        "## Phase 3: Dispatch bounded dependency waves",
+        "## Phase 4: Calculate terminal status and synthesize",
+        "## Phase 5: Validate and report",
         "## Constraints",
         "## Done criteria",
     ):
         assert heading in stage
-    for collision_choice in ("`reuse`", "collision-safe dated sibling", "replacement"):
+    for collision_choice in ("`reuse`", "`augment`", "`overwrite`"):
         assert collision_choice in normalized_stage
     for label in (
         "[Paper section ...]",
@@ -473,12 +483,17 @@ def test_research_explain_stage_enforces_the_complete_executable_contract() -> N
         "workspace-safety"
     ]["tool_access"]["default_allowed_tools"]
     assert any(fnmatchcase(f"Bash:{prepare}", pattern) for pattern in allowed_tools)
-    assert "paper-explanation validate-return" not in normalized_stage
-    assert "complete_with_gaps" in normalized_stage
-    assert "blocked" in normalized_stage
+    validate_return = (
+        "evidraft paper-explanation validate-return "
+        "--bundle <paper-explanation-bundle> --task-id <task-id> --attempt <attempt>"
+    )
+    assert validate_return in normalized_stage
+    assert any(fnmatchcase(f"Bash:{validate_return}", pattern) for pattern in allowed_tools)
+    assert "status: partial" in normalized_stage
+    assert "both attempt reasons" in normalized_stage
 
 
-def test_research_explain_stage_declares_adaptive_delegation() -> None:
+def test_research_explain_stage_declares_bounded_graph_delegation() -> None:
     stage = (WORKFLOW_ROOT / "research/stages/explain.md").read_text(
         encoding="utf-8"
     )
@@ -487,12 +502,13 @@ def test_research_explain_stage_declares_adaptive_delegation() -> None:
         "beginner",
         "graduate",
         "reviewer",
-        "may explain directly or delegate bounded independent checks",
-        "no fixed cardinality, dependency waves, or retry count",
-        "literature-reviewer",
+        "task-graph.yaml",
+        "min(host_capacity, 15, ready_task_count)",
+        "max_attempts: 2",
+        "fresh worker",
+        "attempt: 2",
     ):
         assert token in normalized
-    assert "task-graph.yaml" not in normalized
 
 
 def test_research_explain_status_contract_is_deterministic() -> None:
@@ -501,31 +517,32 @@ def test_research_explain_status_contract_is_deterministic() -> None:
     )
     for token in (
         "complete",
-        "complete_with_gaps",
-        "blocked",
-        "concrete recovery action",
-        "limited evidence-boundary note",
+        "partial",
+        "error",
+        "identity/evidence-boundary note",
+        "auditor findings cannot suppress synthesis",
     ):
         assert token in normalized
 
 
-def test_research_explain_external_research_is_conditional() -> None:
+def test_research_explain_external_research_is_always_attempted() -> None:
     documents = (
         WORKFLOW_ROOT / "research/stages/explain.md",
         PLUGIN_ROOT / "capabilities/research/paper-explanation/spec.md",
     )
     for document in documents:
         normalized = " ".join(document.read_text(encoding="utf-8").split())
-        assert "reviewer mode or the user explicitly requests comparison" in normalized
-        assert "Ordinary beginner and graduate explanations do not require external research" in normalized
-        assert "External shortfalls" in normalized or "external-search shortfall" in normalized
+        assert "similar-methods" in normalized
+        assert "current-methods" in normalized
+        assert "always" in normalized.lower()
+        assert "ordinary beginner and graduate explanations do not require external research" not in normalized.lower()
 
 
-def test_research_explain_allows_direct_fallback_and_keeps_one_writer() -> None:
+def test_research_explain_degrades_to_synthesis_and_keeps_one_writer() -> None:
     normalized = " ".join(
         (WORKFLOW_ROOT / "research/stages/explain.md").read_text().split()
     )
-    assert "may explain directly" in normalized
-    assert "failed optional check becomes a reported gap" in normalized
-    assert "Only `paper-explainer` owns the resolved destination" in normalized
-    assert "performs the single final write" in normalized
+    assert "S0 still runs after terminal failures" in normalized
+    assert "auditor findings cannot suppress synthesis" in normalized
+    assert "Only `paper-explainer` receives the resolved output path" in normalized
+    assert "sole final-note writer" in normalized

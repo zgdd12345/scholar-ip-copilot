@@ -121,35 +121,31 @@ def test_paper_explanation_preserves_the_approved_research_and_collision_contrac
     ) in normalized
 
 
-def test_paper_explanation_spec_declares_the_adaptive_runtime_contract() -> None:
+def test_paper_explanation_spec_declares_the_bounded_runtime_contract() -> None:
     spec = CAPABILITIES / "research" / "paper-explanation" / "spec.md"
     normalized = " ".join(spec.read_text(encoding="utf-8").split())
 
     for token in (
         "paper-explainer",
-        "literature-reviewer",
-        "Ordinary beginner and graduate explanations do not require external research.",
-        "reviewer mode or the user explicitly requests comparison",
-        "no required worker count, fixed dependency waves, or prescribed retry count",
-        "complete",
-        "complete_with_gaps",
-        "blocked",
-        "failed optional check becomes a named gap",
-    ):
-        assert token in normalized
-
-    for removed in (
-        "task-graph.yaml",
-        "paper-map.schema.json",
-        "analysis-packet.schema.json",
         "paper-indexer",
         "paper-analysis-worker",
         "paper-reasoning-worker",
         "explanation-evidence-auditor",
-        "max_parallel",
-        "max_attempts",
+        "task-graph.yaml",
+        "min(host_capacity, 15, ready_task_count)",
+        "max_attempts: 2",
+        "similar-methods",
+        "current-methods",
+        "fresh worker",
+        "attempt: 2",
+        "complete",
+        "partial",
+        "both attempt reasons",
+        "auditor findings cannot suppress synthesis",
     ):
-        assert removed not in normalized
+        assert token in normalized
+
+    assert "Ordinary beginner and graduate explanations do not require external research." not in normalized
 
 
 def test_capability_tree_exposes_no_host_discoverable_skill_files() -> None:

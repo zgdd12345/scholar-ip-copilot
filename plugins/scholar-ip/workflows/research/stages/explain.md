@@ -1,100 +1,152 @@
 # workflow:research.explain
 
 Load the private [paper-explanation](../../../capabilities/research/paper-explanation/spec.md)
-spec. Load [scholar-search](../../../capabilities/research/scholar-search/spec.md) only
-when the conditional external-comparison branch is selected.
+contract and execute its validated graph. The coordinator must map public `mode` to internal
+`explanation_mode` without changing `beginner`, `graduate`, or `reviewer`.
+For external tasks, load the private
+[scholar-search](../../../capabilities/research/scholar-search/spec.md) contract.
 
-## 1. Resolve the source and destination
+## Phase 1: Resolve source and output
 
-1. Classify `source` before opening it. For a local PDF, run
-   `evidraft workflow preflight research.explain --read-target <source>` before reading
-   it. Resolve DOI, arXiv, and web identifiers through their canonical remote source.
-2. Resolve exactly one paper and verify title, authors, year, venue, canonical URL, and
-   research problem. Ask for a more precise identifier if identity is ambiguous.
-3. Try to obtain readable full text. Record unreadable equations, figures, tables,
-   appendices, or extraction defects as gaps; an abstract is not a substitute for full
-   text. When full text is unavailable, write a limited evidence-boundary note from
-   verified identity and any canonical abstract instead of refusing the whole action.
-4. Default `mode` to `graduate`. Derive a deterministic ASCII paper slug and resolve
-   `out` or `.evidraft/notes/paper-explanations/<paper-slug>.md`.
-5. Never overwrite a non-empty note silently. Offer `reuse`, a collision-safe dated
-   sibling, or explicitly confirmed replacement. Immediately before the single final
-   write, re-check the path and repeat this decision if it became non-empty.
-6. Run `evidraft workflow prepare-output research.explain --target <resolved-output>`
-   only after the concrete collision-safe path is known.
+1. Accept one local PDF path, arXiv identifier or URL, DOI, or paper URL. For a local PDF,
+   run `evidraft workflow preflight research.explain --read-target <source>`
+   before reading it. Do not pass a DOI, arXiv identifier or URL, or paper URL as
+   a local read target.
+2. Resolve one unique source identity and verify title, authors, year, venue, and
+   canonical URL. Try to obtain readable full text without inventing unavailable
+   sections, equations, figures, tables, or results.
+3. Resolve `out` or `.evidraft/notes/paper-explanations/<paper-slug>.md`. Never
+   overwrite a non-empty note silently. Offer `reuse`, `augment`, or `overwrite`;
+   replacement requires explicit confirmation and `augment` uses a unique dated sibling.
+4. Run `evidraft workflow prepare-output research.explain --target <resolved-output>`
+   only after the concrete collision-safe path is known. Workspace confinement,
+   sensitive paths, unsafe symlinks, overwrite authority, and external publication
+   authority are hard safety boundaries.
 
-## 2. Explain adaptively
+## Phase 2: Load and validate the task graph
 
-Build a best-effort explanation from the readable source portions. Cover the paper identity and
-takeaway, problem and prerequisites, contributions, method, key equations and symbols,
-experiments and results, limitations and claim boundaries, reproduction notes, and a
-verification record. Apply mode as emphasis:
+1. Load `task-graph.yaml`, `paper-map.schema.json`, and
+   `analysis-packet.schema.json` from the private paper-explanation bundle. Require
+   `max_parallel: 15`, `max_attempts: 2`, forbidden nested delegation, and canonical
+   result order by task ID. Do not improvise a graph or packet shape.
+2. Select exactly one graph profile:
+   - `beginner`: `I0 -> [B1, B2, B3] -> S0`;
+   - `graduate`: `I0 -> [E1, L1, M1, R1, R2, X1] -> S0`;
+   - `reviewer`: `I0 -> [C1, E1, L1, M1, R1, R2, X1] -> A1 -> S0`.
+3. Every profile schedules external research. `B3` always attempts both
+   `similar-methods` and `current-methods`; `R1` always attempts `similar-methods`
+   and `R2` always attempts `current-methods`.
+4. The four worker modes are `paper-indexer`, `paper-analysis-worker`,
+   `paper-reasoning-worker`, and `explanation-evidence-auditor`.
+   `paper-explainer` is the sole final-note writer.
 
-- `beginner`: terminology, intuition, prerequisites, and careful analogies;
-- `graduate`: method mechanics, equations, experiments, and reproduction guidance;
-- `reviewer`: assumptions, novelty boundaries, missing controls, validity, statistical
-  support, and overclaiming risk.
+## Phase 3: Dispatch bounded dependency waves
 
-Use `[Paper section ...]`, `[Equation ...]`, `[Figure ...]`, and `[Table ...]` for
-source evidence and `[Interpretation]` for reasoning not stated by the authors. Preserve
-uncertainty instead of filling unreadable or absent details.
+Claude and OpenCode dispatch each I0, analysis, reasoning, and audit task through
+the mode-specific agent whose identifier exactly matches the task graph. Codex does
+not expose per-agent allowed_tools in this projection, so attach the complete private
+mode spec and enforce it as contract enforcement, not a hard tool sandbox.
 
-If full text is unavailable, write a limited evidence-boundary note. Include verified
-bibliographic identity, the exact source material that was readable, an `## Evidence
-boundary` section, unsupported requested sections, and a concrete recovery action. Do
-not infer unseen methods, equations, figures, tables, or results. This note has status
-`complete_with_gaps`; it is not presented as a full-paper explanation.
+Dispatch ready tasks in lexical task-ID order with effective concurrency exactly
+`min(host_capacity, 15, ready_task_count)`. Wait for dependencies to become terminal
+before opening the next wave. Workers cannot receive the output path, write files, or
+dispatch a nested subagent.
 
-The coordinator may explain directly or delegate bounded independent checks when doing
-so improves quality and the host supports it. Delegation has no fixed cardinality,
-dependency waves, or retry count. A failed optional check becomes a reported gap; it
-does not force the whole explanation to stop. Only `paper-explainer` owns the resolved
-destination and performs the single final write.
+### IndexerInput
 
-## 3. Expand related research conditionally
+Dispatch I0 with exactly `task_id`, `attempt`, `explanation_mode`, `source_identity`,
+`full_text_ref`, and graph-declared `budget`. Its complete return validates against
+`paper-map.schema.json`.
 
-Expand beyond the source paper only in reviewer mode or the user explicitly requests
-comparison, similar methods, subsequent work, improvements, or current alternatives.
-Ordinary beginner and graduate explanations do not require external research.
+### WorkerInput
 
-For the expansion branch, use the reusable `literature-reviewer` and `scholar-search`
-contracts. Open a canonical source for every included work, verify title and authorship,
-record the search date and scope, distinguish abstract-only evidence, and state a
-concrete relationship to the source paper. Search-result snippets are discovery only.
-External shortfalls remain visible and never invalidate a useful source-paper analysis.
+Dispatch analysis, reasoning, and audit tasks with exactly `task_id`, `attempt`,
+graph-declared `task_scope`, `explanation_mode`, immutable validated PaperMap,
+`full_text_ref`, immutable `dependency_packets`, and graph-declared `budget`.
+Every return validates against `analysis-packet.schema.json`.
 
-## 4. Write and report status
+After every I0, analysis, reasoning, or audit return, run
+`evidraft paper-explanation validate-return --bundle <paper-explanation-bundle> --task-id <task-id> --attempt <attempt>`
+and send the exact returned JSON on stdin. Do not serialize a return through a
+temporary project file. A schema-invalid return consumes that attempt.
 
-Write at most one Markdown note. Include related-method sections only when the external
-branch ran. End the note and chat report with exactly one status:
+### Retry contract
 
-- `complete`: the requested explanation was written from readable source evidence with
-  no material requested coverage missing;
-- `complete_with_gaps`: a useful note was written, but unreadable source material,
-  unavailable optional checks, or requested external comparison left named gaps;
-- `blocked`: the paper cannot be identified or a safe collision-free destination cannot
-  be prepared, so no note is written.
+Record a reason for every timeout, execution failure, or schema-invalid return.
+After attempt one fails, dispatch a fresh worker with identical immutable input,
+scope, dependencies, and budget except `attempt: 2`. After attempt two fails,
+record a terminal failed packet and preserve both attempt reasons. Never repair a
+packet, broaden scope, or invent fallback prose.
 
-For `complete_with_gaps`, name missing coverage and a concrete recovery action. For
-`blocked`, report why identity or safe writing could not be established. Blocked is
-limited to unresolved paper identity or an unsafe output destination. Report the mode, verified
-source identity, concrete output path when written, whether external comparison ran,
-and final status.
+## Phase 4: Calculate terminal status and synthesize
+
+S0 still runs after terminal failures. Only `paper-explainer` receives the resolved
+output path, validated values in canonical task order, failure history, failed IDs,
+optional advisory audit, and calculated status.
+
+| Condition | Final behavior |
+|---|---|
+| Every selected task returns a valid complete packet | Write one note with `status: complete`. |
+| Any selected task fails, is unavailable, or has incomplete external coverage | Write one note with `status: partial`, named gaps, failed task IDs, and both attempt reasons. |
+| I0 cannot map readable full text | Write a limited `status: partial` identity/evidence-boundary note locally; do not invent analysis. |
+| Auditor reports any finding or fails | Preserve warnings/recovery guidance and continue synthesis; audit alone does not change complete to partial when all analysis packets are valid. |
+| Workspace, sensitive-path, unsafe-symlink, overwrite, or output-write safety fails | Return `status: error` and do not write. |
+
+The auditor runs only in reviewer mode. Its findings have severity `info`, `warning`,
+or `error`, are correction guidance, and never carry a blocking control flag.
+The contract is explicit: auditor findings cannot suppress synthesis. Scope and evidence-integrity are advisory;
+workspace confinement, sensitive paths, unsafe symlink checks, overwrite authority,
+output-write safety, and external publication authority remain hard.
+
+Immediately before dispatching `S0`, re-check the resolved target. If it became
+non-empty, repeat the `reuse`, `augment`, or `overwrite` decision and run
+`evidraft workflow prepare-output research.explain --target <resolved-output>` again.
+A narrow race remains between this final check and the single write and must be reported.
+
+Render these headings in order, naming unavailable coverage rather than inventing it:
+
+```markdown
+## 1. Paper identity and one-sentence takeaway
+## 2. Research problem and background
+## 3. Core contributions
+## 4. Method walkthrough
+## 5. Key equations and symbol-by-symbol explanations
+## 6. Experimental setup and results
+## 7. Limitations, failure modes, and conclusion boundaries
+## 8. Reproduction notes
+## 9. Similar methods
+## 10. Subsequent improvements and latest related methods
+## 11. Learning-check questions
+## 12. Sources and verification record
+```
+
+Use `[Paper section ...]`, `[Equation ...]`, `[Figure ...]`, `[Table ...]`,
+`[External: citation]`, `[External: official-code]`, `[Interpretation]`, and
+`[abstract-only]` according to the capability contract. Define every equation symbol.
+
+## Phase 5: Validate and report
+
+Validate source identity, full-text boundary, headings, labels, symbols, external
+search metadata, collision decision, retry history, failed IDs, and calculated status.
+Report output path when written, mode, search cutoff, both external included counts,
+rejected count, failed IDs, both attempt reasons, and final `complete`, `partial`, or
+`error` status.
 
 ## Constraints
 
-- Produce at most one Markdown note; do not modify BibTeX, evidence records,
-  manuscripts, or project status.
-- Never invent a paper, author, date, venue, URL, equation, symbol, result, locator, or
-  external relationship.
-- Do not claim comprehensive or newest coverage unless the performed search supports
-  that bounded statement.
+- Produce at most one Markdown note and never modify BibTeX, evidence records,
+  manuscript files, project status, or a non-empty note without overwrite authority.
+- Never fabricate identity, metadata, locators, equations, figures, tables, results,
+  external works, authors, dates, venues, DOIs, code, or URLs.
+- Always attempt the selected profile's similar/current external research.
+- Keep dispatch bounded to the validated task graph and preserve sole file ownership.
 
 ## Done criteria
 
-- Source identity and full-text availability were checked; missing full text produced an
-  explicit evidence-boundary note rather than invented detail.
-- The note clearly separates paper evidence, interpretation, and any external evidence.
-- Every explained equation defines its symbols or names the extraction gap.
-- Existing non-empty notes were preserved unless replacement was explicitly confirmed.
-- The report uses `complete`, `complete_with_gaps`, or `blocked` accurately.
+- All selected tasks became terminal within `max_attempts: 2`.
+- External scopes record queries, providers, cutoff, opened canonical sources,
+  rejected candidates, and failure reasons.
+- The note has the twelve headings and accurate evidence boundaries.
+- Terminal failures are visible as `status: partial` with failed IDs and both attempt reasons.
+- Auditor findings remain advisory and cannot suppress synthesis.
+- Hard path, sensitive-file, symlink, overwrite, output-write, and publication safety held.

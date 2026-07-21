@@ -31,6 +31,7 @@ policies:
         - 'Bash:evidraft workflow prepare-output*'
         - 'Bash:evidraft workflow finalize*'
         - 'Bash:evidraft evidence audit*'
+        - 'Bash:evidraft paper-explanation validate-return*'
       forbidden_tool_patterns:
         - 'Bash:rm -rf*'
         - 'Bash:sudo*'

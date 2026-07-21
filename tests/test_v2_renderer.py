@@ -89,21 +89,50 @@ def test_render_copies_native_paper_explanation_resources(tmp_path: Path, host: 
     )
     source = PLUGIN_ROOT / "capabilities/research/paper-explanation"
     rendered = private / "capabilities/research/paper-explanation"
-    assert (rendered / "spec.md").read_bytes() == (source / "spec.md").read_bytes()
-    for removed in (
+    for name in (
+        "spec.md",
         "task-graph.yaml",
         "paper-map.schema.json",
         "analysis-packet.schema.json",
+    ):
+        assert (rendered / name).read_bytes() == (source / name).read_bytes()
+    for mode in (
         "paper-indexer",
         "paper-analysis-worker",
         "paper-reasoning-worker",
         "explanation-evidence-auditor",
+        "paper-explainer",
     ):
-        if removed.endswith((".yaml", ".json")):
-            assert not (rendered / removed).exists()
-        else:
-            assert not (private / "roles" / "modes" / f"{removed}.md").exists()
-    assert (private / "roles" / "modes" / "paper-explainer.md").is_file()
+        assert (private / "roles" / "modes" / f"{mode}.md").is_file()
+
+
+@pytest.mark.parametrize(
+    "corruption",
+    ["cycle", "unknown-dependency", "unknown-mode", "second-writer"],
+)
+def test_renderer_rejects_invalid_paper_explanation_graph_before_output(
+    tmp_path: Path, corruption: str
+) -> None:
+    plugin = tmp_path / "plugin"
+    shutil.copytree(PLUGIN_ROOT, plugin)
+    graph_path = plugin / "capabilities/research/paper-explanation/task-graph.yaml"
+    graph = yaml.safe_load(graph_path.read_text(encoding="utf-8"))
+
+    if corruption == "cycle":
+        graph["profiles"]["beginner"]["dependencies"]["I0"] = ["S0"]
+    elif corruption == "unknown-dependency":
+        graph["profiles"]["beginner"]["dependencies"]["B1"] = ["Z9"]
+    elif corruption == "unknown-mode":
+        graph["tasks"]["I0"]["mode"] = "missing-mode"
+    else:
+        graph["tasks"]["B1"]["writes_final_note"] = True
+    graph_path.write_text(yaml.safe_dump(graph, sort_keys=False), encoding="utf-8")
+    out = tmp_path / "out"
+
+    with pytest.raises(ValueError):
+        render_plugin(plugin, out, Host.CLAUDE)
+
+    assert not out.exists()
 
 
 @pytest.mark.parametrize("missing", ["workflows/patent", "capabilities", "templates"])
@@ -146,7 +175,7 @@ def test_render_copies_private_stages_and_six_semantic_roles(tmp_path: Path, hos
     else:
         assert (out / "private" / "workflows" / "paper" / "stages" / "draft.md").is_file()
         assert (out / "private" / "roles" / "roles.yaml").is_file()
-        assert len(list((out / "agents").glob("*.md"))) == 6
+        assert len(list((out / "agents").glob("*.md"))) == 10
 
 
 @pytest.mark.parametrize("host", [Host.CLAUDE, Host.OPENCODE])
@@ -166,8 +195,61 @@ def test_rendered_agents_use_host_frontmatter(tmp_path: Path, host: Host) -> Non
         assert metadata["permission"]["bash"]["sudo*"] == "deny"
 
 
+READ_ONLY_WORKER_TOOLS = {
+    "paper-indexer": ["Read", "Glob", "Grep"],
+    "paper-analysis-worker": ["Read", "Glob", "Grep", "WebSearch", "WebFetch"],
+    "paper-reasoning-worker": ["Read", "Glob", "Grep"],
+    "explanation-evidence-auditor": ["Read", "Glob", "Grep", "WebFetch"],
+}
+
+
+@pytest.mark.parametrize("host", [Host.CLAUDE, Host.OPENCODE])
+def test_rendered_paper_workers_have_hard_mode_specific_tool_isolation(
+    tmp_path: Path, host: Host
+) -> None:
+    out = tmp_path / host.value
+    render_plugin(PLUGIN_ROOT, out, host)
+
+    for mode, allowed in READ_ONLY_WORKER_TOOLS.items():
+        agent = out / "agents" / f"{mode}.md"
+        metadata = yaml.safe_load(agent.read_text(encoding="utf-8").split("---", 2)[1])
+        body = agent.read_text(encoding="utf-8").split("---", 2)[2]
+        assert f"roles/modes/{mode}.md" in body
+        if host is Host.CLAUDE:
+            assert metadata["name"] == mode
+            assert metadata["model"] == "inherit"
+            assert metadata["tools"] == allowed
+        else:
+            enabled = {tool.lower() for tool in allowed}
+            assert metadata["mode"] == "subagent"
+            assert all(metadata["tools"][tool] is True for tool in enabled)
+            assert all(
+                metadata["tools"][tool] is False
+                for tool in {"write", "edit", "bash", "task"}
+            )
+            assert metadata["permission"] == {
+                "edit": "deny",
+                "bash": "deny",
+                "task": "deny",
+                "external_directory": "deny",
+            }
+
+
+@pytest.mark.parametrize("unsafe_tool", ["write", "eDiT", "tAsK", "bAsH:git status"])
+def test_renderer_rejects_case_insensitive_unsafe_paper_worker_tools(
+    tmp_path: Path, unsafe_tool: str
+) -> None:
+    plugin = tmp_path / "plugin"
+    shutil.copytree(PLUGIN_ROOT, plugin)
+    mode = plugin / "roles" / "modes" / "paper-indexer.md"
+    _set_mode_allowed_tools(mode, ["Read", unsafe_tool])
+
+    with pytest.raises(ValueError, match="worker mode is not read-only"):
+        render_plugin(plugin, tmp_path / "opencode", Host.OPENCODE)
+
+
 @pytest.mark.parametrize("host", list(Host))
-def test_rendered_explain_stage_uses_adaptive_delegation_without_fixed_workers(
+def test_rendered_explain_stage_uses_validated_graph_and_bounded_workers(
     tmp_path: Path, host: Host
 ) -> None:
     out = tmp_path / host.value
@@ -179,17 +261,12 @@ def test_rendered_explain_stage_uses_adaptive_delegation_without_fixed_workers(
     ).read_text(encoding="utf-8")
     normalized = " ".join(stage.split())
 
-    assert "may explain directly or delegate bounded independent checks" in normalized
-    assert "no fixed cardinality, dependency waves, or retry count" in normalized
-    assert "reviewer mode or the user explicitly requests comparison" in normalized
-    for removed in (
-        "paper-indexer",
-        "paper-analysis-worker",
-        "paper-reasoning-worker",
-        "explanation-evidence-auditor",
-        "task-graph.yaml",
-    ):
-        assert removed not in normalized
+    assert "task-graph.yaml" in normalized
+    assert "min(host_capacity, 15, ready_task_count)" in normalized
+    assert "max_attempts: 2" in normalized
+    assert "Claude and OpenCode" in normalized
+    assert "Codex does not expose per-agent allowed_tools" in normalized
+    assert "contract enforcement, not a hard tool sandbox" in normalized
 
 
 def test_claude_agents_union_only_their_registered_mode_tools(tmp_path: Path) -> None:
@@ -260,7 +337,7 @@ def test_claude_router_projects_each_action_tier_to_dispatch_model(tmp_path: Pat
 
 
 @pytest.mark.parametrize("host", list(Host))
-def test_rendered_router_leaves_dispatch_timing_and_cardinality_to_stage(
+def test_rendered_router_defers_explain_dispatch_to_validated_graph(
     tmp_path: Path, host: Host
 ) -> None:
     out = tmp_path / host.value
@@ -278,7 +355,8 @@ def test_rendered_router_leaves_dispatch_timing_and_cardinality_to_stage(
     assert "Never dispatch merely because an assignment exists" in normalized
     assert "research.explain" in normalized
     assert "selected procedure controls dispatch timing and cardinality" in normalized
-    assert "no fixed worker count, wave count, or retry count" in normalized
+    assert "validated task graph" in normalized
+    assert "bounded at 15" in normalized
 
 
 @pytest.mark.parametrize("host", list(Host))

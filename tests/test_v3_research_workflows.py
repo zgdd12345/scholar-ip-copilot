@@ -96,7 +96,7 @@ def test_deep_done_criteria_require_critique_only_in_full_mode() -> None:
     assert "only `mode=full` requires `critique/`" in stage
 
 
-def test_explain_is_best_effort_and_expands_research_conditionally() -> None:
+def test_explain_requires_graph_external_attempts_and_partial_degradation() -> None:
     workflow = _yaml(WORKFLOWS / "research" / "workflow.yaml")
     explain = workflow["actions"]["explain"]
     stage = _normalized(WORKFLOWS / "research" / "stages" / "explain.md")
@@ -104,51 +104,52 @@ def test_explain_is_best_effort_and_expands_research_conditionally() -> None:
     combined = f"{stage} {spec}"
 
     assert explain["roles"] == [
+        {"id": "researcher", "mode": "paper-indexer", "tier": "standard"},
+        {"id": "researcher", "mode": "paper-analysis-worker", "tier": "standard"},
+        {"id": "researcher", "mode": "paper-reasoning-worker", "tier": "deep"},
+        {
+            "id": "evidence-reviewer",
+            "mode": "explanation-evidence-auditor",
+            "tier": "standard",
+        },
         {"id": "researcher", "mode": "paper-explainer", "tier": "deep"},
-        {"id": "researcher", "mode": "literature-reviewer", "tier": "standard"},
     ]
-    assert "best-effort" in combined
-    assert "reviewer mode or the user explicitly requests comparison" in combined
-    assert (
-        "ordinary beginner and graduate explanations do not require external research" in combined
-    )
-    for status in ("complete", "complete_with_gaps", "blocked"):
-        assert status in combined
-    for obsolete in (
-        "task-graph",
-        "papermap",
-        "analysispacket",
-        "max_attempts",
-        "attempt two",
-        "delegation unavailable",
-        "mandatory external research",
-        "partial",
-        "incomplete",
+    for token in (
+        "task-graph.yaml",
+        "min(host_capacity, 15, ready_task_count)",
+        "similar-methods",
+        "current-methods",
+        "fresh worker",
+        "attempt: 2",
+        "status: partial",
+        "both attempt reasons",
     ):
-        assert obsolete not in combined
+        assert token in combined
+    assert "ordinary beginner and graduate explanations do not require external research" not in combined
+    assert "no fixed cardinality, dependency waves, or retry count" not in combined
 
 
-def test_obsolete_explanation_resources_and_modes_are_removed() -> None:
+def test_explanation_resources_and_modes_are_restored() -> None:
     for name in (
         "task-graph.yaml",
         "paper-map.schema.json",
         "analysis-packet.schema.json",
     ):
-        assert not (CAPABILITY / name).exists()
+        assert (CAPABILITY / name).is_file()
 
-    obsolete_modes = {
+    worker_modes = {
         "paper-indexer",
         "paper-analysis-worker",
         "paper-reasoning-worker",
         "explanation-evidence-auditor",
     }
-    for mode in obsolete_modes:
-        assert not (ROLES / "modes" / f"{mode}.md").exists()
+    for mode in worker_modes:
+        assert (ROLES / "modes" / f"{mode}.md").is_file()
 
     roles = _yaml(ROLES / "roles.yaml")["roles"]
     assigned_modes = {mode for role in roles.values() for mode in role.get("modes", [])}
-    assert obsolete_modes.isdisjoint(assigned_modes)
-    for retained in ("paper-explainer", "literature-reviewer"):
+    assert worker_modes <= assigned_modes
+    for retained in ("paper-explainer", *worker_modes):
         assert (ROLES / "modes" / f"{retained}.md").is_file()
         assert retained in assigned_modes
 
@@ -160,12 +161,18 @@ def test_explain_missing_full_text_writes_a_boundary_note() -> None:
 
     assert "full text is unavailable, write a limited evidence-boundary note" in combined
     assert "do not infer unseen methods, equations, figures, tables, or results" in combined
-    assert "status `complete_with_gaps`" in combined
-    assert (
-        "blocked is limited to unresolved paper identity or an unsafe output destination"
-        in combined
-    )
-    assert "readable full text is unavailable, or a safe" not in combined
+    assert "status: partial" in combined
+    assert "identity/evidence-boundary note" in combined
+    assert "do not invent analysis" in combined
+
+
+def test_explain_auditor_is_advisory_and_workspace_safety_remains_hard() -> None:
+    combined = f"{_normalized(WORKFLOWS / 'research/stages/explain.md')} {_normalized(CAPABILITY / 'spec.md')}"
+
+    assert "auditor findings cannot suppress synthesis" in combined
+    assert "scope and evidence-integrity are advisory" in combined
+    for token in ("workspace confinement", "sensitive paths", "overwrite", "external publication"):
+        assert token in combined
 
 
 def test_reading_list_network_failure_still_writes_a_boundary_note() -> None:
@@ -247,7 +254,7 @@ def test_deep_fast_skips_critique_and_audit_gaps_do_not_block() -> None:
         assert refusal not in combined
 
 
-def test_research_delegation_is_adaptive_without_fixed_scheduling() -> None:
+def test_research_explain_has_fixed_bounded_graph_while_deep_remains_adaptive() -> None:
     paths = [
         WORKFLOWS / "research" / "stages" / "explain.md",
         WORKFLOWS / "research" / "stages" / "deep.md",
@@ -257,7 +264,8 @@ def test_research_delegation_is_adaptive_without_fixed_scheduling() -> None:
     ]
     combined = " ".join(_normalized(path) for path in paths)
 
-    assert "no fixed cardinality, waves, or retry count" in combined
+    assert "min(host_capacity, 15, ready_task_count)" in combined
+    assert "max_attempts: 2" in combined
     assert "dispatch according to task independence" in combined
     assert "one pass per included paper" not in combined
     assert "dispatch sub-agents one stage at a time" not in combined

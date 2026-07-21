@@ -14,8 +14,11 @@ tiers:
       experiment-analyst: modes/experiment-analyst.md
       literature-reviewer: modes/literature-reviewer.md
       methodology-reviewer: modes/methodology-reviewer.md
+      paper-analysis-worker: modes/paper-analysis-worker.md
       paper-critic: modes/paper-critic.md
+      paper-indexer: modes/paper-indexer.md
       prose-polisher: modes/prose-polisher.md
+      explanation-evidence-auditor: modes/explanation-evidence-auditor.md
   deep:
     description: Correctness-critical synthesis, orchestration, novelty, and claims work.
     mode_specs:
@@ -23,6 +26,7 @@ tiers:
       deep-research-orchestrator: modes/deep-research-orchestrator.md
       novelty-critic: modes/novelty-critic.md
       paper-explainer: modes/paper-explainer.md
+      paper-reasoning-worker: modes/paper-reasoning-worker.md
       patent-engineer: modes/patent-engineer.md
 roles:
   researcher:
@@ -32,8 +36,11 @@ roles:
       - brainstormer
       - deep-research-orchestrator
       - literature-reviewer
+      - paper-analysis-worker
       - paper-critic
       - paper-explainer
+      - paper-indexer
+      - paper-reasoning-worker
       - screener
   evidence-reviewer:
     description: Audits citations, evidence records, supersession, and consistency.
@@ -41,6 +48,7 @@ roles:
     modes:
       - consistency-checker
       - evidence-auditor
+      - explanation-evidence-auditor
   code-reviewer:
     description: Maps technical and methodological claims to implementation evidence.
     default_tier: standard
